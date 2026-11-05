@@ -44,7 +44,7 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <header class="hero">
   <div class="eyebrow">Plan · part 3 of 5 · first-level task outline · 5 November 2026</div>
   <h1>Qotoba Workstreams</h1>
-  <p class="lede">Ten workstreams and 78 first-level tasks. Each task is sized, placed in a phase, tied to what it depends on, and given the proof that makes it done. This is the outline the Workbench's lanes and tasks are created from; the units under each task are planned by the session that takes it.</p>
+  <p class="lede">Ten workstreams and 82 first-level tasks. Each task is sized, placed in a phase, tied to what it depends on, and given the proof that makes it done. This is the outline the Workbench's lanes and tasks are created from; the units under each task are planned by the session that takes it.</p>
 </header>
 
 <section>
@@ -111,7 +111,7 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 </section>
 
 <section class="part lang">
-<div class="ws-head"><div><div class="eyebrow">Workstream 1</div><h2 id="ws1">Language core</h2></div><div class="sum">10 tasks · phases A to F · about 700 session-hours</div></div>
+<div class="ws-head"><div><div class="eyebrow">Workstream 1</div><h2 id="ws1">Language core</h2></div><div class="sum">11 tasks · phases A to F · about 900 session-hours</div></div>
 <p>The compiler's middle: everything between the syntax records the parser already produces and the Qotoba Core the emitters consume. Phases 5 to 8 of the language's own plan, then the later runtime phases.</p>
 <div class="tw"><table class="tasks wide">
 <thead><tr><th>ID</th><th>Task</th><th>Depends on</th><th>Phase · size</th><th>Proof</th></tr></thead>
@@ -126,11 +126,12 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS1-8</td><td><b>Interpreter.</b> Phase 6 on the new tree, running real framework objects, as the engine behind <code>qotoba run</code> for scripts and the later live loop.</td><td>WS1-5, WS5-1</td><td>F · <span class="size">L</span></td><td>The corpus runs on the interpreter with the same results as the emitted C#.</td></tr>
 <tr><td>WS1-9</td><td><b>Layers and overlays.</b> Phase 7: personal and session overlays as syntax records with a layer tag; keep and discard through the printer.</td><td>WS1-8</td><td>F · <span class="size">M</span></td><td>Ten brush edits in a session overlay leave the file untouched; Keep writes a one-line diff.</td></tr>
 <tr><td>WS1-10</td><td><b>Bytecode, debug runtime, telemetry.</b> Phases 9 to 11: per-function compilation, hot patching, spans attributed to syntax IDs.</td><td>WS1-8</td><td>F · <span class="size">XL</span></td><td>The brush trace from the Vision document runs end to end with its measured costs.</td></tr>
+<tr><td>WS1-11</td><td><b>The compiler in Qotoba (rung 7).</b> Binder, validator, distiller and emitters rewritten in Qotoba with the language-development intents; the previous compiler kept as the fixed bootstrap; then the parser the same way.</td><td>WS4-11, WS3-10</td><td>F · <span class="size">XL</span></td><td>The new compiler reproduces the previous one's output byte for byte on the whole corpus, then compiles itself; the self-host gate reads 100%.</td></tr>
 </tbody></table></div>
 </section>
 
 <section class="part lang">
-<div class="ws-head"><div><div class="eyebrow">Workstream 2</div><h2 id="ws2">Emitters and runtimes</h2></div><div class="sum">8 tasks · phases A to F · about 520 session-hours</div></div>
+<div class="ws-head"><div><div class="eyebrow">Workstream 2</div><h2 id="ws2">Emitters and runtimes</h2></div><div class="sum">9 tasks · phases A to F · about 560 session-hours</div></div>
 <p>From Qotoba Core to code a native developer would accept. C# first because the framework is C#; TypeScript second because the add-ins' UI is TypeScript. The other four targets are proved by shape only in this plan.</p>
 <div class="tw"><table class="tasks wide">
 <thead><tr><th>ID</th><th>Task</th><th>Depends on</th><th>Phase · size</th><th>Proof</th></tr></thead>
@@ -142,12 +143,13 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS2-5</td><td><b>extern bindings.</b> .NET types read live (exists); TypeScript types read from <code>.d.ts</code>; <code>extern</code> declarations mapped per emitter.</td><td>WS2-3</td><td>C · <span class="size">M</span></td><td>A widget calling a React library through extern emits and type-checks.</td></tr>
 <tr><td>WS2-6</td><td><b>Emitter review tooling.</b> The generated-code review page in the Workbench and the side-by-side panel in the add-ins, both reading provenance.</td><td>WS2-1, WS6-5</td><td>B–C · <span class="size">S</span></td><td>Clicking an emitted line selects its <code>.qo</code> source in both tools.</td></tr>
 <tr><td>WS2-7</td><td><b>Server emission.</b> <code>apiEndpoint</code>, <code>services</code> and <code>process</code> intents to ASP.NET minimal API hosting with the outbox and auth patterns KraveFlow needs.</td><td>WS3-4, WS5-8</td><td>D–E · <span class="size">L</span></td><td>KraveFlow's Agent Gateway module emits, hosts and passes its contract suite.</td></tr>
+<tr><td>WS2-9</td><td><b>Complexity corpus.</b> A fixed set of Qotoba programs in the language server's hardest shapes: an async JSON-RPC loop, generic handlers with constraints, interfaces with default members, exhaustive matching over protocol unions, records with provenance, a cancellation-aware pipeline. The gate that opens rung 4.</td><td>WS2-1, WS1-5</td><td>C–D · <span class="size">M</span></td><td>Every corpus program emits, builds with warnings as errors, and passes its checks; the gate reports green on the packet.</td></tr>
 <tr><td>WS2-8</td><td><b>Further targets by shape.</b> One corpus program emitted to Dart, Kotlin, Swift and Python through the same Core, enough to prove the emitter interface and the manifests.</td><td>WS2-4</td><td>F · <span class="size">L</span></td><td>Each target builds the corpus program with its native toolchain.</td></tr>
 </tbody></table></div>
 </section>
 
 <section class="part lang">
-<div class="ws-head"><div><div class="eyebrow">Workstream 3</div><h2 id="ws3">Intent libraries</h2></div><div class="sum">9 tasks · phases C to E · about 560 session-hours</div></div>
+<div class="ws-head"><div><div class="eyebrow">Workstream 3</div><h2 id="ws3">Intent libraries</h2></div><div class="sum">10 tasks · phases C to E · about 660 session-hours</div></div>
 <p>The vocabulary. Each library declares its keywords, rules, distiller, editors and telemetry, and is an ordinary set of source files. The order follows the self-hosting ladder: widgets, then services, then tools, then the data and process families the apps need.</p>
 <div class="tw"><table class="tasks wide">
 <thead><tr><th>ID</th><th>Task</th><th>Depends on</th><th>Phase · size</th><th>Proof</th></tr></thead>
@@ -161,12 +163,13 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS3-7</td><td><b>interaction and state machine.</b> The <code>interaction</code> unit replacing commands, with its component basket; state machines with explicit <code>ignore</code>.</td><td>WS3-2</td><td>D · <span class="size">M</span></td><td>Dope's card verbs are interactions with confirmation and undo from the basket.</td></tr>
 <tr><td>WS3-8</td><td><b>test.</b> Tests beside code over standard edge values per type; runs through the group runners and writes results files the Workbench reads.</td><td>WS3-1</td><td>C · <span class="size">M</span></td><td>A <code>test</code> block in a widget file appears as a unit's proving check in a packet.</td></tr>
 <tr><td>WS3-9</td><td><b>app.</b> App heads: console, desktop, mobile, server, IDE extension; the one-line head that MAUI apps already have, generalised.</td><td>WS3-2, WS3-3</td><td>D · <span class="size">M</span></td><td>Each of the four apps declares one <code>app</code> and builds a runnable head.</td></tr>
+<tr><td>WS3-10</td><td><b>Language-development intents.</b> <code>syntax</code> for lexer and parser rules, <code>finding</code> for diagnostics with family and message, <code>feature</code> for completion, hover, code actions, navigation and inlay hints over the compiler's lookups, and <code>emitter</code> for output templates. Designed against the language server rewrite so each intent is proved on a real tool.</td><td>WS1-5, WS2-9</td><td>D · <span class="size">L</span></td><td>Every feature of the hand-written language server has an equivalent declared as an intent; a new <code>feature</code> file adds an editor capability with no C# written.</td></tr>
 </tbody></table></div>
 </section>
 
 <section class="part ade">
-<div class="ws-head"><div><div class="eyebrow">Workstream 4</div><h2 id="ws4">Toolchain and IDE add-ins</h2></div><div class="sum">10 tasks · phases B to C · about 620 session-hours</div></div>
-<p>The ADE in its first public form. One CLI, one language server, one web UI, two shells, and the self-hosting rungs that turn the UI and the server's services into Qotoba source.</p>
+<div class="ws-head"><div><div class="eyebrow">Workstream 4</div><h2 id="ws4">Toolchain and IDE add-ins</h2></div><div class="sum">11 tasks · phases B to D · about 720 session-hours</div></div>
+<p>The ADE in its first public form. One CLI, one language server, one web UI, two shells, and the self-hosting rungs that turn the UI, then the server's services, then the whole server into Qotoba source.</p>
 <div class="tw"><table class="tasks wide">
 <thead><tr><th>ID</th><th>Task</th><th>Depends on</th><th>Phase · size</th><th>Proof</th></tr></thead>
 <tbody>
@@ -177,7 +180,8 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS4-5</td><td><b>Web UI bundle v1 (hand-written).</b> Project tree, intent inspector, generated-code view, Workbench inbox panel, in TypeScript and React, reading the server over JSON-RPC.</td><td>WS4-2</td><td>B · <span class="size">M</span></td><td>All four panels work in both hosts; the inbox panel answers a card end to end.</td></tr>
 <tr><td>WS4-6</td><td><b>Widget canvas preview.</b> The emitted C# widget rendered by a headless framework host to an image stream, shown in the canvas with device skins; the first step toward live preview.</td><td>WS4-5, WS5-6</td><td>C · <span class="size">L</span></td><td>Editing a widget's brush updates the preview within one second.</td></tr>
 <tr><td>WS4-7</td><td><b>Rung 2: the web UI in Qotoba.</b> Each panel rewritten as a <code>widget</code> and emitted as React, starting with the generated-code view; the hand-written bundle shrinks to the host shell.</td><td>WS2-3, WS3-2</td><td>C · <span class="size">L</span></td><td>Self-host gate reports the UI share; panels pass the same scripted checks as v1.</td></tr>
-<tr><td>WS4-8</td><td><b>Rung 3: the server's services in Qotoba.</b> Hover, completion, go-to and catalogue queries declared as <code>services</code> over the compiler API and emitted as C#; the protocol layer stays hand-written.</td><td>WS3-3</td><td>C · <span class="size">M</span></td><td>Self-host gate reports 50% or more across the toolchain.</td></tr>
+<tr><td>WS4-8</td><td><b>Rung 3: the server's services in Qotoba.</b> Hover, completion, go-to and catalogue queries declared as <code>services</code> over the compiler API and emitted as C#; the protocol layer stays hand-written until rung 4.</td><td>WS3-3</td><td>C · <span class="size">M</span></td><td>Self-host gate reports 45% or more across the toolchain.</td></tr>
+<tr><td>WS4-11</td><td><b>Rung 4: the whole language server in Qotoba.</b> The server rewritten in Qotoba, protocol layer included, using the language-development intents; all of its C# generated. The hand-written server stays in service, and the two run side by side, until the generated one passes the same smoke gate.</td><td>WS2-9, WS3-10</td><td>D · <span class="size">L</span></td><td>The generated server passes the add-in smoke gate in both IDEs with no hand-written C# in its folder; self-host gate reports 70% or more; the hand-written server is deleted.</td></tr>
 <tr><td>WS4-9</td><td><b>Debugging through emitted code.</b> <code>#line</code> maps, source-mapped TypeScript, launch configs, and a stepping test in both IDEs.</td><td>WS2-1, WS4-3, WS4-4</td><td>B · <span class="size">S</span></td><td>A breakpoint set on a <code>.qo</code> line stops in both IDEs with locals visible.</td></tr>
 <tr><td>WS4-10</td><td><b>Self-host ledger.</b> The measurement behind the gate: generated against hand-written lines per product per release, published on the docs home.</td><td>WS6-3</td><td>C · <span class="size">S</span></td><td>The ledger updates on every merge to master.</td></tr>
 </tbody></table></div>
@@ -216,7 +220,7 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS6-6</td><td><b>Slice 3: design review and code index.</b> The Roslyn code index replacing the catalogue scan, the API class view, widget mimics, and the stacked review screen.</td><td>in design</td><td>B–C · <span class="size">L</span></td><td>The surface gate turns on; the catalogue scan is retired.</td></tr>
 <tr><td>WS6-7</td><td><b>The IDE panel.</b> The inbox, the project page and the current packet as a panel in the add-ins, from the same web UI bundle.</td><td>WS4-5</td><td>B · <span class="size">M</span></td><td>A press in the IDE panel reaches the session exactly as a press on the web page does.</td></tr>
 <tr><td>WS6-8</td><td><b>Qotoba code index.</b> The code index extended to <code>.qo</code> sources through the compiler's lookups, so the surface gate and the agents see intents, not only C#.</td><td>WS6-6, WS1-2</td><td>C · <span class="size">M</span></td><td>"What exists for X" answers across C# and Qotoba in one query.</td></tr>
-<tr><td>WS6-9</td><td><b>Workbench pages in Qotoba (rung 4).</b> Page templates as <code>widget</code> intents; MCP tools as <code>tool</code> intents.</td><td>WS3-2, WS3-4</td><td>D · <span class="size">M</span></td><td>Self-host gate reports the Workbench share; every template renders identically.</td></tr>
+<tr><td>WS6-9</td><td><b>Workbench pages in Qotoba (rung 5).</b> Page templates as <code>widget</code> intents; MCP tools as <code>tool</code> intents.</td><td>WS3-2, WS3-4</td><td>D · <span class="size">M</span></td><td>Self-host gate reports the Workbench share; every template renders identically.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -232,7 +236,7 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td>WS7-4</td><td><b>Language reference as data.</b> The vocabulary, rules and examples of every intent library published as structured data that the Skills, the MCP server and the docs all read.</td><td>WS3-1</td><td>C · <span class="size">M</span></td><td>Adding an intent library updates the Skill, the MCP catalogue and the docs with no hand edit.</td></tr>
 <tr><td>WS7-5</td><td><b>Agent evaluation suite.</b> Scripted tasks (write a widget, add a source, fix a finding) run against the Skills and the MCP server; scored and trended.</td><td>WS7-1, WS7-2</td><td>C · <span class="size">M</span></td><td>A score on every Skills change; a regression is a gate warning.</td></tr>
 <tr><td>WS7-6</td><td><b>Agent in the IDE.</b> "Ask agent" in the inspector: a suggestion arrives as a session overlay the owner keeps or discards.</td><td>WS1-9, WS4-7</td><td>F · <span class="size">M</span></td><td>The brush example: the agent proposes a gradient, it previews, Keep writes the diff.</td></tr>
-<tr><td>WS7-7</td><td><b>Tools in Qotoba (rung 4).</b> The MCP server's own tools declared as <code>tool</code> intents.</td><td>WS3-4</td><td>D · <span class="size">S</span></td><td>The server's tool list is emitted, not hand-written.</td></tr>
+<tr><td>WS7-7</td><td><b>Tools in Qotoba (rung 5).</b> The MCP server's own tools declared as <code>tool</code> intents.</td><td>WS3-4</td><td>D · <span class="size">S</span></td><td>The server's tool list is emitted, not hand-written.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -272,14 +276,14 @@ table.tasks td:nth-child(3), table.tasks td:nth-child(4) { white-space: nowrap; 
 <tr><td><b>A · Foundations</b></td><td>WS0, WS1-1 to 1-4, WS2-1 start, WS5-1, WS6-1, 6-2, 6-4, WS7-1</td><td class="num">17</td><td class="num">550</td><td class="num">4–5</td></tr>
 <tr><td><b>B · First light</b></td><td>WS2-1, 2-2, 2-6, WS4-1 to 4-5, 4-9, WS5-2, WS6-3, 6-5, 6-6, 6-7, WS7-2, 7-3</td><td class="num">16</td><td class="num">600</td><td class="num">5</td></tr>
 <tr><td><b>C · Qotoba builds Qotoba</b></td><td>WS1-5 to 1-7, WS2-3 to 2-5, WS3-1 to 3-4, 3-8, WS4-6 to 4-8, 4-10, WS5-3 to 5-6, WS6-8, WS7-4, 7-5</td><td class="num">22</td><td class="num">750</td><td class="num">6</td></tr>
-<tr><td><b>D · Dope in Qotoba</b></td><td>WS3-5, 3-7, 3-9, WS8-1, 8-6, WS6-9, WS7-7, WS2-7 start</td><td class="num">8</td><td class="num">850</td><td class="num">7</td></tr>
+<tr><td><b>D · Dope in Qotoba</b></td><td>WS2-9, WS3-5, 3-7, 3-9, 3-10, WS4-11, WS8-1, 8-6, WS6-9, WS7-7, WS2-7 start</td><td class="num">11</td><td class="num">1,050</td><td class="num">8–9</td></tr>
 <tr><td><b>E · Production apps</b></td><td>WS8-2 to 8-5, WS2-7, WS3-6, WS5-8</td><td class="num">7</td><td class="num">1,500</td><td class="num">12</td></tr>
-<tr><td><b>F · Platform depth</b></td><td>WS1-8 to 1-10, WS2-8, WS5-7, 5-9, 5-10, WS7-6, WS9</td><td class="num">8</td><td class="num">continuous</td><td class="num">—</td></tr>
+<tr><td><b>F · Platform depth</b></td><td>WS1-8 to 1-11, WS2-8, WS5-7, 5-9, 5-10, WS7-6, WS9</td><td class="num">9</td><td class="num">continuous</td><td class="num">—</td></tr>
 </tbody></table></div>
 <p>The ordering rule that applies everywhere: a phase opens when the previous phase's exit criteria are green, and a task opens when its dependencies are merged, not when its predecessor is "nearly done". That is the Workbench's own rule, and the one the survey found most often broken.</p>
 </section>
 
-<footer>Qotoba documentation · workstreams · 5 November 2026 · 78 first-level tasks; units are planned by the session that takes each task.</footer>
+<footer>Qotoba documentation · workstreams · 5 November 2026 · 82 first-level tasks; units are planned by the session that takes each task.</footer>
 </main>
 </div>
 </body>
