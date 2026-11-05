@@ -1,0 +1,59 @@
+# Name screen, 2026-11-05
+
+Registries: npm, crates.io, PyPI (unauthenticated API, 404 = free). GitHub: github.com/<name> page. Domains: RDAP (Verisign for .com, Google for .dev, Identity Digital for .io, rdap.org for .ai).
+
+| name | github | npm | crates | pypi | .com | .dev | .io | .ai |
+|---|---|---|---|---|---|---|---|---|
+| andiq | taken | free | free | free | taken | free | free | taken |
+| anlaq | free | free | free | free | free | free | free | free |
+| arqot | free | free | free | free | taken | free | free | free |
+| awal | taken | taken | free | free | taken | taken | taken | taken |
+| ciptaq | free | free | free | free | free | free | free | free |
+| dialeq | free | free | free | free | taken | free | free | taken |
+| doyaq | free | free | free | free | taken | free | free | free |
+| eloq | taken | taken | free | free | taken | taken | taken | taken |
+| fundiq | taken | free | free | free | taken | free | taken | taken |
+| idioq | free | free | free | free | free | free | free | free |
+| jarq | taken | free | taken | free | taken | free | free | free |
+| kaqu | taken | free | free | free | taken | free | free | free |
+| lekhaq | taken | free | free | free | taken | free | free | free |
+| lexiq | taken | free | free | free | taken | taken | taken | taken |
+| likho | taken | taken | free | free | taken | free | taken | taken |
+| linqo | taken | free | free | free | taken | free | taken | taken |
+| majuq | taken | free | free | free | taken | free | free | free |
+| mozhiq | taken | free | free | free | free | free | free | free |
+| oyeq | free | free | free | free | taken | free | free | free |
+| polyqlot | taken | free | free | free | free | free | free | free |
+| qafza | taken | free | free | free | taken | taken | taken | free |
+| qal | taken | taken | free | taken | taken | free | taken | taken |
+| qanqa | taken | free | free | free | taken | free | free | free |
+| qapaq | taken | free | free | free | taken | free | free | free |
+| qelqa | taken | free | free | free | taken | free | free | free |
+| qhakaza | taken | free | free | free | taken | free | free | free |
+| qhapaq | taken | free | free | free | taken | free | taken | free |
+| qhuba | taken | free | free | free | taken | free | free | free |
+| qillqa | taken | free | free | free | taken | free | free | free |
+| qiniso | taken | free | free | free | taken | free | free | free |
+| qlot | taken | free | free | taken | taken | taken | taken | taken |
+| qonda | taken | free | free | taken | taken | free | taken | taken |
+| qonde | taken | free | free | free | taken | free | free | free |
+| qoqa | taken | free | free | free | taken | taken | taken | taken |
+| qoraal | free | free | free | free | taken | free | free | free |
+| qoral | taken | free | free | free | taken | taken | taken | taken |
+| qotoba | free | free | free | free | taken | free | free | free |
+| quba | taken | free | free | free | taken | taken | taken | taken |
+| qumba | taken | free | free | free | taken | free | free | free |
+| rimaq | taken | free | free | free | taken | free | free | free |
+| ruraq | taken | free | free | free | taken | free | free | free |
+| semaq | free | free | free | free | taken | free | free | free |
+| sitqa | taken | free | free | free | taken | free | free | free |
+| syntaq | taken | free | free | taken | taken | free | free | free |
+| tonq | taken | taken | free | free | taken | free | free | free |
+| uqaq | taken | free | free | free | taken | free | free | free |
+| vaq | taken | taken | free | free | taken | free | taken | taken |
+| vernaq | taken | free | free | free | taken | free | free | free |
+| xieq | taken | free | free | free | taken | free | free | free |
+| xook | taken | free | free | free | taken | free | taken | taken |
+| xoxa | taken | free | free | free | taken | free | taken | taken |
+| xoxaq | free | free | free | free | free | free | free | free |
+| yachaq | taken | free | free | free | taken | taken | taken | taken |
