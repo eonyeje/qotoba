@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quanta Baseline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/qotoba-docs.css">
+<style>
+.stack { display: flex; flex-direction: column-reverse; gap: 6px; font-family: var(--display); }
+.stack .ly { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--sunk); border: 1px solid var(--rule); border-left: 5px solid var(--fw); border-radius: 6px; padding: 9px 12px; font-size: 13px; color: var(--ink2); }
+.stack .ly b { font-size: 15px; color: var(--ink); }
+.stack .ly .ct { font-family: var(--mono); font-size: 12px; color: var(--ink3); text-align: right; white-space: nowrap; }
+.stack .ly.lang { border-left-color: var(--lang); } .stack .ly.apps { border-left-color: var(--apps); background: transparent; } .stack .ly.tools { border-left-color: var(--wb); border-style: dashed; }
+@media (max-width: 640px) { .stack .ly { grid-template-columns: minmax(0, 1fr); gap: 2px; } .stack .ly .ct { text-align: left; } }
+.bars { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr); gap: 6px 12px; font-family: var(--display); font-size: 13.5px; align-items: center; }
+.bars .l { color: var(--ink2); text-align: right; line-height: 1.25; }
+.bars .t { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bars .t i { display: block; height: 15px; border-radius: 2px; flex: none; }
+.bars .t span { font-variant-numeric: tabular-nums; color: var(--ink); font-size: 12.5px; white-space: nowrap; }
+@media (max-width: 560px) { .bars { grid-template-columns: minmax(0, 1fr); gap: 1px; } .bars .l { text-align: left; margin-top: 6px; } }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="../index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#why"><i></i>Why a baseline</a></li>
+    <li><a class="p" href="#numbers"><i></i>Quanta in numbers</a></li>
+    <li><a class="p" href="#rename"><i style="background:var(--accent)"></i>Quanta to Qotoba</a></li>
+    <li><a class="p" href="#framework"><i style="background:var(--fw)"></i>Framework</a></li>
+    <li><a class="p" href="#language"><i style="background:var(--lang)"></i>Language</a></li>
+    <li><a class="p" href="#workbench"><i style="background:var(--wb)"></i>Workbench</a></li>
+    <li><a class="p" href="#ade"><i style="background:var(--ade)"></i>ADE</a></li>
+    <li><a class="p" href="#apps"><i style="background:var(--apps)"></i>Applications</a></li>
+    <li><a class="p" href="#carry"><i></i>What carries, what retires</a></li>
+    <li><a class="p" href="#open"><i style="background:var(--bad)"></i>Open points inherited</a></li>
+  </ol>
+  <div class="back"><a href="programme.html">← Programme plan</a><br><a href="../index.html">← All documents</a></div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Plan · part 1 of 5 · baseline as of 5 November 2026</div>
+  <h1>Quanta Baseline</h1>
+  <p class="lede">Qotoba is the public, production version of the Quanta components. This page records what Quanta has today, from the two overview documents and the repository on master, so that the plan builds on measured ground and nothing is rebuilt that already exists.</p>
+  <div class="meta"><span>Sources: Quanta — The Complete Overview · Quanta — The Vision · Quanta Workbench tooling plan · master at <code>de7865f9</code></span></div>
+</header>
+
+<section>
+<h2 id="why">Why a baseline comes first</h2>
+<p>Quanta is about 387,000 lines of C# in 2,130 files, built by one developer directing many Claude sessions over a year. It has four parts in very different states: a large, proved Framework; a Language whose new front end is finished to the type model and whose back half exists only as design; a Workbench that is working and in daily use; and an early ADE. The plan's first rule is that Qotoba inherits all of it rather than starting over. The second rule is that each part moves to the public name only when its public shape is agreed, which is why this page separates built from designed from vision at every step.</p>
+<div class="note"><span class="eyebrow">Status key used throughout the plan</span><p><span class="st good">Built</span> in code on master with tests · <span class="st warn">In progress</span> partly built · <span class="st neutral">Designed</span> written down and agreed · <span class="st neutral vision">Vision</span> intended with no agreed design · <span class="st bad">Gap</span> a known fault or missing piece.</p></div>
+</section>
+
+<section>
+<h2 id="numbers">Quanta in numbers</h2>
+<div class="stats">
+  <div><b>387k</b><span>lines of C# in about 2,130 files, bin and obj excluded</span></div>
+  <div><b>500</b><span>requests and bugs in the registers: 222 open, 111 done, 22 in progress</span></div>
+  <div><b>237</b><span>owner rulings recorded in the Workbench, in the owner's own words</span></div>
+  <div><b>~130</b><span>test suites across 10 console runners, plus UI tests that drive a running app</span></div>
+  <div><b>2,545</b><span>checks on the language's new front end, 20 suites</span></div>
+  <div><b>547</b><span>checks on the Workbench, 16 suites, 38 MCP tools</span></div>
+  <div><b>55</b><span>Claude sessions surveyed August to October, about 378 hours with at least one running</span></div>
+  <div><b>14.7k</b><span>lines in ADE, 130 files, on the language's first front end</span></div>
+</div>
+<figure>
+  <figcaption style="margin:0 0 10px"><b>Where the code is.</b> C# files per group on master, counted on 5 November 2026. The Framework dominates; the Language is one twelfth of it and its back half is a few dozen files.</figcaption>
+  <div class="canvas"><div class="bars">
+    <span class="l">Applications</span><span class="t"><i style="width:100%;background:var(--apps)"></i><span>894</span></span>
+    <span class="l">CoreFramework</span><span class="t"><i style="width:62%;background:var(--fw)"></i><span>553</span></span>
+    <span class="l">UIFramework</span><span class="t"><i style="width:59%;background:var(--fw)"></i><span>531</span></span>
+    <span class="l">LanguageFramework</span><span class="t"><i style="width:37%;background:var(--lang)"></i><span>330</span></span>
+    <span class="l">Widgets</span><span class="t"><i style="width:30%;background:var(--fw)"></i><span>267</span></span>
+    <span class="l">ModelFramework</span><span class="t"><i style="width:20%;background:var(--fw)"></i><span>182</span></span>
+    <span class="l">DataFramework</span><span class="t"><i style="width:16%;background:var(--fw)"></i><span>140</span></span>
+    <span class="l">FrameworkTools</span><span class="t"><i style="width:13%;background:var(--wb)"></i><span>116</span></span>
+    <span class="l">AppFramework + Server</span><span class="t"><i style="width:2%;background:var(--fw)"></i><span>15</span></span>
+  </div></div>
+</figure>
+<p>Two more facts shape the plan. The Workbench survey measured 6.7 hours a day of Claude work across 56 days, with 302 incidents in 20 kinds, and it priced the eight worst patterns at about 50 hours of lost owner time. Estimates in person-days came out four to six times too long; the Workbench now estimates in Claude-minutes. The plan uses session-hours for the same reason.</p>
+</section>
+
+<section>
+<h2 id="rename">From Quanta to Qotoba: the component map</h2>
+<p>Each Quanta part becomes a Qotoba product with a public name. The mapping is one to one, with two additions that Quanta treats as sub-features and Qotoba treats as products in their own right: the IDE add-ins, and the agent surface.</p>
+<div class="tw"><table class="wide">
+<thead><tr><th>Quanta part</th><th>Qotoba product</th><th>Public name and home</th><th>What changes</th></tr></thead>
+<tbody>
+<tr><td><b>The Language</b> (Quanta.Parser, Quanta.Language)</td><td>Qotoba Language and Compiler</td><td><code>qotoba</code> CLI · <code>.qo</code> files · <code>qotoba/qotoba</code></td><td>The new parser carries over whole. The binder, validator, distiller and emitters are built under the new name from the start. "Primitive Quanta" becomes "Qotoba Core".</td></tr>
+<tr><td><b>The Framework</b> (Core to App groups)</td><td>Qotoba Framework</td><td>NuGet <code>Qotoba.*</code> · <code>qotoba/framework</code></td><td>Namespaces rename once the core redesign lands on master. The ten-lines-of-real-code rule and BREEO stay as the public design method.</td></tr>
+<tr><td><b>ADE</b> (Applications/QuantaADE)</td><td>Qotoba ADE</td><td>VS Code extension · Rider plugin · later a standalone app</td><td>The biggest change. ADE arrives first as add-ins inside Rider and VS Code, sharing one language server and one web UI. The standalone Quanta-written ADE is a later stage.</td></tr>
+<tr><td><b>The Workbench</b> (FrameworkTools/Quanta.Workbench)</td><td>Qotoba Workbench</td><td><code>qotoba/workbench</code> · also a panel inside the add-ins</td><td>Carries over as built. Gains language-aware gates, a generated-code review page and multi-repo projects.</td></tr>
+<tr><td>Workbench MCP and hooks (38 tools)</td><td>Qotoba Agents</td><td><code>@qotoba/mcp</code> · a Skills pack · hooks</td><td>New product. The language-aware MCP server, the Skills that teach agents to write Qotoba, and the hooks that keep generated code honest.</td></tr>
+<tr><td>Dope, KraveSoccer, Entrepreneur, CashManager</td><td>Qotoba applications</td><td>per-app repositories</td><td>Rewritten in Qotoba in a set order. KraveFlow joins as the first production backend.</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="part fw">
+<div class="eyebrow">Baseline</div>
+<h2 id="framework">The Framework</h2>
+<p>A UI and application framework written from the ground up in C#: its own values, events, collections, meta-elements, layout, rendering on Skia, data source and task engine. MAUI only hosts it. It pursues one target: a screen, process, query or model written in ten lines or fewer of code that is about the app, with everything else coming from a piece that already exists.</p>
+<div class="stack">
+  <div class="ly"><b>Core</b><span>primitives, collections, logging, Optional, Result, RunSync; values, events, meta-elements, settings; animations; resources; tasks and HTTP</span><span class="ct">553 files · 100.6k</span></div>
+  <div class="ly lang"><b>Language</b><span>Quanta.Parser (new front end), Quanta.Language (old front end), Interpreter, TypeBuilder, CodeGeneration, Runtime</span><span class="ct">330 files · 51.7k</span></div>
+  <div class="ly"><b>Data</b><span>queryable sources and expressions, data source and tables, EF Core bridge</span><span class="ct">140 files · 22.3k</span></div>
+  <div class="ly"><b>Server</b><span>Quanta.Azure; Google, Firebase and LLM SDKs to come</span><span class="ct">4 files</span></div>
+  <div class="ly"><b>Model</b><span>data models, collection processors, UX models, BPMN processes, decision models</span><span class="ct">182 files · 32.7k</span></div>
+  <div class="ly"><b>UI</b><span>Skia graphics, rendering, layout, input, components and modifiers, platform hosts, web UI</span><span class="ct">531 files · 90.8k</span></div>
+  <div class="ly"><b>Widgets</b><span>about 300 widget types; 970 factories, 918 extensions, 225 components</span><span class="ct">267 files · 61.3k</span></div>
+  <div class="ly"><b>App</b><span>Accounting; in time ERP, HR, gaming, onboarding, finance</span><span class="ct">11 files</span></div>
+  <div class="ly apps"><b>Applications</b><span>Dope, QuantaADE, CashManager, Entrepreneur, KraveSoccer, TestApps</span><span class="ct">894 files</span></div>
+  <div class="ly tools"><b>FrameworkTools</b><span>BindingAnalyzer, HttpApiGenerator, SyntaxElementGenerator, CodeBuilder, Catalogue, TestingTools, UiTestingTools, Workbench</span><span class="ct">116 files · 25.3k</span></div>
+</div>
+<p class="src">References flow one way, bottom to top. A reference that breaks the order is a bug in the registers, not precedent.</p>
+<h3>Status by concern</h3>
+<div class="tw"><table>
+<thead><tr><th>Concern</th><th>Quanta's answer</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>UI boilerplate</td><td>record declares, component works, extension attaches; bare factory calls such as <code>VStack([...])</code></td><td><span class="st good">Built</span></td></tr>
+<tr><td>Observable plumbing</td><td>eight source generators on Quanta.CodeBuilder</td><td><span class="st good">Built</span></td></tr>
+<tr><td>State in sync, refresh in place</td><td><code>Value&lt;T&gt;</code>, <code>Property&lt;T&gt;</code>, <code>Event&lt;T&gt;</code>; item sources update elements without replacing them</td><td><span class="st good">Built</span></td></tr>
+<tr><td>Lists and large lists</td><td>chained collections; VirtualModularCollection with 471 checks</td><td><span class="st good">Built</span> <span class="st neutral">one collection model designed</span></td></tr>
+<tr><td>Async work and HTTP</td><td>task models, RunSync; <code>[HttpApi]</code> interfaces with retry, breaker, cache, coalesce</td><td><span class="st good">Built</span> <span class="st warn">HTTP generator's last parts</span></td></tr>
+<tr><td>Errors, messages, theming, Skia rendering, catalogues, UI testing</td><td>Result&lt;T&gt;, ResourceId maps, Theme and styles, one drawn look, generated catalogues, suite runners</td><td><span class="st good">Built</span> <span class="st bad">catalogue scan can hang</span></td></tr>
+<tr><td>The core redesign</td><td>one construct for state, collections, data, widgets and tasks; in the console lab since 28 October, rulings D098 to D237</td><td><span class="st warn">In progress</span></td></tr>
+<tr><td>Render pipeline, test head, Avalonia host, 40 device services</td><td>plans with phases P0 to P7; Test Head as a second platform head; host switch deferred</td><td><span class="st neutral">Designed</span></td></tr>
+</tbody></table></div>
+<p>The redesign matters to Qotoba because the language's intents distil onto the framework: a `widget` becomes a UI element, a `schema` becomes data models, a `process` becomes a BPMN process. The redesign's lab has already settled the shapes the distiller will target: `partial` alone marks an observable member, processors on a value, one task type with runner chains, and simple composable collections. Lab benchmarks read 6 ns for a read through a handle and 25 ns for a write with one follower, with no allocation.</p>
+</section>
+
+<section class="part lang">
+<div class="eyebrow">Baseline</div>
+<h2 id="language">The Language</h2>
+<p>Quanta's own language exists so an application can be written as intent. Intent code distils into primitive code that runs on a runtime in debug and transpiles to C# for release. Two front ends exist today: the old one in <code>Quanta.Language</code>, which is the only code that runs a program and which ADE and the query layer use, and the new <code>Quanta.Parser</code>, 184 files and 21.8k lines, self-contained and referencing only Core.</p>
+<div class="diagram" style="--pc:var(--lang)">
+  <h4>The pipeline, built and designed</h4>
+  <div class="flow">
+    <div class="n hl"><b>Text</b>Project › Module › SourceCode, watching storage<span class="m">built</span></div>
+    <div class="n hl"><b>Lexer</b>hand-written, interpolation modes, incremental relex<span class="m">built</span></div>
+    <div class="n hl"><b>Parser</b>Pratt over 14 levels, one newline rule, recovery<span class="m">built · 44.5 → 4.1 ms</span></div>
+    <div class="n hl"><b>Syntax records</b>~99 sealed kinds, stable IDs<span class="m">built</span></div>
+    <div class="n hl"><b>Identity · Lookups · Types</b>IDs survive edits; reactive lookups; .NET types live<span class="m">built · 15–45 ms per edit</span></div>
+  </div>
+  <div class="flow" style="margin-top:6px">
+    <div class="n d"><b>Binder</b>bound module; API agreed<span class="m">designed · next</span></div>
+    <div class="n d"><b>Validator</b>QBND · QVAL findings<span class="m">designed</span></div>
+    <div class="n d"><b>Distiller</b>intent → primitive<span class="m">vision</span></div>
+    <div class="n d"><b>Interpreter · debug runtime</b>bytecode, hot patch<span class="m">vision</span></div>
+    <div class="n d"><b>Transpiler</b>C# first, five more targets<span class="m">vision</span></div>
+  </div>
+  <div class="cap">Solid: built on the new front end with 2,545 checks. Dashed: designed or vision. Nothing on the new tree runs a program yet; only the old front end does.</div>
+</div>
+<h3>The phase plan the language already has</h3>
+<div class="tw"><table>
+<thead><tr><th>Phase</th><th>Name</th><th>Detail</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td class="num">0</td><td>Lexer and parser</td><td>hand-written, recovery, printer</td><td><span class="st good">done</span></td></tr>
+<tr><td class="num">1</td><td>Syntax records</td><td>one record per kind, one validator with 98 checks</td><td><span class="st good">done</span></td></tr>
+<tr><td class="num">2</td><td>Identity</td><td>stable IDs across edits</td><td><span class="st good">done</span></td></tr>
+<tr><td class="num">3</td><td>Lookups</td><td>on Core's observable lookup</td><td><span class="st good">done</span></td></tr>
+<tr><td class="num">4</td><td>Types</td><td>.NET bridge, source and generic types</td><td><span class="st good">done</span></td></tr>
+<tr><td class="num">5</td><td>Binder</td><td>API agreed, nothing built</td><td><span class="st warn">next</span></td></tr>
+<tr><td class="num">6</td><td>Interpreter</td><td>runtime semantics decided here</td><td><span class="st neutral">later</span></td></tr>
+<tr><td class="num">7</td><td>Layers and overlays</td><td>stage blocks, keep and discard</td><td><span class="st neutral">later</span></td></tr>
+<tr><td class="num">8</td><td>Intent framework</td><td>six grammar shapes; intent = code generator</td><td><span class="st neutral">later</span></td></tr>
+<tr><td class="num">9–11</td><td>Bytecode compiler, debug runtime, telemetry</td><td>hot patcher; attribution to source</td><td><span class="st neutral">later</span></td></tr>
+<tr><td class="num">12</td><td>Transpiler to C#</td><td>retires the old front end</td><td><span class="st neutral">later</span></td></tr>
+<tr><td class="num">13+</td><td>Intent libraries</td><td>services, schema, process, widget, measure</td><td><span class="st neutral">later</span></td></tr>
+</tbody></table></div>
+<p>What the design has settled: 52 reserved keywords and 16 contextual words; a syntax that reads like Swift or Kotlin; one naming rule where <code>typedef</code>, <code>intent</code> and <code>syntax</code> all bind with <code>=</code>; intents as plain classes with one <code>build(name)</code> method; four domain syntaxes (UI, process, data, schema) sharing modifier chains, <code>match</code>, <code>|&gt;</code> and trailing lambdas; reactivity in the type system through <code>bind</code> and <code>observe</code>; <code>extern</code> for platform contracts; four injection sources (<code>environment</code>, <code>services</code>, <code>config</code>, <code>vault</code>); and a context cascade.</p>
+<p>What the design has not settled, and what Qotoba must settle first: the error-handling model, the async and concurrency model, nullability, and generics with constraints. The Vision document calls these "the four foundations" and notes that the standard library zoning and the transpiler capability manifests all wait on them. The sources also disagree on the file extension (<code>.qnt</code> against <code>.qn</code> and <code>.q</code>), the keywords (<code>func</code>/<code>let</code> against <code>fn</code>/<code>val</code>), and whether <code>config</code> is an intent or a built-in source.</p>
+</section>
+
+<section class="part wb">
+<div class="eyebrow">Baseline</div>
+<h2 id="workbench">The Workbench</h2>
+<p>An ASP.NET Core minimal API over SQLite on <code>localhost:5190</code>, with a single-page front end, reached by sessions as an MCP server with 38 tools and through hooks on every session event. It holds rulings, cards, pages, tasks, units, gates, stages and packets; sessions act on git only after the owner presses a button. Slices 1 and 2 are built and merged, with 16 suites and about 547 checks. Slice 3 (design review on a Roslyn code index, an API class view, widget mimics) and slice 4 (prototypes drawn from widget code) are designed.</p>
+<div class="tw"><table>
+<thead><tr><th>Mechanism</th><th>What it does today</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Brief</td><td>project, worktree, goal, attached task, open cards, recent answers, twelve rulings, how to work</td><td><span class="st good">Built</span></td></tr>
+<tr><td>Cards and pages</td><td>one decision per card; anything long is a sealed, versioned page; templates for commit, merge, push, questions, packet</td><td><span class="st good">Built</span></td></tr>
+<tr><td>Tasks, units, runs</td><td>estimate in Claude-minutes; units name their proving checks; runners write results files</td><td><span class="st good">Built</span></td></tr>
+<tr><td>Five gates</td><td>suites, timing, screen, surface, parity; stage and packet worked out from data</td><td><span class="st good">Built</span> <span class="st warn">timing and surface gates wait on benchmarks and the code index</span></td></tr>
+<tr><td>Night shift</td><td>three sessions, 22:00 to 07:00, approved by a card</td><td><span class="st good">Built</span> <span class="st bad">never run on its own</span></td></tr>
+<tr><td>Commit, merge, push</td><td>three presses; what git reports is shown, never acted on</td><td><span class="st good">Built</span> <span class="st bad">assumes a branch is one task</span></td></tr>
+<tr><td>Health, ID allocator, register sync</td><td>findings, one allocator past every branch's numbers</td><td><span class="st good">Built</span> <span class="st bad">39 IDs clash, 141 items unregistered</span></td></tr>
+<tr><td>Design review, code index, mimics</td><td>slice 3</td><td><span class="st neutral">Designed</span></td></tr>
+</tbody></table></div>
+<p>The 38 MCP tools, as loaded in this session: brief_get, projects_list and projects_create, lanes_propose, tasks_create, tasks_list, tasks_update and tasks_attach, units_plan and units_update, items_create, items_get, items_search, items_update and items_assign, ids_allocate, unregistered_list and unregistered_propose, registers_row, registers_history and registers_clashes, decisions_record and decisions_search, cards_send, cards_get and cards_withdraw, queue_ask and queue_answers, pins_list, pins_reply and pins_resolve, pages_write, keeps_set, merge_propose, results_record, gates_get, session_progress, worktrees_register.</p>
+</section>
+
+<section class="part ade">
+<div class="eyebrow">Baseline</div>
+<h2 id="ade">ADE</h2>
+<p>A visual development environment of 130 files in four projects, written against the framework and running on the language's first front end. It has a project tree, typed designers for classes, interfaces, extensions and enums, a widget design surface with device skins, an inspector, palettes of 18 widgets and 14 modifiers, and Build, Generate Quanta, Generate C# and Run commands.</p>
+<div class="note risk"><span class="eyebrow">What ADE cannot do yet</span><ul>
+<li>Opens one built-in sample project and nothing else; no open or save.</li>
+<li>The code editor is a plain native text box: no colouring, findings, completion or line numbers.</li>
+<li>Generated code goes only to the log; no debugging and no test running.</li>
+<li>Runs on the first front end; moving it to the new parser is a registered task of about ten days with no design document.</li>
+<li>No charter, brief, architecture or design document on any branch; no owner ruling names ADE.</li>
+</ul></div>
+<p>The vision for ADE is one tool, written in Quanta, with six reactive editors over one source (text, widget canvas, inspector, process, schema, query), session and personal overlays, hot apply, and six debug views keyed by provenance. None of that is built. This is why the plan reorders ADE: the editors arrive first inside Rider and VS Code, where a language server and a web UI give most of the value at a fraction of the cost, and the standalone tool follows once the language can write it.</p>
+</section>
+
+<section class="part apps">
+<div class="eyebrow">Baseline</div>
+<h2 id="apps">The applications</h2>
+<div class="tw"><table>
+<thead><tr><th>App</th><th>What it is</th><th>Size today</th><th>What it has taught the framework</th></tr></thead>
+<tbody>
+<tr><td><b>Dope</b></td><td>media library: movies, TV, people, collections; TMDb, TVDB, OMDb, YouTube, Radarr, Sonarr, Streaming Availability</td><td>447 C# files in Quanta; a parallel WinUI rebuild of 278 files with 1,140 checks</td><td>the main driver: 15 design documents, 13 suites, seven HTTP APIs, the library optimisation (6.7 s to 360 ms), most of the redesign's real cases</td></tr>
+<tr><td><b>KraveSoccer</b></td><td>a football app</td><td>14 files in Quanta; 253 files in the Dialect-era version; a 2023 Flutter shell</td><td>a light second app shape; the mobile case</td></tr>
+<tr><td><b>Entrepreneur</b></td><td>business simulation game with a map</td><td>36 files in Quanta (App, AppUi, Simulation)</td><td>custom render widgets and simulation models</td></tr>
+<tr><td><b>CashManager</b></td><td>budgeting</td><td>25 files</td><td>element forms and the shared Accounting app type</td></tr>
+<tr><td><b>KraveFlow</b></td><td>agent-agnostic ordering layer for distributors, resellers on WhatsApp, ERP as record, bank escrow; 15 modules plus a foundation, architecture draft v0.1 of 9 October 2026</td><td>no code yet; a full Level 2 design</td><td>the first production backend; the agent gateway exposes its tools as OpenAPI and MCP from one definition</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="carry">What carries over, what retires</h2>
+<div class="cmp">
+  <div><h4 style="color:var(--good)">Carries over as is</h4><ul>
+    <li>Quanta.Parser: lexer, parser, records, printer, identity, lookups, type model, generators, 2,545 checks</li>
+    <li>The Framework groups and their suites, catalogues and generators</li>
+    <li>The Workbench: schema, 38 tools, hooks, templates, gates, night shift</li>
+    <li>CLAUDE.md's working method: BREEO, §16 screen design, the registers, ten lines of real code</li>
+    <li>The language's agreed designs: naming rule, intents, domain syntax, reactivity, injection, extern</li>
+    <li>KraveFlow's architecture draft</li>
+  </ul></div>
+  <div><h4 style="color:var(--bad)">Retires or is replaced</h4><ul>
+    <li>The old front end (Quanta.Language, 109 files) once ADE and the query layer move; seven known bugs close with it</li>
+    <li>The Reflection.Emit type builder and the old interpreter, replaced by the C# emitter and later the new interpreter</li>
+    <li>ADE's native text box, replaced by the language server in the IDE</li>
+    <li>The catalogue scan, replaced by a code index</li>
+    <li>Quanta namespaces, renamed to Qotoba on a planned date</li>
+  </ul></div>
+</div>
+</section>
+
+<section>
+<h2 id="open">Open points the plan inherits</h2>
+<p>The two overview documents end with lists of undecided points. The plan does not decide them; it schedules them. Each appears again on the <a href="programme.html#decisions">decisions list</a> with the stage that needs it.</p>
+<ul>
+  <li>The four language foundations: error handling, async and concurrency, nullability, generics with constraints.</li>
+  <li>The file extension and the keyword set, where sources disagree.</li>
+  <li>Whether the Workbench moves into ADE, or ADE's panels move into the Workbench, or both share one web UI.</li>
+  <li>ADE has no charter; the acronym is never expanded.</li>
+  <li>The night shift has never run on its own; measured minutes read zero on every task; the commit flow assumes a branch is one task.</li>
+  <li>39 register IDs clash across four branches; 141 unregistered items wait.</li>
+  <li>How Dope's WinUI rebuild relates to the framework, and how its findings reach the registers.</li>
+  <li>When to move the platform host from MAUI to Avalonia, and the 40 device-service contracts.</li>
+  <li>KraveFlow's six open questions: bank capabilities, agent usage metering, dispute window, first ERP adapter, data residency, rate card.</li>
+</ul>
+</section>
+
+<footer>Qotoba documentation · plan part 1 of 5 · baseline compiled 5 November 2026 from the Quanta overview documents and master; counts as last recorded, not re-run.</footer>
+</main>
+</div>
+</body>
+</html>

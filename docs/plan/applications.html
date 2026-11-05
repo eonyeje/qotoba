@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qotoba Applications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/qotoba-docs.css">
+<style>
+.part { margin-top: 56px; --pc: var(--apps); }
+.kv { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 6px 16px; font-size: 15px; margin: 14px 0; max-width: 900px; }
+.kv dt { font-family: var(--display); font-weight: 700; color: var(--ink3); font-size: 13px; padding-top: 2px; }
+.kv dd { margin: 0; }
+@media (max-width: 520px) { .kv { grid-template-columns: minmax(0, 1fr); } .kv dd { margin-bottom: 8px; } }
+.intents { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+.intents span { font-family: var(--mono); font-size: 12px; background: var(--sunk); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; color: var(--ink2); }
+.intents span.new { border-color: var(--lang); color: var(--lang); }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="../index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#order"><i style="background:var(--apps)"></i>The order and why</a></li>
+    <li><a class="p" href="#shape"><i></i>What an app looks like in Qotoba</a></li>
+    <li><a class="p" href="#dope"><i></i>Dope</a></li>
+    <li><a class="p" href="#kravesoccer"><i></i>KraveSoccer</a></li>
+    <li><a class="p" href="#entrepreneur"><i></i>Entrepreneur</a></li>
+    <li><a class="p" href="#kraveflow"><i></i>KraveFlow</a></li>
+    <li><a class="p" href="#parity"><i></i>Parity and conformance</a></li>
+    <li><a class="p" href="#teaches"><i></i>What each app teaches</a></li>
+  </ol>
+  <div class="back"><a href="programme.html">← Programme plan</a><br><a href="../index.html">← All documents</a></div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Plan · part 5 of 5 · the applications · 5 November 2026</div>
+  <h1>Qotoba Applications</h1>
+  <p class="lede">Four applications are rewritten in Qotoba: Dope, the media library that already drives the framework; KraveSoccer, a football app; Entrepreneur, a business simulation game; and KraveFlow, a production ordering platform for distributors and their resellers. Each is a parity exercise against something that exists, and each teaches the platform something the others cannot.</p>
+</header>
+
+<section class="part">
+<div class="eyebrow">Sequence</div>
+<h2 id="order">The order and why</h2>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 960 230" role="img" aria-label="Four app boxes in order left to right, Dope then KraveSoccer then Entrepreneur then KraveFlow, each annotated with the platform capability it proves: framework parity, mobile head, custom rendering and simulation, server and agent gateway. KraveFlow's backend lane starts earlier, shown as a dashed box beneath.">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="12.5" fill="currentColor">
+      <rect x="20" y="40" width="200" height="90" rx="10" fill="none" style="stroke:var(--apps)" stroke-width="2"/><text x="120" y="66" text-anchor="middle" font-weight="900" font-size="15">1 · Dope</text><text x="120" y="86" text-anchor="middle" font-size="11.5">phase D · desktop</text><text x="120" y="104" text-anchor="middle" font-size="11.5">proves: framework parity,</text><text x="120" y="120" text-anchor="middle" font-size="11.5">schema · source · view · widget</text>
+      <rect x="260" y="40" width="200" height="90" rx="10" fill="none" style="stroke:var(--apps)" stroke-width="2"/><text x="360" y="66" text-anchor="middle" font-weight="900" font-size="15">2 · KraveSoccer</text><text x="360" y="86" text-anchor="middle" font-size="11.5">phase E · mobile</text><text x="360" y="104" text-anchor="middle" font-size="11.5">proves: the phone head,</text><text x="360" y="120" text-anchor="middle" font-size="11.5">device services, small app shape</text>
+      <rect x="500" y="40" width="200" height="90" rx="10" fill="none" style="stroke:var(--apps)" stroke-width="2"/><text x="600" y="66" text-anchor="middle" font-weight="900" font-size="15">3 · Entrepreneur</text><text x="600" y="86" text-anchor="middle" font-size="11.5">phase E · desktop game</text><text x="600" y="104" text-anchor="middle" font-size="11.5">proves: simulation models,</text><text x="600" y="120" text-anchor="middle" font-size="11.5">custom rendering, process intents</text>
+      <rect x="740" y="40" width="200" height="90" rx="10" fill="none" style="stroke:var(--apps)" stroke-width="2"/><text x="840" y="66" text-anchor="middle" font-weight="900" font-size="15">4 · KraveFlow</text><text x="840" y="86" text-anchor="middle" font-size="11.5">phase E · server + web console</text><text x="840" y="104" text-anchor="middle" font-size="11.5">proves: services, apiEndpoint, tool,</text><text x="840" y="120" text-anchor="middle" font-size="11.5">process, TypeScript target in production</text>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" marker-end="url(#ar)"><line x1="220" y1="85" x2="258" y2="85"/><line x1="460" y1="85" x2="498" y2="85"/><line x1="700" y1="85" x2="738" y2="85"/></g>
+      <rect x="500" y="160" width="440" height="44" rx="8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="6 4"/><text x="720" y="179" text-anchor="middle" font-size="12" font-weight="700">KraveFlow backend lane starts in phase D</text><text x="720" y="195" text-anchor="middle" font-size="11" opacity=".8">services, schema and process intents on Qotoba.Server, before the console and before onboarding any principal</text>
+      <line x1="840" y1="130" x2="840" y2="158" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Each app opens one capability.</b> The order is by what the platform can prove at the time, not by commercial priority; KraveFlow's backend starts early as a lane because its modules need no UI to be tested.</figcaption>
+</figure>
+<p>Dope goes first for three reasons that no other app has: it is the framework's existing test bench with 15 design documents and 13 suites to compare against; it has a parallel WinUI rebuild with 1,140 checks that define its behaviour independently of the framework; and its screens already cover the hardest cases, from a 1,356-movie virtual library to seven HTTP providers. If Qotoba can write Dope, it can write an application. KraveSoccer follows because it is small and forces the mobile head. Entrepreneur follows because its simulation and map need the process family and custom drawing, which Dope never touches. KraveFlow is last to onboard a principal because it is production, but its backend modules start as soon as the services family exists, because they are the cleanest test of server emission.</p>
+<div class="note"><span class="eyebrow">A decision for the owner (Q-09)</span><p>If commercial pressure puts KraveFlow ahead of Entrepreneur, the plan holds: KraveFlow's backend lane already starts in phase D, and the console can take Entrepreneur's slot. Nothing in Entrepreneur is on KraveFlow's path.</p></div>
+</section>
+
+<section>
+<h2 id="shape">What an app looks like in Qotoba</h2>
+<p>Every app is the same set of intent families, in files a developer can read top to bottom. The framework owns the how; the app declares the what. The target is the one Quanta already sets: ten lines or fewer of real code per screen, process, query or model.</p>
+<div class="tw"><table class="wide">
+<thead><tr><th>Family</th><th>Declares</th><th>Distils to</th><th>Emits (C#)</th><th>Emits (TypeScript)</th></tr></thead>
+<tbody>
+<tr><td><code>app</code></td><td>the head: kind, name, services, theme, first page</td><td>the one-line app head</td><td>a MAUI or server host project</td><td>a React entry or an extension manifest</td></tr>
+<tr><td><code>schema</code> · <code>table</code></td><td>typed tables, links, invariants, derived columns, migrations</td><td>data models</td><td>EF Core entities and migrations</td><td>typed records</td></tr>
+<tr><td><code>source</code></td><td>HTTP providers with retry, cache, paging, error shapes</td><td>the <code>[HttpApi]</code> provider</td><td>the generated client and tasks</td><td>a typed fetch client</td></tr>
+<tr><td><code>view</code></td><td>queries as clauses over tables and sources</td><td>queryable expressions</td><td>the query builders</td><td>selectors</td></tr>
+<tr><td><code>widget</code></td><td>inputs, state, body, modifiers</td><td>UI elements and components</td><td>records, components, extensions</td><td>React function components</td></tr>
+<tr><td><code>interaction</code></td><td>semantics, presentation, execution, basket</td><td>commands with confirmation, undo, history</td><td>the command collection</td><td>handlers with the same basket</td></tr>
+<tr><td><code>process</code></td><td>flows: sequence, gateways, tasks, waits, compensation</td><td>BPMN processes</td><td>the BPM engine's definitions</td><td>—</td></tr>
+<tr><td><code>services</code> · <code>config</code></td><td>the registry, lifetimes, stage overrides, settings</td><td>injection</td><td>.NET DI registrations</td><td>InversifyJS bindings</td></tr>
+<tr><td><code>apiEndpoint</code> · <code>tool</code></td><td>typed endpoints; MCP tools with schemas</td><td>handlers</td><td>minimal API routes; tool handlers</td><td>OpenAPI and MCP schemas</td></tr>
+<tr><td><code>test</code></td><td>checks beside the code</td><td>suite groups</td><td>runner suites with results files</td><td>vitest cases</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="part">
+<div class="eyebrow">Application 1 · phase D</div>
+<h2 id="dope">Dope</h2>
+<dl class="kv">
+  <dt>What it is</dt><dd>A media library for movies, TV, people and collections, drawing on TMDb, TVDB, OMDb, YouTube, Radarr, Sonarr and Streaming Availability. 1,356 movies and 237 collections in the reference library.</dd>
+  <dt>Reference versions</dt><dd>The Quanta version, 447 files, 13 suites, 15 design documents; and the WinUI rebuild, 278 files, 919 console checks and 221 UI checks, written in Quanta's shape with no Quanta library.</dd>
+  <dt>Target</dt><dd>Desktop, C# on the Qotoba framework, through the MAUI host until Q-13 moves it.</dd>
+  <dt>Bars to meet</dt><dd>Library opens within 500 ms; no 5 to 7 second freeze after the library answers; the eleven remedies' gains held.</dd>
+</dl>
+<p>Intent families Dope uses, with the ones it introduces to the programme marked:</p>
+<div class="intents"><span>app</span><span class="new">schema</span><span class="new">source ×7</span><span class="new">view</span><span>widget</span><span class="new">interaction</span><span>services</span><span>test</span></div>
+<h3>Shape of the rewrite</h3>
+<ol class="prose">
+  <li><b>Schema and sources first.</b> The seven APIs become <code>source</code> declarations carrying what the <code>[HttpApi]</code> attributes carry today: rate interval, bearer credential, JSON error shapes, cache, coalesce, paging. The 33 hand-written TMDb response classes become generated records. Proof: Dope's data suites pass against the emitted client.</li>
+  <li><b>Views.</b> The library, dashboard and collection queries become <code>view</code> declarations with clauses. Proof: the same rows in the same order as the Quanta queries, timed.</li>
+  <li><b>Screens by the §16 walk.</b> Each page is designed as view trees, a model outline, queries and delivery before it is written as a <code>widget</code>. Movies page, movie page, person cards, the card rail, the collections tab, settings. Proof: screen gate against the Quanta version's screenshots; the ten-lines measure per screen.</li>
+  <li><b>Verbs as interactions.</b> The card verbs with confirmation and undo from the basket, built lazily as the lazy-verb finding requires. Proof: the 130 MB per visit saving holds.</li>
+  <li><b>The head.</b> One <code>app</code> declaration. Proof: the app starts from emitted code with no hand-written C# in the app folder.</li>
+</ol>
+<p>What stays hand-written during the rewrite: nothing in the app. A framework gap found on the way is a register item in framework terms, and the screen waits for it rather than working around it. That rule produced most of the redesign's real cases, and it is the only way the ten-lines target stays honest.</p>
+</section>
+
+<section class="part">
+<div class="eyebrow">Application 2 · phase E</div>
+<h2 id="kravesoccer">KraveSoccer</h2>
+<dl class="kv">
+  <dt>What it is</dt><dd>A football app. The Quanta version is a light second app shape of 14 files; the Dialect-era version, 253 files in Core and UI projects, holds the fuller feature set; a 2023 Flutter shell exists with no code.</dd>
+  <dt>Reference version</dt><dd>The Dialect version for features; the Quanta version for the current framework shape.</dd>
+  <dt>Target</dt><dd>Mobile first: Android and iOS from one Qotoba source through the C# target and the mobile head. Dart and Flutter are the natural second target once WS2-8 proves the emitter shape, which makes KraveSoccer the test case for the second platform.</dd>
+</dl>
+<div class="intents"><span>app (mobile)</span><span>schema</span><span>source</span><span>view</span><span>widget</span><span>interaction</span><span class="new">environment (device)</span><span class="new">device services</span><span>test</span></div>
+<p>KraveSoccer opens the phone: the <code>environment</code> source filled with device model and battery, push notifications, and whichever of the 40 device services the feature list needs first. It is deliberately small so that the mobile head and the first device contracts are proved on an app that fits in a week of nights. Its feature list is recovered from the Dialect code before design starts, as a parity page, so nothing is dropped.</p>
+</section>
+
+<section class="part">
+<div class="eyebrow">Application 3 · phase E</div>
+<h2 id="entrepreneur">Entrepreneur</h2>
+<dl class="kv">
+  <dt>What it is</dt><dd>A business simulation game with a map. Three Quanta projects: App, AppUi and Simulation, 36 files; a five-file remnant in the Jargon repository.</dd>
+  <dt>Reference version</dt><dd>The Quanta simulation and its suite; the Entrepreneur design system page for the visual target.</dd>
+  <dt>Target</dt><dd>Desktop, C# on the framework; custom render widgets for the map through <code>extern</code> drawing onto the Skia surface.</dd>
+</dl>
+<div class="intents"><span>app</span><span>schema</span><span class="new">process</span><span class="new">state machine</span><span>widget</span><span class="new">extern (drawing)</span><span>interaction</span><span>test</span></div>
+<p>Entrepreneur is where the process family and the state machines earn their place: a simulated year is a process with timed events, a market is a state machine with explicit <code>ignore</code> policies, and the map is a widget whose body draws through extern calls to the graphics layer. It also tests a kind of app the ten-lines rule finds hardest, where the real code is the simulation itself. Proof is a full simulated year producing the same outcomes as the Quanta suite, and the map rendering through the headless host within its frame budget.</p>
+</section>
+
+<section class="part">
+<div class="eyebrow">Application 4 · backend lane from phase D, console in phase E</div>
+<h2 id="kraveflow">KraveFlow</h2>
+<dl class="kv">
+  <dt>What it is</dt><dd>An agent-agnostic integration layer that lets distributors and manufacturers in Nigeria sell to their resellers through AI agents on WhatsApp, SMS and email, while their ERP stays the system of record and a partner bank holds the money in escrow. Fifteen modules plus a platform foundation; architecture draft v0.1 of 9 October 2026, owned by KraveX Limited.</dd>
+  <dt>Reference</dt><dd>The architecture draft: Level 1 and Level 2 designs, key flows, two state machines, the data model, deployment as a modular monolith on .NET with PostgreSQL and row-level security, and its non-functional targets.</dd>
+  <dt>Agent platform</dt><dd>Lua, or any agent that can call REST or MCP tools. The agent owns the conversation; KraveFlow owns every fact and action, and never does the maths in the agent.</dd>
+  <dt>Target</dt><dd>Server: C# through Qotoba.Server (minimal API, outbox, OAuth2, signed links, audit). Admin console: TypeScript through the widget intent. Driver link: a web page from the same widgets.</dd>
+</dl>
+<div class="intents"><span class="new">app (server)</span><span>schema</span><span>view</span><span class="new">services ×15 modules</span><span class="new">apiEndpoint</span><span class="new">tool (MCP + OpenAPI)</span><span class="new">process</span><span>state machine</span><span>widget → TS</span><span>test</span></div>
+<h3>Phase 1 as the architecture defines it</h3>
+<p>The ordering core: Agent Gateway with REST and MCP from one definition, Identity and invites, Catalogue, Orders, Integration Hub with one ERP adapter and the shared back office, Messaging, direct payment through virtual accounts, Tenant Admin basics, Billing metering with Zoho sync. Escrow, the driver link and OTP, Customer Service, Promotions with campaigns and tenant reporting are phase 2; remaining adapters, dedicated cells and platform analytics are phase 3.</p>
+<h3>Why KraveFlow is the best server case</h3>
+<ul>
+  <li><b>The gateway is a <code>tool</code> intent made real.</b> KraveFlow's own design says the tool API, as OpenAPI and MCP from the same definitions, is the product. One Qotoba declaration emitting a handler, a JSON schema and an OpenAPI operation is exactly that.</li>
+  <li><b>Its flows are processes.</b> Order to cash, delivery and escrow release, service escalation, onboarding and monthly billing are drawn as sequence diagrams in the draft; they become <code>process</code> declarations, and the Order and Escrow state machines become state machines with explicit policies.</li>
+  <li><b>Its foundation is the framework's server group.</b> Transactional outbox, webhook ingress with signature checks, OAuth2 and OIDC, tenant isolation, append-only audit: these are WS5-8, built once as Qotoba.Server and reused by every server app after.</li>
+  <li><b>Its targets are measurable.</b> p95 read under 800 ms, quote under 2.5 s, zero lost orders, zero cross-tenant reads, 99.9% gateway availability. The parity page for KraveFlow is its non-functional table, run in a staging cell.</li>
+</ul>
+<div class="note risk"><span class="eyebrow">Production rules</span><ul>
+<li>No principal is onboarded until phase 1 passes its non-functional targets in a staging cell and the emitted C# has been reviewed as C# by the owner through the generated-code review page.</li>
+<li>The bank holds the money. KraveFlow's ledger is instructions and bank confirmations, never balances, in Qotoba as in the draft.</li>
+<li>KraveFlow's six open questions (bank capabilities, agent metering, dispute window, first ERP adapter, data residency, rate card) are decision cards of their own, asked when the backend lane opens.</li>
+</ul></div>
+</section>
+
+<section>
+<h2 id="parity">Parity and conformance</h2>
+<p>Every rewrite is judged by the parity gate, which already exists, and by two measures the programme adds. The parity page template lists the reference version's features and checks beside the Qotoba version's, with screenshots side by side for screens and the non-functional table for servers.</p>
+<div class="tw"><table>
+<thead><tr><th>App</th><th>Parity reference</th><th>Checks to match</th><th>Extra bar</th></tr></thead>
+<tbody>
+<tr><td><b>Dope</b></td><td>Quanta version (UI) and WinUI rebuild (behaviour)</td><td>13 suites; 919 + 221 WinUI checks</td><td>library opens within 500 ms; ten lines per screen</td></tr>
+<tr><td><b>KraveSoccer</b></td><td>Dialect version's feature list; Quanta version's shape</td><td>a parity page recovered from the Dialect code</td><td>runs on a phone from emitted code</td></tr>
+<tr><td><b>Entrepreneur</b></td><td>Quanta simulation suite</td><td>a full simulated year</td><td>map within frame budget headless</td></tr>
+<tr><td><b>KraveFlow</b></td><td>architecture draft's modules, flows and state machines</td><td>contract suites per module; the non-functional table</td><td>staging cell targets before any principal</td></tr>
+</tbody></table></div>
+<p>The two added measures: <b>real-code lines per screen</b>, reported on every packet and in the ledger, with thirty as the number that reports a framework gap; and <b>accepted framework gaps in app code</b>, which must read zero, because an app that works around the framework is hiding the finding the rewrite exists to surface.</p>
+</section>
+
+<section>
+<h2 id="teaches">What each app teaches the platform</h2>
+<div class="cards">
+  <article style="--pc:var(--apps)"><h3>Dope</h3><p>Whether the schema, source, view and widget families can carry a real data application, and whether the framework's refresh-in-place and virtual loading survive being declared instead of written.</p></article>
+  <article style="--pc:var(--apps)"><h3>KraveSoccer</h3><p>Whether the mobile head and the first device services work from one source, and whether the emitter shape holds for a second platform when Dart arrives.</p></article>
+  <article style="--pc:var(--apps)"><h3>Entrepreneur</h3><p>Whether processes, state machines and extern drawing read as one language with the UI, and whether a simulation can be real code without breaking the ten-lines rule for its screens.</p></article>
+  <article style="--pc:var(--apps)"><h3>KraveFlow</h3><p>Whether services, endpoints, tools and processes emit a production server that meets numbers, and whether one declaration can serve an agent, a console and an audit at once.</p></article>
+</div>
+<p>Together they cover every kind of app the founding requirements name except console tools, OS services and data science, which the <code>app</code> family leaves room for and which phase F can add without a new application.</p>
+</section>
+
+<footer>Qotoba documentation · applications · 5 November 2026 · app facts from the Quanta overview documents and the KraveFlow architecture draft v0.1.</footer>
+</main>
+</div>
+</body>
+</html>

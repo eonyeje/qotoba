@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qotoba Naming Decision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/qotoba-docs.css">
+<style>
+.names { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 20px 0; font-family: var(--display); }
+.names div { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; background: var(--surface); font-size: 13.5px; color: var(--ink2); min-width: 0; }
+.names div b { display: block; font-size: 17px; color: var(--ink); }
+.names div.chosen { border-color: var(--good); box-shadow: inset 4px 0 0 var(--good); }
+.names div.out { opacity: .75; }
+.names div .why { display: block; margin-top: 4px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#decision"><i style="background:var(--good)"></i>The decision</a></li>
+    <li><a class="p" href="#origin"><i></i>Origin and pitch</a></li>
+    <li><a class="p" href="#availability"><i></i>Availability</a></li>
+    <li><a class="p" href="#namespace"><i></i>Namespace scheme</a></li>
+    <li><a class="p" href="#rejected"><i></i>Names rejected</a></li>
+    <li><a class="p" href="#actions"><i></i>Registrations to make</a></li>
+  </ol>
+  <div class="back"><a href="index.html">← All documents</a></div>
+</nav>
+
+<main>
+<header class="hero" id="decision">
+  <div class="eyebrow">Decision record · 5 November 2026</div>
+  <h1>Qotoba Naming Decision</h1>
+  <p class="lede"><b>Qotoba</b> is the public name of the project previously code-named Quanta 2.0, and before that Jargon and Dialect. The name was chosen after a screen of 53 candidates across package registries, GitHub, ten domain endings and the web.</p>
+  <div class="meta"><span>Status: <span class="st good">Decided</span></span><span>Pronounced KO-to-ba</span><span>Repository: github.com/eonyeje/qotoba</span></div>
+</header>
+
+<section>
+<h2 id="origin">Origin and pitch</h2>
+<p>Qotoba comes from the Japanese 言葉, <i>kotoba</i>, meaning "words" or "language". The Q replaces the K to mark the name as part of the Q family that the project adopted for its public identity. The meaning is the product: the developer writes words, in a modern dialect of a language they already think in, and Qotoba turns those words into the program.</p>
+<div class="note decision"><span class="eyebrow">The pitch</span><p>Your words become the program. A meta-language, an agentic coding toolchain and an IDE that understands your dialect.</p></div>
+<p>Two readings of the name are both acceptable. English readers will say "KO-to-ba" or "ko-TOE-ba"; Japanese stress is flat, so neither is wrong. The README fixes "KO-to-ba" so that one form appears in talks and videos.</p>
+</section>
+
+<section>
+<h2 id="availability">Availability at decision time</h2>
+<p>Every surface below was checked on 5 November 2026 by direct lookup: the registry APIs for packages, a page load for GitHub, and RDAP for domains (Verisign for .com, Google for .dev, Identity Digital for .io). Web searches found no company, product or live trademark named Qotoba. The only neighbours are unrelated open-source projects spelled "kotoba".</p>
+<div class="tw"><table>
+<thead><tr><th>Surface</th><th>Status</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><b>GitHub org</b> <code>qotoba</code></td><td class="free">free</td><td>Register first; squatters watch org names.</td></tr>
+<tr><td><b>npm</b> <code>qotoba</code> and scope <code>@qotoba/*</code></td><td class="free">free</td><td>Publish a placeholder <code>@qotoba/core</code>.</td></tr>
+<tr><td><b>crates.io</b> <code>qotoba</code></td><td class="free">free</td><td>Reserve with a 0.0.1 stub.</td></tr>
+<tr><td><b>PyPI</b> <code>qotoba</code></td><td class="free">free</td><td>Reserve with a 0.0.1 stub.</td></tr>
+<tr><td><b>RubyGems, Packagist, NuGet</b></td><td class="free">free</td><td>Optional.</td></tr>
+<tr><td><b>qotoba.dev</b></td><td class="free">free</td><td>Primary domain.</td></tr>
+<tr><td><b>qotoba.io, .ai, .org, .app, .sh, .net, .co, .xyz</b></td><td class="free">free</td><td>Take .io and .ai at minimum as redirects.</td></tr>
+<tr><td><b>qotoba.com</b></td><td class="taken">parked, dead page</td><td>Set a drop watch; make an offer later if needed.</td></tr>
+<tr><td><b>X</b> <code>@qotoba</code></td><td class="free">free</td><td>Register.</td></tr>
+<tr><td><b>YouTube</b> <code>@qotoba</code></td><td class="free">free</td><td>Register.</td></tr>
+<tr><td><b>Reddit</b> <code>u/qotoba</code></td><td class="unk">unknown</td><td>Automated check was blocked; check by hand.</td></tr>
+<tr><td><b>Fallback</b> <code>qotoba-lang</code>, <code>qotobalang</code></td><td class="free">free everywhere</td><td>Use wherever the bare name is lost.</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="namespace">Namespace scheme</h2>
+<p>One name, one rule per surface. The bare name is the product, the CLI and the language. Packages are scoped so that every library sits under the same prefix. Domains point at one site.</p>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 880 300" role="img" aria-label="The name Qotoba at the centre, with arrows to the GitHub org, the npm scope, the crates.io and PyPI packages, the qotoba.dev domain, the CLI and the file extension, each labelled with its exact spelling.">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="13" fill="currentColor">
+      <rect x="360" y="118" width="160" height="64" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>
+      <text x="440" y="145" text-anchor="middle" font-weight="900" font-size="22">Qotoba</text>
+      <text x="440" y="167" text-anchor="middle" font-size="11.5" opacity=".75">product · language · CLI</text>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+        <line x1="360" y1="135" x2="232" y2="62"/>
+        <line x1="360" y1="150" x2="232" y2="150"/>
+        <line x1="360" y1="165" x2="232" y2="238"/>
+        <line x1="520" y1="135" x2="648" y2="62"/>
+        <line x1="520" y1="150" x2="648" y2="150"/>
+        <line x1="520" y1="165" x2="648" y2="238"/>
+      </g>
+      <g font-family="IBM Plex Mono, Consolas, monospace" font-size="12.5">
+        <rect x="40" y="36" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="135" y="57" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">GitHub</text><text x="135" y="76" text-anchor="middle">github.com/qotoba</text>
+        <rect x="40" y="124" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="135" y="145" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">npm</text><text x="135" y="164" text-anchor="middle">@qotoba/core · @qotoba/cli</text>
+        <rect x="40" y="212" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="135" y="233" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">crates.io · PyPI · NuGet</text><text x="135" y="252" text-anchor="middle">qotoba</text>
+        <rect x="650" y="36" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="745" y="57" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">Domain</text><text x="745" y="76" text-anchor="middle">qotoba.dev (.io, .ai redirect)</text>
+        <rect x="650" y="124" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="745" y="145" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">Source files</text><text x="745" y="164" text-anchor="middle">.qo (not .qt, Qt owns it)</text>
+        <rect x="650" y="212" width="190" height="52" rx="7" fill="none" stroke="currentColor"/><text x="745" y="233" text-anchor="middle" font-family="Zen Kaku Gothic New, sans-serif" font-weight="700">Community</text><text x="745" y="252" text-anchor="middle">Qotoba Labs · @qotoba</text>
+      </g>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>One name on six surfaces.</b> Everything hangs off the bare word; where a surface cannot take the bare word, the fallback is <code>qotoba-lang</code>, which is free everywhere.</figcaption>
+</figure>
+<dl class="gloss">
+  <dt>Product, CLI, language</dt><dd><code>qotoba</code></dd>
+  <dt>File extension</dt><dd><code>.qo</code> or <code>.qoto</code>. <code>.qt</code> collides with the Qt framework in every editor.</dd>
+  <dt>GitHub</dt><dd>org <code>qotoba</code>; repos <code>qotoba/qotoba</code>, <code>qotoba/ide</code>, <code>qotoba/docs</code>. Until the org exists the repo lives at <code>eonyeje/qotoba</code> and transfers later.</dd>
+  <dt>npm</dt><dd><code>@qotoba/core</code>, <code>@qotoba/cli</code>, <code>@qotoba/ide</code></dd>
+  <dt>Domains</dt><dd><code>qotoba.dev</code> for docs and site; <code>qotoba.io</code> and <code>qotoba.ai</code> redirect</dd>
+  <dt>Company or community</dt><dd>Qotoba Labs</dd>
+</dl>
+</section>
+
+<section>
+<h2 id="rejected">Names considered and rejected</h2>
+<p>The screen started from the brief: an exotic, short name with a Q or X, built from African or Asian words, that says what the tool does. Three rounds narrowed it. The first round looked at single words and mutations, the second at three-letter codes, the third at the user's own top three.</p>
+<div class="names">
+  <div class="chosen"><b>Qotoba</b>Japanese kotoba, words<span class="why">Chosen. Free everywhere except a parked .com; no company anywhere.</span></div>
+  <div class="out"><b>Dialeq</b>Dialect with a Q<span class="why">Runner-up. Clean, but reads as a misspelling and sits next to Dialex, Dialexa and Dialexia.</span></div>
+  <div class="out"><b>Vernaq</b>Vernacular with a Q<span class="why">Out. A live Irish software product with the same concept, registered March 2026.</span></div>
+  <div class="out"><b>Dialex</b>Greek dialexis, discourse<span class="why">Out. Three AI language products already use it; every major domain taken.</span></div>
+  <div class="out"><b>Qamba</b>Zulu ukuqamba, to compose<span class="why">Out. Brazilian no-code company holds qamba.com; an AI video project squats the labs org.</span></div>
+  <div class="out"><b>Quamba</b>Qamba, English spelling<span class="why">Out. The name of a cited ML paper on quantised Mamba models.</span></div>
+  <div class="out"><b>JDQ, DJQ, QDJ…</b>three-letter codes<span class="why">Out. All short domains squatted; QDJ has a live US trademark in the software class.</span></div>
+  <div class="out"><b>Anlaq</b>Azerbaijani, understanding<span class="why">Strong alternate. Free everywhere including .com; not chosen on sound.</span></div>
+</div>
+<p>The full matrix for all 53 candidates is in <a href="name-screen.html">the name screen</a>.</p>
+</section>
+
+<section>
+<h2 id="actions">Registrations to make</h2>
+<p>These are manual steps for the owner, in the order that protects the name best. None had been done at the time of this record.</p>
+<ol class="prose">
+  <li>Create the GitHub org <code>qotoba</code>, then transfer <code>eonyeje/qotoba</code> into it.</li>
+  <li>Register <code>qotoba.dev</code>, then <code>qotoba.io</code> and <code>qotoba.ai</code>.</li>
+  <li>Publish a placeholder <code>@qotoba/core</code> on npm to hold the scope.</li>
+  <li>Publish 0.0.1 stubs named <code>qotoba</code> on crates.io and PyPI.</li>
+  <li>Register <code>@qotoba</code> on X and YouTube; check Reddit by hand.</li>
+  <li>Set a drop watch on <code>qotoba.com</code>.</li>
+</ol>
+</section>
+
+<footer>Qotoba documentation · naming decision recorded 5 November 2026 · availability as checked that day, not re-run.</footer>
+</main>
+</div>
+</body>
+</html>

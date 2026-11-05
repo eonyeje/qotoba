@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qotoba Programme Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/qotoba-docs.css">
+<style>
+.ladder { display: grid; gap: 8px; font-family: var(--display); margin: 20px 0; }
+.rung { display: grid; grid-template-columns: 56px minmax(0, 1fr) 150px; gap: 14px; align-items: start; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.rung .k { font-weight: 900; font-size: 22px; color: var(--accent); letter-spacing: -0.02em; }
+.rung b { display: block; font-size: 15.5px; color: var(--ink); }
+.rung p { margin: 2px 0 0; font-size: 14px; color: var(--ink2); max-width: none; }
+.rung .ratio { text-align: right; font-size: 12.5px; color: var(--ink3); }
+.rung .ratio i { display: block; height: 8px; border-radius: 4px; background: var(--sunk); margin-top: 6px; overflow: hidden; }
+.rung .ratio i em { display: block; height: 100%; background: var(--accent); }
+@media (max-width: 640px) { .rung { grid-template-columns: 44px minmax(0, 1fr); } .rung .ratio { grid-column: 2; text-align: left; } }
+.decide td:first-child { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+.rhythm { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 18px 0; font-family: var(--display); }
+.rhythm div { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; font-size: 14px; color: var(--ink2); min-width: 0; }
+.rhythm div b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }
+.rhythm div span { display: block; font-size: 12px; color: var(--ink3); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="../index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#mission"><i style="background:var(--accent)"></i>Mission and scope</a></li>
+    <li><a class="p" href="#shape"><i></i>The shape of Qotoba</a></li>
+    <li><a class="p" href="#ladder"><i></i>Qotoba builds Qotoba</a></li>
+    <li><a class="p" href="#ide"><i style="background:var(--ade)"></i>Rider and VS Code first</a></li>
+    <li><a class="p" href="#phases"><i></i>Phases</a></li>
+    <li><a class="p" href="#critical"><i></i>Critical path</a></li>
+    <li><a class="p" href="#decisions"><i style="background:var(--warn)"></i>Decisions required</a></li>
+    <li><a class="p" href="#risks"><i style="background:var(--bad)"></i>Risks</a></li>
+    <li><a class="p" href="#working"><i style="background:var(--wb)"></i>How we work</a></li>
+    <li><a class="p" href="#read"><i></i>The other pages</a></li>
+  </ol>
+  <div class="back"><a href="../index.html">← All documents</a></div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Plan · part 2 of 5 · the master page · 5 November 2026</div>
+  <h1>Qotoba Programme Plan</h1>
+  <p class="lede">The plan and working strategy for taking the Quanta components to Qotoba, the public production platform: a language, a framework, IDE tooling and a Workbench, built so that most of the work is Qotoba building itself, and then used to write Dope, KraveSoccer, Entrepreneur and KraveFlow.</p>
+  <div class="meta"><span>Owner: eonyeje</span><span>Builders: Claude sessions through the Workbench</span><span>Horizon: six phases, about ten months at planned capacity</span></div>
+</header>
+
+<section>
+<h2 id="mission">Mission and scope</h2>
+<p>The goal in one sentence: use the Qotoba language and ADE tools to develop modern multi-purpose apps on top of the Qotoba framework, manage the work and the interaction with AI agents in the Workbench, and have the code translated to the language of choice and compiled into the final running application.</p>
+<p>Four things follow from that sentence and set the plan's priorities.</p>
+<ul>
+  <li><b>The language must emit real code early.</b> The quickest route to "it runs" is not the interpreter but a C# emitter over the existing .NET toolchain. The interpreter and the debug runtime come later, once there is something worth hot-patching.</li>
+  <li><b>The tools arrive inside Rider and VS Code.</b> One language server in C# and one web UI in TypeScript serve both IDEs. This is the first place Qotoba's own output ships: the add-ins' UI and service layers are the first code generated from Qotoba source.</li>
+  <li><b>Apps follow in a set order.</b> Dope first, because it already drives the framework and has the most checks to compare against. Then KraveSoccer for the mobile shape, Entrepreneur for custom rendering, and KraveFlow as the production backend and the agent-platform case.</li>
+  <li><b>The Workbench and the agent surface are products, not side tools.</b> Overload is the known failure mode: 302 incidents, 50 hours of priced waste. The plan funds the gates, pages, MCP tools and Skills that keep the owner reviewing cards rather than code.</li>
+</ul>
+<div class="note"><span class="eyebrow">Out of scope for this plan</span><p>The five non-C# targets (Dart, Kotlin, Swift, TypeScript beyond the add-ins, Python) beyond proving the emitter shape; the standalone Quanta-written ADE as a product; the public launch, pricing and community. Each gets its own page when its phase opens.</p></div>
+</section>
+
+<section>
+<h2 id="shape">The shape of Qotoba</h2>
+<p>Qotoba is five products and a set of applications. The diagram shows what each one does and how they connect at build time and at work time.</p>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 960 560" role="img" aria-label="Qotoba's five products: the Workbench and Agents layer at the top where the owner and Claude sessions meet; the ADE add-ins in Rider and VS Code below; the Language and Compiler band in the middle emitting to C# and TypeScript; the Framework at the bottom; the applications to the right.">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="13" fill="currentColor">
+      <rect x="30" y="16" width="190" height="46" rx="23" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="125" y="44" text-anchor="middle" font-weight="700">The owner</text>
+      <rect x="470" y="16" width="220" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/><text x="580" y="36" text-anchor="middle" font-weight="700">Claude sessions</text><text x="580" y="53" text-anchor="middle" font-size="11" opacity=".75">one per lane · own worktree · day and night</text>
+      <rect x="30" y="92" width="660" height="66" rx="10" fill="none" style="stroke:var(--wb)" stroke-width="1.6"/>
+      <text x="46" y="116" font-weight="900" font-size="15" style="fill:var(--wb)">Qotoba Workbench</text><text x="46" y="138" font-size="12">inbox · rulings · tasks · units · five gates · packets · commit presses · night shift · generated-code review</text>
+      <rect x="470" y="124" width="212" height="28" rx="6" style="fill:var(--surface)" stroke="currentColor"/><text x="576" y="143" text-anchor="middle" font-size="12" font-weight="700">Qotoba Agents · MCP + Skills + hooks</text>
+      <line x1="125" y1="62" x2="125" y2="90" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)" marker-start="url(#ar)"/><text x="133" y="82" font-size="11">cards ↔ presses</text>
+      <line x1="580" y1="62" x2="580" y2="122" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)" marker-start="url(#ar)"/><text x="588" y="82" font-size="11">brief ↓ packet ↑</text>
+      <rect x="30" y="194" width="660" height="66" rx="10" fill="none" style="stroke:var(--ade)" stroke-width="1.6"/>
+      <text x="46" y="218" font-weight="900" font-size="15" style="fill:var(--ade)">Qotoba ADE · inside Rider and VS Code</text><text x="46" y="240" font-size="12">language server (C#) · web UI (TypeScript): tree, inspector, canvas preview, generated code, overlays · Workbench panel</text>
+      <line x1="360" y1="158" x2="360" y2="192" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar)"/><text x="368" y="180" font-size="11">items, designs, packets to review</text>
+      <path d="M30 39 H14 V227 H28" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+      <rect x="30" y="296" width="660" height="92" rx="10" fill="none" style="stroke:var(--lang)" stroke-width="1.6"/>
+      <text x="46" y="320" font-weight="900" font-size="15" style="fill:var(--lang)">Qotoba Language and Compiler</text>
+      <g font-size="12"><rect x="46" y="336" width="92" height="34" rx="6" fill="none" stroke="currentColor"/><text x="92" y="357" text-anchor="middle">.qo source</text>
+      <rect x="158" y="336" width="100" height="34" rx="6" fill="none" stroke="currentColor"/><text x="208" y="357" text-anchor="middle">parse · types</text>
+      <rect x="278" y="336" width="100" height="34" rx="6" fill="none" stroke="currentColor"/><text x="328" y="357" text-anchor="middle">bind · check</text>
+      <rect x="398" y="336" width="80" height="34" rx="6" fill="none" stroke="currentColor"/><text x="438" y="357" text-anchor="middle">distil</text>
+      <rect x="498" y="336" width="176" height="34" rx="6" style="fill:var(--surface)" stroke="currentColor" stroke-width="1.6"/><text x="586" y="357" text-anchor="middle" font-weight="700">Qotoba Core</text>
+      <g stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"><line x1="138" y1="353" x2="156" y2="353"/><line x1="258" y1="353" x2="276" y2="353"/><line x1="378" y1="353" x2="396" y2="353"/><line x1="478" y1="353" x2="496" y2="353"/></g></g>
+      <line x1="360" y1="260" x2="360" y2="294" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)" marker-start="url(#ar)"/><text x="368" y="282" font-size="11">edit ops ↓ · diagnostics, types, provenance ↑</text>
+      <rect x="30" y="424" width="660" height="80" rx="10" fill="none" style="stroke:var(--fw)" stroke-width="1.6"/>
+      <text x="46" y="448" font-weight="900" font-size="15" style="fill:var(--fw)">Qotoba Framework (C#) and intent libraries</text>
+      <text x="46" y="470" font-size="12">values · collections · elements · tasks · HTTP · data · BPM · Skia UI · 300 widgets · server hosting · test head</text>
+      <text x="46" y="490" font-size="12" opacity=".8">intents: widget · schema · table · view · source · process · services · apiEndpoint · tool · app · test</text>
+      <line x1="200" y1="422" x2="200" y2="390" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/><text x="208" y="410" font-size="11">vocabulary, rules, distillers, types</text>
+      <rect x="730" y="296" width="200" height="92" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="830" y="320" text-anchor="middle" font-weight="900">Emit</text><text x="830" y="342" text-anchor="middle" font-size="12">C# → dotnet build</text><text x="830" y="360" text-anchor="middle" font-size="12">TypeScript → esbuild</text><text x="830" y="378" text-anchor="middle" font-size="11" opacity=".75">later: Dart · Kotlin · Swift · Python</text>
+      <line x1="674" y1="353" x2="728" y2="353" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+      <rect x="730" y="424" width="200" height="80" rx="10" fill="none" style="stroke:var(--apps)" stroke-width="1.6"/><text x="830" y="448" text-anchor="middle" font-weight="900" style="fill:var(--apps)">Applications</text><text x="830" y="468" text-anchor="middle" font-size="12">Dope · KraveSoccer</text><text x="830" y="486" text-anchor="middle" font-size="12">Entrepreneur · KraveFlow</text>
+      <line x1="830" y1="388" x2="830" y2="422" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+      <rect x="730" y="194" width="200" height="66" rx="10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4"/><text x="830" y="218" text-anchor="middle" font-weight="900">Standalone ADE</text><text x="830" y="238" text-anchor="middle" font-size="12">written in Qotoba · later stage</text><text x="830" y="254" text-anchor="middle" font-size="11" opacity=".75">same web UI, same server</text>
+      <text x="770" y="540" font-size="11" opacity=".75">dashed = a later stage</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Five products and the applications on one page.</b> The owner and the sessions meet in the Workbench. Code is written in the IDE add-ins, which talk to the compiler through a language server. The compiler distils intent to Qotoba Core and emits C# or TypeScript, and the framework supplies the vocabulary and the runtime. The standalone ADE reuses the add-ins' server and UI when its stage opens.</figcaption>
+</figure>
+<div class="cards">
+  <article style="--pc:var(--lang)"><div class="eyebrow" style="color:var(--lang)">Product 1</div><h3>Language and Compiler</h3><p>The <code>.qo</code> language, the <code>qotoba</code> CLI, the binder, validator, distiller and emitters. Owns the four domain syntaxes and the intent framework.</p><div class="where">qotoba/qotoba · compiler/</div></article>
+  <article style="--pc:var(--fw)"><div class="eyebrow" style="color:var(--fw)">Product 2</div><h3>Framework</h3><p>The C# runtime that intents distil onto, and the intent libraries that give the language its vocabulary. The Quanta framework, renamed and completed.</p><div class="where">qotoba/framework · NuGet Qotoba.*</div></article>
+  <article style="--pc:var(--ade)"><div class="eyebrow" style="color:var(--ade)">Product 3</div><h3>ADE add-ins</h3><p>A VS Code extension and a Rider plugin over one language server and one web UI. The first Qotoba-generated code ships here.</p><div class="where">qotoba/ade · lsp/ · webui/ · vscode/ · rider/</div></article>
+  <article style="--pc:var(--wb)"><div class="eyebrow" style="color:var(--wb)">Product 4</div><h3>Workbench</h3><p>Where work is planned, run by agents at night, gated by machines and judged in cards. Gains language gates and a generated-code review page.</p><div class="where">qotoba/workbench</div></article>
+  <article style="--pc:var(--agents)"><div class="eyebrow" style="color:var(--agents)">Product 5</div><h3>Agents</h3><p>The MCP server that lets an agent parse, check, emit and explain Qotoba; the Skills that teach it the language; the hooks that keep generated code honest.</p><div class="where">@qotoba/mcp · skills/</div></article>
+</div>
+</section>
+
+<section>
+<h2 id="ladder">The strategy: Qotoba builds Qotoba</h2>
+<p>"Most of the work would be Qotoba building itself" is the governing idea, and it has to be made concrete or it becomes a slogan. Self-hosting is a ladder with measurable rungs. At each rung a named piece of the toolchain stops being hand-written and starts being generated from Qotoba source, and the share of generated code is measured and reported by the Workbench as a gate. The compiler kernel itself (parser, binder, emitters) stays hand-written C# for the whole of this plan. Rewriting a compiler in its own language is a late luxury, and the emitters are the one place a bug would hide everywhere.</p>
+<div class="ladder">
+  <div class="rung"><div class="k">0</div><div><b>Hand-written kernel</b><p>Binder, validator, distiller, C# emitter, CLI and the language server's protocol layer are written in C# by sessions, on the existing parser. The web UI shell and the VS Code shell are written in TypeScript. Nothing is generated yet.</p></div><div class="ratio">generated share<i><em style="width:0%"></em></i>0%</div></div>
+  <div class="rung"><div class="k">1</div><div><b>First light</b><p>A sample app in Qotoba emits C#, builds with dotnet and runs on the Qotoba framework. The language server reports its diagnostics in VS Code and Rider. This rung proves the pipeline before anything is self-hosted.</p></div><div class="ratio">generated share<i><em style="width:0%"></em></i>0%</div></div>
+  <div class="rung"><div class="k">2</div><div><b>The add-ins' UI is Qotoba</b><p>With the <code>widget</code> intent and the TypeScript emitter, the web UI panels (project tree, inspector, generated-code view, Workbench panel) are rewritten as Qotoba widgets and emitted as React components. The hand-written TypeScript shrinks to the host shell.</p></div><div class="ratio">generated share<i><em style="width:30%"></em></i>~30%</div></div>
+  <div class="rung"><div class="k">3</div><div><b>The language server's services are Qotoba</b><p>Hover, completion, go-to-generated and the catalogue queries are declared as Qotoba <code>services</code> over the compiler's API and emitted as C#. The protocol layer stays hand-written.</p></div><div class="ratio">generated share<i><em style="width:50%"></em></i>~50%</div></div>
+  <div class="rung"><div class="k">4</div><div><b>The Workbench's pages and the MCP tools are Qotoba</b><p>Workbench pages are <code>widget</code> intents; MCP tools are <code>tool</code> intents emitted as both C# handlers and tool schemas. The same definition serves the add-in, the Workbench and the agent.</p></div><div class="ratio">generated share<i><em style="width:65%"></em></i>~65%</div></div>
+  <div class="rung"><div class="k">5</div><div><b>Apps are Qotoba</b><p>Dope, KraveSoccer, Entrepreneur and KraveFlow are written entirely in Qotoba. The framework and the compiler kernel remain the hand-written floor.</p></div><div class="ratio">generated share<i><em style="width:80%"></em></i>apps 100%</div></div>
+</div>
+<p>The percentages are targets for the toolchain's own code, measured as lines of C# and TypeScript emitted from <code>.qo</code> source against lines written by hand, excluding the compiler kernel and the framework. The Workbench's <b>self-host gate</b>, defined on the <a href="tooling.html#gates">tooling page</a>, reports the number on every packet so the trend is visible and a regression is a warning.</p>
+<div class="note"><span class="eyebrow">Why this order</span><p>UI first because a widget intent emitting React is the simplest end-to-end case: no async model, no persistence, and a failure shows on screen. Services second because they need the injection sources and the async model, which are two of the four foundations. Tools third because they need both. Apps last because they need everything, and because each app has an existing version to compare against for the parity gate.</p></div>
+</section>
+
+<section class="part ade">
+<div class="eyebrow">The first deliverable</div>
+<h2 id="ide">Rider and VS Code first</h2>
+<p>The brief says C# for the language server and TypeScript for the UI. The plan keeps exactly that, with one unavoidable addition: Rider plugins are IntelliJ plugins, so a thin Kotlin shell registers the language server and hosts the web UI in a tool window. The shell contains no logic. Both IDEs run the same server process and load the same UI bundle, so every feature is built once.</p>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 960 300" role="img" aria-label="Two IDE shells, VS Code in TypeScript and Rider in Kotlin, both talking over the Language Server Protocol to one C# server, and both hosting the same TypeScript web UI bundle in a webview; the server reads and writes the .qo source and runs the compiler.">
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="13" fill="currentColor">
+      <rect x="30" y="30" width="220" height="100" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="140" y="56" text-anchor="middle" font-weight="900">VS Code extension</text><text x="140" y="78" text-anchor="middle" font-size="12">TypeScript shell · ~1k lines</text><text x="140" y="96" text-anchor="middle" font-size="12">LSP client · commands · webview host</text><text x="140" y="116" text-anchor="middle" font-size="11" opacity=".75">hand-written for the whole plan</text>
+      <rect x="30" y="170" width="220" height="100" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="140" y="196" text-anchor="middle" font-weight="900">Rider plugin</text><text x="140" y="218" text-anchor="middle" font-size="12">Kotlin shell · ~1k lines</text><text x="140" y="236" text-anchor="middle" font-size="12">LSP registration · JCEF tool window · run config</text><text x="140" y="256" text-anchor="middle" font-size="11" opacity=".75">hand-written; the one non-C#/TS piece</text>
+      <rect x="370" y="30" width="220" height="100" rx="10" style="fill:var(--surface);stroke:var(--ade)" stroke-width="2"/><text x="480" y="56" text-anchor="middle" font-weight="900" style="fill:var(--ade)">Web UI bundle</text><text x="480" y="78" text-anchor="middle" font-size="12">TypeScript · React</text><text x="480" y="96" text-anchor="middle" font-size="12">tree · inspector · canvas · generated code</text><text x="480" y="116" text-anchor="middle" font-size="11" opacity=".75">rung 2: emitted from Qotoba widgets</text>
+      <rect x="370" y="170" width="220" height="100" rx="10" style="fill:var(--surface);stroke:var(--lang)" stroke-width="2"/><text x="480" y="196" text-anchor="middle" font-weight="900" style="fill:var(--lang)">Language server</text><text x="480" y="218" text-anchor="middle" font-size="12">C# · one process per workspace</text><text x="480" y="236" text-anchor="middle" font-size="12">diagnostics · completion · hover · go to generated</text><text x="480" y="256" text-anchor="middle" font-size="11" opacity=".75">rung 3: services emitted from Qotoba</text>
+      <rect x="710" y="100" width="220" height="100" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="820" y="126" text-anchor="middle" font-weight="900">Compiler and workspace</text><text x="820" y="148" text-anchor="middle" font-size="12">Quanta.Parser → binder → emitters</text><text x="820" y="166" text-anchor="middle" font-size="12">.qo files · generated/ folder</text><text x="820" y="186" text-anchor="middle" font-size="11" opacity=".75">also behind the qotoba CLI and the MCP server</text>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" marker-end="url(#ar2)" marker-start="url(#ar2)">
+        <line x1="250" y1="60" x2="368" y2="60"/><line x1="250" y1="200" x2="368" y2="200"/>
+        <path d="M250 110 C300 110 320 220 368 220"/><path d="M250 240 C300 240 320 100 368 100"/>
+        <line x1="590" y1="220" x2="708" y2="160"/><line x1="590" y1="80" x2="708" y2="140"/>
+      </g>
+      <text x="300" y="52" font-size="11" text-anchor="middle">loads bundle</text><text x="300" y="192" font-size="11" text-anchor="middle">LSP over stdio</text>
+      <text x="650" y="92" font-size="11" text-anchor="middle">queries over JSON-RPC</text><text x="650" y="236" font-size="11" text-anchor="middle">in process</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Build once, host twice.</b> The two shells are the only IDE-specific code. The server and the UI are shared, and both become self-hosted at rungs 2 and 3.</figcaption>
+</figure>
+<p>What the first add-in release must do, in order of value: show diagnostics as you type, with the parser's recovery so the tree is always complete; complete keywords, members and intent bodies; hover to show the type and a preview of the generated code; jump from a <code>.qo</code> line to the generated C# and back through provenance; format through the printer; and open the Workbench inbox in a panel so the owner never leaves the IDE to press a card. Debugging is through the emitted C# with <code>#line</code> directives mapping back to the <code>.qo</code> source, which gives breakpoints in Rider and VS Code without a debug runtime.</p>
+</section>
+
+<section>
+<h2 id="phases">Phases</h2>
+<p>Six phases, overlapping where their dependencies allow. Estimates are in session-hours, the Workbench's own unit, at a planned capacity of 100 to 150 session-hours a week (one quiet day build plus three night sessions). The Workbench history says person-day estimates ran four to six times long, so these numbers are planning horizons to be recalibrated after phase A using measured minutes, which must first be made to read something other than zero.</p>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 960 330" role="img" aria-label="A timeline of six phases over about forty-four weeks: Foundations weeks 1 to 8, First light weeks 5 to 14, Qotoba builds Qotoba weeks 10 to 22, Dope in Qotoba weeks 16 to 30, Production apps weeks 24 to 44, and Platform depth running from week 20 onward.">
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="12" fill="currentColor">
+      <g stroke="currentColor" stroke-width="1" opacity=".35"><line x1="150" y1="30" x2="150" y2="290"/><line x1="330" y1="30" x2="330" y2="290"/><line x1="510" y1="30" x2="510" y2="290"/><line x1="690" y1="30" x2="690" y2="290"/><line x1="870" y1="30" x2="870" y2="290"/></g>
+      <text x="150" y="22" text-anchor="middle" opacity=".8">week 1</text><text x="330" y="22" text-anchor="middle" opacity=".8">week 11</text><text x="510" y="22" text-anchor="middle" opacity=".8">week 21</text><text x="690" y="22" text-anchor="middle" opacity=".8">week 31</text><text x="870" y="22" text-anchor="middle" opacity=".8">week 41</text>
+      <text x="20" y="62" font-weight="700">A Foundations</text><rect x="150" y="46" width="126" height="22" rx="4" style="fill:var(--accent)"/><text x="213" y="61" text-anchor="middle" fill="#fff" font-size="11">wk 1–8</text>
+      <text x="20" y="104" font-weight="700">B First light</text><rect x="222" y="88" width="162" height="22" rx="4" style="fill:var(--ade)"/><text x="303" y="103" text-anchor="middle" fill="#fff" font-size="11">wk 5–14</text>
+      <text x="20" y="146" font-weight="700">C Qotoba builds Qotoba</text><rect x="312" y="130" width="216" height="22" rx="4" style="fill:var(--lang)"/><text x="420" y="145" text-anchor="middle" fill="#fff" font-size="11">wk 10–22</text>
+      <text x="20" y="188" font-weight="700">D Dope in Qotoba</text><rect x="420" y="172" width="252" height="22" rx="4" style="fill:var(--apps)"/><text x="546" y="187" text-anchor="middle" fill="#fff" font-size="11">wk 16–30</text>
+      <text x="20" y="230" font-weight="700">E Production apps</text><rect x="564" y="214" width="360" height="22" rx="4" style="fill:var(--fw)"/><text x="744" y="229" text-anchor="middle" fill="#fff" font-size="11">wk 24–44</text>
+      <text x="20" y="272" font-weight="700">F Platform depth</text><rect x="492" y="256" width="432" height="22" rx="4" fill="none" style="stroke:var(--wb)" stroke-width="2" stroke-dasharray="6 4"/><text x="708" y="271" text-anchor="middle" font-size="11">wk 20 onward, continuous</text>
+      <text x="20" y="310" font-size="11" opacity=".75">Bars show planned spans at 100–150 session-hours a week; overlaps are deliberate, since each phase starts once its predecessor's exit gate is green, not when it ends.</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Phases overlap on purpose.</b> B starts when A's binder is green, not when A ends; D starts when C's widget intent emits C# as well as TypeScript.</figcaption>
+</figure>
+<div class="tw"><table class="wide">
+<thead><tr><th>Phase</th><th>Goal</th><th>Exit criteria (what must be green)</th><th class="num">Session-hours</th></tr></thead>
+<tbody>
+<tr><td><b>A · Foundations</b></td><td>Settle the decisions, set up the programme, build the binder and validator, start the C# emitter, make the Workbench ready for Qotoba.</td><td>The four language foundations recorded as rulings. Binder and validator green on the parser corpus. A Workbench project "Qotoba" with lanes, and measured minutes reading real numbers. Skills pack v0 so sessions write Qotoba the same way.</td><td class="num">450–650</td></tr>
+<tr><td><b>B · First light</b></td><td>A Qotoba sample app emits C#, builds and runs on the framework. The language server runs in VS Code and Rider with diagnostics, completion, hover and go-to-generated. The CLI exists.</td><td>Sample app parity suite green. Add-in smoke gate green in both IDEs. Workbench inbox panel usable in the IDE. MCP server v1 answers parse, check, emit and explain.</td><td class="num">500–700</td></tr>
+<tr><td><b>C · Qotoba builds Qotoba</b></td><td>Intent framework, <code>widget</code> and <code>services</code> intents, TypeScript emitter. The web UI and the server's services are regenerated from Qotoba source.</td><td>Self-host gate reads 50% or more for the toolchain. Generated-code review page in use. Old front end retired from the query layer.</td><td class="num">600–900</td></tr>
+<tr><td><b>D · Dope in Qotoba</b></td><td>Dope's screens, APIs, queries and models as Qotoba intents, emitted to C# on the framework.</td><td>Parity gate against the Quanta and WinUI versions: every screen, every check. Library opens within the 500 ms bar. Every framework gap raised as a register item, none accepted as app code.</td><td class="num">700–1,000</td></tr>
+<tr><td><b>E · Production apps</b></td><td>KraveSoccer (mobile), Entrepreneur (simulation and custom rendering), KraveFlow phase 1 (ordering core, agent gateway as MCP and OpenAPI, admin console).</td><td>KraveSoccer runs on a phone from Qotoba source. Entrepreneur's simulation and map render. KraveFlow's phase 1 modules pass its non-functional targets in a staging cell.</td><td class="num">1,200–1,800</td></tr>
+<tr><td><b>F · Platform depth</b></td><td>Interpreter and debug runtime, overlays, telemetry, test head, render pipeline, Avalonia host, the standalone ADE, further targets.</td><td>Each item is its own task with its own exit gate; none blocks A to E.</td><td class="num">continuous</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="critical">The critical path</h2>
+<p>Everything that matters to "Qotoba builds Qotoba" sits on one chain. A slip anywhere on it moves every later date; a slip off it does not.</p>
+<div class="diagram">
+  <div class="flow">
+    <div class="n hl"><b>Four foundations</b>errors · async · null · generics<span class="m">A · decisions</span></div>
+    <div class="n hl"><b>Binder + validator</b>phase 5 on the new tree<span class="m">A</span></div>
+    <div class="n hl"><b>C# emitter</b>Qotoba Core → idiomatic C#, #line<span class="m">A–B</span></div>
+    <div class="n hl"><b>Language server + shells</b>diagnostics, completion, go-to<span class="m">B</span></div>
+    <div class="n hl"><b>Intent framework</b>six shapes · widget · services<span class="m">C</span></div>
+    <div class="n hl"><b>TypeScript emitter</b>widget → React<span class="m">C</span></div>
+    <div class="n hl"><b>Self-hosted add-ins</b>rungs 2 and 3<span class="m">C</span></div>
+    <div class="n hl"><b>Dope</b>schema · source · view · widget on the framework<span class="m">D</span></div>
+  </div>
+  <div class="cap">Off the path, and runnable in parallel: the framework's core redesign, the Workbench's language gates, the MCP server, the Skills pack, KraveFlow's backend modules, the interpreter.</div>
+</div>
+<p>Two items deserve a note. The core redesign is off the path only because the emitter can target the framework as it is today and move to the redesigned constructs when they land; the distiller's output shape must be designed so that switch is a mapping change, not a rewrite. The interpreter is off the path because C# emission plus dotnet gives a running program; the interpreter earns its place when hot apply and overlays open in phase F.</p>
+</section>
+
+<section>
+<h2 id="decisions">Decisions required from the owner</h2>
+<p>These are the owner's to make. Each is one Workbench question card, asked at the start of the phase that needs it, with the plan's recommendation marked. None is decided here.</p>
+<div class="tw"><table class="wide decide">
+<thead><tr><th>ID</th><th>Decision</th><th>Needed by</th><th>Plan's recommendation</th></tr></thead>
+<tbody>
+<tr><td>Q-01</td><td>Error-handling model: Result values, exceptions, or both with a rule</td><td>A, week 1</td><td>Result&lt;T&gt; everywhere as the framework does; exceptions only at extern boundaries, mapped by the emitter</td></tr>
+<tr><td>Q-02</td><td>Async and concurrency model</td><td>A, week 1</td><td>Structured async on tasks with the framework's one task type; reactive propagation on the writing thread; no implicit threads</td></tr>
+<tr><td>Q-03</td><td>Nullability</td><td>A, week 1</td><td>Non-null by default, <code>T?</code> explicit, checked by the validator; maps to C# nullable annotations and TS strict</td></tr>
+<tr><td>Q-04</td><td>Generics with constraints</td><td>A, week 2</td><td>Constraints as in Swift and Kotlin (<code>where T: Shape</code>); no higher-kinded types in this plan</td></tr>
+<tr><td>Q-05</td><td>File extension and keyword set</td><td>A, week 1</td><td><code>.qo</code> source, <code>.qoc</code> for Qotoba Core; <code>func</code>/<code>let</code>/<code>var</code> as the new parser already has</td></tr>
+<tr><td>Q-06</td><td>Repository strategy: one Qotoba monorepo, or one repo per product</td><td>A, week 1</td><td>One monorepo for compiler, framework, ADE, Workbench and agents; one repo per app. Quanta stays private until the rename lands</td></tr>
+<tr><td>Q-07</td><td>When the Quanta namespaces rename to Qotoba</td><td>A</td><td>After the core redesign merges to master, as one mechanical commit with a compatibility shim for the apps</td></tr>
+<tr><td>Q-08</td><td>Which Dope is the parity reference: the Quanta version, the WinUI rebuild, or both</td><td>D</td><td>Both: UI parity against the Quanta version, behaviour checks against the WinUI suite</td></tr>
+<tr><td>Q-09</td><td>App order after Dope</td><td>D</td><td>KraveSoccer, Entrepreneur, then KraveFlow, with KraveFlow's backend modules started earlier as a services lane</td></tr>
+<tr><td>Q-10</td><td>KraveFlow's agent: Lua, or a Qotoba agent runtime</td><td>E</td><td>Lua first, as the architecture draft assumes; the gateway's MCP tools are written as Qotoba <code>tool</code> intents either way</td></tr>
+<tr><td>Q-11</td><td>Where the Workbench UI lives: its web app, the IDE panel, or both</td><td>B</td><td>Both, from one web UI bundle; the standalone ADE question is deferred to F</td></tr>
+<tr><td>Q-12</td><td>License for the public repositories</td><td>before any public push of framework code</td><td>Deferred by the owner's ruling until the shape is clear; the repo stays without a license file until then</td></tr>
+<tr><td>Q-13</td><td>Platform host: when to move from MAUI to Avalonia</td><td>F</td><td>After render phases 0 and 1, as the framework review already recommends</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="risks">Risks</h2>
+<div class="tw"><table class="wide">
+<thead><tr><th>Risk</th><th>Why it is real</th><th>What the plan does about it</th></tr></thead>
+<tbody>
+<tr><td><b>Building the tool eats the window</b></td><td>The Workbench's own named risk. Five products and four apps for one owner.</td><td>The critical path is one chain; everything else is explicitly off it. Phase F is continuous and never blocks A to E.</td></tr>
+<tr><td><b>Generated code nobody can read</b></td><td>The emitters produce C# and TypeScript that a native developer must accept. The HTTP generator's 33 hand-written response classes show how fast generated surfaces grow.</td><td>Golden baselines on every emitter; the generated-code review page shows source and output side by side; idiomatic output is an exit criterion of phase B.</td></tr>
+<tr><td><b>The four foundations drift</b></td><td>Error, async, null and generic decisions touch the binder, the distiller, every emitter and every intent library.</td><td>They are the first four decisions, recorded as rulings in week 1, and the binder's corpus tests encode them.</td></tr>
+<tr><td><b>Self-hosting turns into a rewrite</b></td><td>Rewriting the web UI in Qotoba can stall if the widget intent is not ready for real screens.</td><td>Rung 2 starts with the smallest panel (the generated-code view) and only widens when the self-host gate confirms it.</td></tr>
+<tr><td><b>Overload returns</b></td><td>302 incidents in the survey; "at this pace it is going to take me days to answer all these questions".</td><td>Every question is a card; settle before asking; one subject per card; night builds against approved designs only; the tooling page lists the pages and gates that keep reading to cards.</td></tr>
+<tr><td><b>KraveFlow is production</b></td><td>A new language on a system that holds orders and escrow instructions for real businesses.</td><td>KraveFlow's phase 1 emits C# that is reviewed as C#, deployed in a staging cell, and measured against its own non-functional targets before any principal is onboarded. The bank holds the money, never Qotoba.</td></tr>
+<tr><td><b>Rider shell drifts</b></td><td>The Kotlin shell is the one piece outside C# and TypeScript, and IntelliJ platform APIs change yearly.</td><td>The shell is kept to LSP registration and a web view; everything else lives in the server and the bundle.</td></tr>
+<tr><td><b>Estimates</b></td><td>Person-day estimates ran four to six times long; measured minutes read zero.</td><td>Session-hours only; measured minutes fixed in phase A; forecasts recalibrated at every phase gate.</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="part wb">
+<div class="eyebrow">Working strategy</div>
+<h2 id="working">How we work</h2>
+<p>The Workbench's rules W1 to W14 stand. The owner's job is to decide and to judge; sessions design, build, test and commit; machines check before the owner reads. The rhythm below is the plan's expectation of a working week once phase A is in motion.</p>
+<div class="rhythm">
+  <div><b>Morning, 30 minutes</b><span>on the phone or in the IDE panel</span>Read the overnight summary. Press Approve or Change on packets. Answer question cards in one pass. Nothing read raw.</div>
+  <div><b>Day, one design lane</b><span>chat, with pages for anything long</span>One design conversation at a time: BREEO walk, §16 screen walk, or a foundation decision. The session records rulings the same day.</div>
+  <div><b>Evening, 15 minutes</b><span>the night card</span>Approve the night's batch: which tasks, how many sessions. Three sessions build against approved designs from 22:00.</div>
+  <div><b>Night, machines</b><span>22:00 to 07:00</span>Sessions build, run suites, meet the gates, draw packets. A failure gets two self-repairs before it becomes an alert. Questions become cards for the morning.</div>
+  <div><b>Weekly, one hour</b><span>the board</span>Read the self-host gate trend, the forecast, and the late cards. Move the forecast only here.</div>
+  <div><b>Phase gate</b><span>one page, one card</span>The phase's exit criteria as a packet. Approving it opens the next phase's lanes and recalibrates estimates.</div>
+</div>
+<h3>Rules the plan adds to W1 to W14</h3>
+<ul>
+  <li><b>Qotoba code is written through the Skills.</b> A session that writes <code>.qo</code> without the language Skill loaded is a finding in Health, because that is how dialects drift.</li>
+  <li><b>Generated output is never edited by hand.</b> The <code>generated/</code> folder is read-only by hook; a change belongs in the source or in the emitter, and the emitter's golden baseline shows which.</li>
+  <li><b>Every emitter change ships with its diff.</b> The packet for an emitter change carries the baseline diff for every corpus file, folded, so the owner sees what changed in the output without reading the emitter.</li>
+  <li><b>An app never names a framework gap as app code.</b> Carried over from Quanta: the gap is a register item, in framework terms, and the app's packet lists it.</li>
+  <li><b>One decision card per foundation.</b> The four language foundations are never settled inside another task's packet.</li>
+</ul>
+</section>
+
+<section>
+<h2 id="read">The other pages</h2>
+<div class="reading">
+  <a href="baseline.html"><b>Quanta Baseline</b><span>What exists today, with numbers, status and the rename map.</span><em>part 1</em></a>
+  <a href="workstreams.html"><b>Qotoba Workstreams</b><span>The first-level task outline: ten workstreams, their tasks, dependencies, phases and proofs.</span><em>part 3</em></a>
+  <a href="tooling.html"><b>Workbench and Agent Tooling</b><span>The tools that make the owner's work simple: gates, pages, the IDE panel, MCP tools, Skills and hooks.</span><em>part 4</em></a>
+  <a href="applications.html"><b>Qotoba Applications</b><span>Dope, KraveSoccer, Entrepreneur and KraveFlow: what each becomes in Qotoba and what it teaches the platform.</span><em>part 5</em></a>
+</div>
+</section>
+
+<footer>Qotoba documentation · programme plan · 5 November 2026 · estimates in session-hours at planned capacity, to be recalibrated at each phase gate.</footer>
+</main>
+</div>
+</body>
+</html>

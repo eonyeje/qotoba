@@ -21,10 +21,10 @@ Pre-alpha. This repository is the public home of the project; the design is bein
 ## Repository layout
 
 ```
-docs/   design notes and decisions
+docs/   plans, decisions and designs as HTML pages; open docs/index.html
 ```
 
-More to come as the design lands.
+The plan lives in `docs/plan/programme.html`. Every document is a self-contained HTML page on one shared stylesheet.
 
 ## Contributing
 

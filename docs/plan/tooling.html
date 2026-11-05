@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workbench and Agent Tooling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/qotoba-docs.css">
+<style>
+.card-mock { max-width: 460px; border: 1px solid var(--rule); border-left: 5px solid var(--wb); border-radius: 12px; background: var(--surface); padding: 14px 16px; font-family: var(--display); font-size: 13.5px; line-height: 1.4; margin: 16px 0; }
+.card-mock .top { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.card-mock .hl { font-size: 16px; font-weight: 700; margin: 4px 0; }
+.card-mock .why { color: var(--ink2); font-size: 13px; }
+.gates { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.gates span { font-size: 11px; padding: 3px 7px; border-radius: 5px; border: 1px solid var(--rule); background: var(--sunk); font-weight: 700; }
+.gates .ok { color: var(--good); } .gates .w { color: var(--warn); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.btns span { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--rule); font-weight: 700; font-size: 12.5px; }
+.btns .primary { background: var(--wb); color: #fff; border-color: var(--wb); }
+table.tools td:first-child { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+.seq { display: grid; grid-template-columns: 34px repeat(4, minmax(120px, 1fr)); gap: 6px 8px; font-family: var(--display); font-size: 13px; min-width: 640px; }
+.seq .h { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink); text-align: center; border-bottom: 2px solid var(--rule); padding-bottom: 6px; }
+.seq .k { color: var(--ink3); font-variant-numeric: tabular-nums; text-align: right; padding-top: 6px; }
+.seq .b { border-radius: 6px; padding: 6px 9px; background: color-mix(in srgb, var(--wb) 11%, var(--surface)); border: 1px solid color-mix(in srgb, var(--wb) 45%, var(--rule)); color: var(--ink); line-height: 1.35; }
+.seq .b.o { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, var(--rule)); }
+.seq .b.a { background: color-mix(in srgb, var(--agents) 12%, var(--surface)); border-color: color-mix(in srgb, var(--agents) 45%, var(--rule)); }
+.seq .b em { font-style: normal; color: var(--ink3); font-size: 12px; display: block; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="../index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#problem"><i style="background:var(--bad)"></i>The overload problem</a></li>
+    <li><a class="p" href="#loop"><i style="background:var(--wb)"></i>One task, start to finish</a></li>
+    <li><a class="p" href="#inventory"><i></i>Tool inventory</a></li>
+    <li><a class="p" href="#gates"><i></i>Gates</a></li>
+    <li><a class="p" href="#pages"><i></i>Pages and cards</a></li>
+    <li><a class="p" href="#panel"><i style="background:var(--ade)"></i>The IDE panel</a></li>
+    <li><a class="p" href="#mcp"><i style="background:var(--agents)"></i>MCP tools</a></li>
+    <li><a class="p" href="#skills"><i style="background:var(--agents)"></i>Skills</a></li>
+    <li><a class="p" href="#hooks"><i style="background:var(--agents)"></i>Hooks</a></li>
+    <li><a class="p" href="#budget"><i></i>The reading budget</a></li>
+  </ol>
+  <div class="back"><a href="programme.html">← Programme plan</a><br><a href="../index.html">← All documents</a></div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Plan · part 4 of 5 · the tools that keep the owner deciding, not reading · 5 November 2026</div>
+  <h1>Workbench and Agent Tooling</h1>
+  <p class="lede">Building five products and four apps with agents produces more output than one person can read. This page lists every tool the plan needs so the owner's work stays simple: what exists, what is adapted, what is new, and the measurement that says whether it is working.</p>
+</header>
+
+<section>
+<h2 id="problem">The overload problem, measured</h2>
+<p>The Workbench exists because of a survey of 55 sessions over 56 days. Its summary: "Your time went into reading and correcting rather than deciding. Claude was not checked by anything except you. Knowledge lived in chats and drifted across branches. And there was no unit of review bigger than a message and smaller than a month." The Qotoba programme adds a new kind of output on top: generated code in two languages, which nobody wrote and which must still be judged.</p>
+<div class="stats">
+  <div><b>302</b><span>incidents in 20 kinds across the surveyed sessions</span></div>
+  <div><b>~50 h</b><span>of owner time priced to eight patterns: unattended runs, question drip, rubber stamps, pasted hand-offs, rules in chat, lost context, buried questions, colliding branches</span></div>
+  <div><b>244 / 633</b><span>owner messages in one session that answered a turn-ending question</span></div>
+  <div><b>&lt; 1 min</b><span>the Workbench's target for every decision, on a phone</span></div>
+</div>
+<p>The governing requirement, in the owner's words: "i do not mind even up to 8-10 hrs of review - the main issue is how easy it is to review." Volume is acceptable; friction is not. Every tool below is justified by one of the twenty incident kinds it removes, or by the new generated-code review load it absorbs.</p>
+</section>
+
+<section class="part wb">
+<div class="eyebrow">The loop</div>
+<h2 id="loop">One task, start to finish</h2>
+<p>The sequence shows a single Qotoba task, "the hover service as a Qotoba service", moving through the tools. Everything the owner touches is in the first column; everything that reads raw output is a machine.</p>
+<div class="diagram">
+  <div class="seq">
+    <div></div><div class="h">Owner</div><div class="h">Workbench</div><div class="h">Session</div><div class="h">Agents layer</div>
+    <div class="k">1</div><div class="b o">Presses Approve on the design packet (BREEO walk of the service)</div><div class="b">Records the ruling; creates the task's lane; schedules it for the night</div><div></div><div></div>
+    <div class="k">2</div><div></div><div class="b">Starts the session in a registered worktree; delivers the brief with twelve rulings and the Skill list</div><div class="b">Reads the brief; loads the Qotoba Skill</div><div class="b a">Skill: how to write a <code>services</code> intent in the house shape</div>
+    <div class="k">3</div><div></div><div></div><div class="b">Writes <code>HoverService.qo</code>; plans units with their checks</div><div class="b a">Hook: formats and checks on every write; MCP: <code>check</code>, <code>emit</code>, <code>explain</code></div>
+    <div class="k">4</div><div></div><div class="b">Gates run: suites · emitter baseline · target build · add-in smoke · self-host share</div><div class="b">Fixes a baseline drift itself (first self-repair); reruns</div><div></div>
+    <div class="k">5</div><div></div><div class="b">Draws the packet: units, gates, the generated-code review page, departures, follow-ups</div><div class="b">Draws the commit page naming its files; starts the wait</div><div></div>
+    <div class="k">6</div><div class="b o">Morning: reads the card in the IDE panel; opens the review page; sees source beside emitted C#; presses Approve, then Merge</div><div class="b">Turns the press into an exact instruction; delivers it</div><div class="b">Commits the named files; merges; removes the worktree</div><div></div>
+    <div class="k">7</div><div></div><div class="b">Self-host ledger updates; board and forecast move; Health checks the packet's follow-ups have IDs</div><div></div><div></div>
+  </div>
+  <div class="cap">Blue: the owner's two touches, one in the evening and one in the morning. Orange: the Workbench. Green: the agents layer. The owner read one card and one page.</div>
+</div>
+</section>
+
+<section>
+<h2 id="inventory">Tool inventory</h2>
+<p>Every tool the plan relies on, with its state. "Exists" means built in the Quanta Workbench today; "adapt" means an existing mechanism extended for the language; "new" means built under this plan, with its workstream task.</p>
+<div class="tw"><table class="wide">
+<thead><tr><th>Tool</th><th>What it does for the owner</th><th>Removes which incident</th><th>State</th><th>Task</th></tr></thead>
+<tbody>
+<tr><td><b>Brief</b></td><td>Every session starts knowing the project, task, rulings, open cards and how to work</td><td>Lost context (8), not the Quanta way (56), reopened decisions (9)</td><td><span class="st good">exists</span> adapt: Skill list, Qotoba project</td><td>WS0-3</td></tr>
+<tr><td><b>Rulings store</b></td><td>Decisions recorded in the owner's words, searched before any proposal</td><td>Same design redone (13), reopened (9)</td><td><span class="st good">exists</span></td><td>—</td></tr>
+<tr><td><b>Cards and question pages</b></td><td>One decision per card; related questions on one page with one box each</td><td>Too many small questions (5), decided for the owner (11), misread (20)</td><td><span class="st good">exists</span></td><td>—</td></tr>
+<tr><td><b>Packets</b></td><td>One review page per task: what changed, units, gates, departures, follow-ups</td><td>Said done when not (17), claimed without checking (28), built more than asked (26)</td><td><span class="st good">exists</span> adapt: language gates and the review page</td><td>WS6-3, WS6-5</td></tr>
+<tr><td><b>Five gates</b></td><td>suites, timing, screen, surface, parity worked out from data</td><td>Tests missed it (10), made it slower (3), dropped a feature (9)</td><td><span class="st good">exists</span> <span class="st warn">timing and surface wait</span></td><td>WS6-6</td></tr>
+<tr><td><b>Language gates</b></td><td>parse round-trip, emitter baseline, target build, add-in smoke, self-host share</td><td>the new generated-code load</td><td><span class="st neutral">new</span></td><td>WS6-3</td></tr>
+<tr><td><b>Generated-code review page</b></td><td>Source beside output by provenance; baseline diff folded</td><td>the new generated-code load</td><td><span class="st neutral">new</span></td><td>WS6-5</td></tr>
+<tr><td><b>Commit, merge, push presses</b></td><td>Git only on a delivered press; what git reports is shown, never acted on</td><td>Process overhead (21), rubber stamps</td><td><span class="st good">exists</span> <span class="st bad">branch = task assumption</span></td><td>WS6-1</td></tr>
+<tr><td><b>Night shift</b></td><td>Three sessions build approved designs 22:00 to 07:00; a night approved by one card</td><td>Slow iteration (11), long unattended runs</td><td><span class="st good">exists</span> <span class="st bad">never run alone</span></td><td>WS6-2</td></tr>
+<tr><td><b>Health</b></td><td>Findings: IDs no register holds, tasks done without proof, framework entries naming an app, Qotoba written without the Skill</td><td>Register IDs out of sync (5), claims</td><td><span class="st good">exists</span> adapt: Skill finding</td><td>WS7-3</td></tr>
+<tr><td><b>Code index</b></td><td>"What exists for X" in milliseconds, replacing the hanging catalogue scan; extended to <code>.qo</code></td><td>Same design redone, hard-to-read reports</td><td><span class="st neutral">designed</span> (slice 3)</td><td>WS6-6, WS6-8</td></tr>
+<tr><td><b>Design review screen</b></td><td>Prototype, compiler-coloured code, model, stacked; Approve, Change or Ask</td><td>Coded before design agreed (6), misread</td><td><span class="st neutral">designed</span> (slice 3)</td><td>WS6-6</td></tr>
+<tr><td><b>IDE panel</b></td><td>Inbox, project page and current packet inside Rider and VS Code</td><td>the "no fourth place" rule; context switches</td><td><span class="st neutral">new</span></td><td>WS6-7</td></tr>
+<tr><td><b>Self-host ledger</b></td><td>Generated against hand-written lines per product, on the docs home</td><td>the programme's own goal, made visible</td><td><span class="st neutral">new</span></td><td>WS4-10</td></tr>
+<tr><td><b>Multi-repo projects</b></td><td>One task across the monorepo, Quanta and an app repo, one packet</td><td>colliding branches</td><td><span class="st neutral">new</span></td><td>WS6-4</td></tr>
+<tr><td><b>MCP server</b></td><td>Lets a session parse, check, emit and explain without guessing</td><td>Not the Quanta way, claimed without checking</td><td><span class="st neutral">new</span></td><td>WS7-2</td></tr>
+<tr><td><b>Skills pack</b></td><td>Teaches the language and the house methods once, loaded by every session</td><td>Not the Quanta way (56), rules in chat</td><td><span class="st neutral">new</span></td><td>WS7-1</td></tr>
+<tr><td><b>Hooks</b></td><td>Format and check on write; generated folder read-only; provenance on diffs</td><td>Claimed without checking; edits in the wrong place</td><td><span class="st neutral">new</span></td><td>WS7-3</td></tr>
+<tr><td><b>Agent evaluation suite</b></td><td>A score for how well sessions write Qotoba, trended per Skills change</td><td>drift in the dialect</td><td><span class="st neutral">new</span></td><td>WS7-5</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="gates">Gates</h2>
+<p>A gate is worked out from data, never typed. The five existing gates stay. The plan adds five language gates, each with its evidence chip on the packet and its warn and fail rules. A packet is held while any gate warns.</p>
+<div class="tw"><table class="wide">
+<thead><tr><th>Gate</th><th>What it checks</th><th>Evidence on the card</th><th>Warn</th><th>Fail</th></tr></thead>
+<tbody>
+<tr><td><b>Suites</b> (exists)</td><td>Every unit's proving checks green in the latest run</td><td>passed · failed · skipped</td><td>a skip</td><td>a failure</td></tr>
+<tr><td><b>Timing</b> (exists, waits on benchmarks)</td><td>Data-heavy changes timed against the old build</td><td>before → after ms</td><td>slower by 10%</td><td>slower by 25%</td></tr>
+<tr><td><b>Screen</b> (exists)</td><td>Screenshots of touched pages against goldens</td><td>n pages · diffs</td><td>a diff without approval</td><td>a page that fails to render</td></tr>
+<tr><td><b>Surface</b> (exists, waits on the code index)</td><td>New public types against the approved API surface</td><td>n helpers added</td><td>one helper class or five methods</td><td>more, unlisted</td></tr>
+<tr><td><b>Parity</b> (exists)</td><td>Nothing dropped in a rewrite</td><td>features before · after</td><td>a feature moved</td><td>a feature missing</td></tr>
+<tr><td><b>Round-trip</b> (new)</td><td>Every <code>.qo</code> file in the change prints back to its source after parse; thirty seeded mutations still parse</td><td>n files · n mutations</td><td>—</td><td>any mismatch</td></tr>
+<tr><td><b>Emitter baseline</b> (new)</td><td>Emitted C# and TypeScript for the corpus against golden baselines</td><td>n files changed · diff folded on the review page</td><td>any change not named in the packet</td><td>a change in a file outside the task's scope</td></tr>
+<tr><td><b>Target build</b> (new)</td><td>Emitted output builds with <code>dotnet build</code> (warnings as errors) and <code>tsc --strict</code></td><td>C# ✓ · TS ✓</td><td>a new warning suppressed</td><td>a build failure</td></tr>
+<tr><td><b>Add-in smoke</b> (new)</td><td>The scripted session (open, edit, diagnostics, complete, hover, go-to, format) in VS Code and Rider headless</td><td>VS Code ✓ · Rider ✓ · n steps</td><td>a step slower than 2 s</td><td>a step fails</td></tr>
+<tr><td><b>Self-host share</b> (new)</td><td>Generated against hand-written lines for the touched product, against the previous merge</td><td>share before → after</td><td>a fall of one point</td><td>a fall of five points</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="pages">Pages and cards the programme adds</h2>
+<p>Every page kind that will recur becomes a template before its second copy is written (D078). These are the templates the programme needs beyond commit, merge, push, questions and packet.</p>
+<div class="tw"><table>
+<thead><tr><th>Template</th><th>Drawn when</th><th>Shows</th></tr></thead>
+<tbody>
+<tr><td><b>generated-review</b></td><td>a packet touches an emitter, a distiller or an intent library</td><td>each changed corpus file: <code>.qo</code> source on the left, emitted output on the right, aligned by provenance; the baseline diff folded below; a line count delta</td></tr>
+<tr><td><b>foundation</b></td><td>one of the thirteen programme decisions is asked</td><td>the options as Qotoba code, the C# and TypeScript each would emit, the trade-offs in three lines each, a recommendation marked</td></tr>
+<tr><td><b>intent-walk</b></td><td>a new intent library is designed</td><td>the BREEO walk: the code a developer writes, what it distils to, the editors and rules it declares</td></tr>
+<tr><td><b>screen-walk</b></td><td>an app screen is designed (§16)</td><td>view trees, model outline, queries, delivery, with the checks the walk carries</td></tr>
+<tr><td><b>parity</b></td><td>an app rewrite task draws its packet</td><td>the reference version's features and checks against the Qotoba version's, with screenshots side by side</td></tr>
+<tr><td><b>phase-gate</b></td><td>a phase's exit criteria are claimed</td><td>each criterion with its evidence; the recalibrated estimates for the next phase</td></tr>
+<tr><td><b>night</b></td><td>every evening</td><td>the tasks proposed for the night, sessions, what each will build, one Approve</td></tr>
+</tbody></table></div>
+<p>A card for an emitter change, as the owner would see it in the morning:</p>
+<div class="card-mock">
+  <div class="top"><span class="st wb">Packet</span><span class="st neutral">Qotoba · Emitters lane · night</span><span class="st neutral">unblocks 2</span></div>
+  <div class="hl">Hover shows the generated C# for widget bodies</div>
+  <div class="why">WS4-8 · hover service as a Qotoba service. The service is now declared in <code>HoverService.qo</code> and emitted; 212 hand-written lines removed.</div>
+  <div class="gates"><span class="ok">✓ Suites</span><span class="ok">✓ Round-trip</span><span class="ok">✓ Baseline</span><span class="ok">✓ Build</span><span class="ok">✓ Smoke</span><span class="ok">✓ Self-host 41% → 47%</span><span class="w">! Surface</span></div>
+  <div class="why">Surface: 1 helper added, <code>HoverRenderer</code>, justified on the page ›</div>
+  <div class="btns"><span class="primary">Approve &amp; merge</span><span>Ask for changes</span><span>Open review</span></div>
+</div>
+<p class="src">Figures illustrative. The gate chips, the self-host delta and the helper line come from the packet's data, never typed.</p>
+</section>
+
+<section class="part ade">
+<div class="eyebrow">In the IDE</div>
+<h2 id="panel">The IDE panel</h2>
+<p>The owner's working rule is three places and no fourth: Claude Code, the IDE and the Workbench. The add-ins let the Workbench be a panel in the IDE, from the same web UI bundle the ADE panels use, so a card is pressed where the code is read.</p>
+<figure>
+  <div class="canvas">
+  <svg viewBox="0 0 900 260" role="img" aria-label="An IDE window with three panels: the editor showing a .qo file, a right-hand ADE panel with inspector and generated code, and a bottom Workbench panel listing inbox cards with Approve and Change buttons; arrows show the panel reading the Workbench server on port 5190 and the editor talking to the language server.">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+    <g font-family="Zen Kaku Gothic New, Segoe UI, sans-serif" font-size="12" fill="currentColor">
+      <rect x="20" y="20" width="620" height="220" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="20" y="20" width="620" height="22" rx="8" style="fill:var(--sunk)" stroke="currentColor" stroke-width="1"/><text x="32" y="36" font-weight="700" font-size="11">Rider or VS Code · Dope · MoviesPage.qo</text>
+      <rect x="30" y="52" width="360" height="110" rx="4" fill="none" stroke="currentColor" stroke-dasharray="3 3"/><text x="40" y="70" font-family="IBM Plex Mono, monospace" font-size="11">widget MoviesPage {</text><text x="40" y="86" font-family="IBM Plex Mono, monospace" font-size="11">  films: view.Library</text><text x="40" y="102" font-family="IBM Plex Mono, monospace" font-size="11">  body = PillarPage(films |&gt; cards)</text><text x="40" y="118" font-family="IBM Plex Mono, monospace" font-size="11">}</text><text x="40" y="150" font-size="10.5" opacity=".75">diagnostics · completion · hover · go to generated</text>
+      <rect x="400" y="52" width="230" height="110" rx="4" style="fill:var(--surface);stroke:var(--ade)" stroke-width="1.5"/><text x="410" y="70" font-weight="700" font-size="11" style="fill:var(--ade)">ADE panel</text><text x="410" y="88" font-size="11">Inspector · films: [Film] · 1,356 rows</text><text x="410" y="104" font-size="11">Generated C# · MoviesPage.g.cs · 41 lines</text><text x="410" y="120" font-size="11">Canvas · phone · dark</text><text x="410" y="150" font-size="10.5" opacity=".75">rung 2: this panel is emitted from Qotoba</text>
+      <rect x="30" y="172" width="600" height="60" rx="4" style="fill:var(--surface);stroke:var(--wb)" stroke-width="1.5"/><text x="40" y="190" font-weight="700" font-size="11" style="fill:var(--wb)">Workbench panel · Inbox · 3 cards</text><text x="40" y="208" font-size="11">▸ Packet · Hover shows generated C# · ✓✓✓✓✓ ! · [Approve &amp; merge] [Change]</text><text x="40" y="224" font-size="11">▸ Question · nullability in extern members · 2 options · unblocks 4</text>
+      <rect x="700" y="60" width="180" height="50" rx="8" fill="none" style="stroke:var(--lang)" stroke-width="1.5"/><text x="790" y="81" text-anchor="middle" font-weight="700">Language server</text><text x="790" y="98" text-anchor="middle" font-size="11">C# · LSP</text>
+      <rect x="700" y="160" width="180" height="50" rx="8" fill="none" style="stroke:var(--wb)" stroke-width="1.5"/><text x="790" y="181" text-anchor="middle" font-weight="700">Workbench server</text><text x="790" y="198" text-anchor="middle" font-size="11">localhost:5190</text>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" marker-end="url(#ar)" marker-start="url(#ar)"><line x1="640" y1="85" x2="698" y2="85"/><line x1="640" y1="200" x2="698" y2="190"/></g>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Three places become two.</b> The Workbench panel reads the same server as the web app; a press here is the same press. The ADE panel is the first thing Qotoba generates about itself.</figcaption>
+</figure>
+<p>Scope for the first release: the inbox with its buttons, the project page with its three presses, and the current task's packet. The board, timeline and registers stay on the web app until the panel proves itself. The panel is a widget intent from rung 2 onward, which makes it the second self-hosted piece after the generated-code view.</p>
+</section>
+
+<section class="part agents">
+<div class="eyebrow">Agents</div>
+<h2 id="mcp">MCP tools</h2>
+<p>The Qotoba MCP server gives a session facts instead of guesses. It runs the same compiler host as the CLI and the language server, so an agent and the IDE never disagree about a file. The Workbench's own 38 tools stay as they are; these are the language's.</p>
+<div class="tw"><table class="wide tools">
+<thead><tr><th>Tool</th><th>Answers</th><th>Reads</th><th>Phase</th></tr></thead>
+<tbody>
+<tr><td>parse</td><td>the syntax records of a file, with findings and the print-back check</td><td>parser</td><td>B</td></tr>
+<tr><td>check</td><td>bound and validated findings for a file or project, by family and name</td><td>binder, validator</td><td>B</td></tr>
+<tr><td>emit</td><td>the C# or TypeScript for a file, with provenance lines, without writing it</td><td>emitters</td><td>B</td></tr>
+<tr><td>explain</td><td>what an intent or a construct means, its distilled form and the framework calls it becomes</td><td>intent libraries, distiller</td><td>C</td></tr>
+<tr><td>symbols.find</td><td>declarations matching a name or a kind across <code>.qo</code> and C#</td><td>code index</td><td>C</td></tr>
+<tr><td>symbols.type</td><td>the type, members and constraints of a symbol; generic instantiations</td><td>binder, type model</td><td>B</td></tr>
+<tr><td>symbols.impact</td><td>what a change to a symbol reaches: files, emitted outputs, apps</td><td>lookups, provenance</td><td>C</td></tr>
+<tr><td>intents.catalogue</td><td>every intent library, its keywords, rules, examples and distiller target</td><td>language reference data</td><td>C</td></tr>
+<tr><td>widgets.catalogue</td><td>every widget factory and modifier with its signature and usage, from the framework catalogue</td><td>code index</td><td>B</td></tr>
+<tr><td>suite.run</td><td>runs a group's suite with a filter and returns the results file the Workbench reads</td><td>runners</td><td>B</td></tr>
+<tr><td>widget.render</td><td>renders a widget headless to an image at a device size and theme</td><td>headless host</td><td>C</td></tr>
+<tr><td>fmt</td><td>the printer's formatted text for a file, as a minimal edit</td><td>printer</td><td>B</td></tr>
+<tr><td>overlay.try</td><td>applies an edit as a session overlay and returns the preview and the diagnostics without touching the file</td><td>overlays</td><td>F</td></tr>
+</tbody></table></div>
+<p>At rung 4 the server's tool list is itself emitted from <code>tool</code> intents, so a new tool is one declaration that also produces its JSON schema and its documentation.</p>
+
+<h2 id="skills">Skills</h2>
+<p>A Skill is loaded by every session that writes Qotoba. It is the mechanism that replaces 22,400 words of style guide grown in chat with instructions that arrive when they are needed. Each Skill is short, points at the reference data, and names the MCP tools to use.</p>
+<div class="tw"><table>
+<thead><tr><th>Skill</th><th>When it loads</th><th>What it teaches</th><th>Phase</th></tr></thead>
+<tbody>
+<tr><td><b>qotoba-lang</b></td><td>any <code>.qo</code> write</td><td>the syntax, the four foundations as rules, the house shape for files, when to use <code>check</code> and <code>emit</code>, the corpus as examples</td><td>A</td></tr>
+<tr><td><b>qotoba-intent</b></td><td>authoring or changing an intent library</td><td>the six grammar shapes, the generator class, declaring vocabulary, rules, distiller and editors, the intent-walk template</td><td>C</td></tr>
+<tr><td><b>qotoba-widget</b></td><td>writing a widget</td><td>inputs, state, body, modifiers over wrapping, the ten-lines rule, which framework factories exist, the canvas preview</td><td>C</td></tr>
+<tr><td><b>qotoba-screen</b></td><td>designing an app screen</td><td>CLAUDE.md §16 as a Skill: view trees, model outline, queries, delivery, the checks the design carries</td><td>A</td></tr>
+<tr><td><b>qotoba-breeo</b></td><td>designing a public surface</td><td>Build, Read, Edit, Extend, Observe from the developer's code first; <code>.api.cs</code> and <code>.usage.cs</code></td><td>A</td></tr>
+<tr><td><b>qotoba-migrate</b></td><td>rewriting a Quanta screen or module in Qotoba</td><td>the mapping from records, components and extensions to intents; the parity template; raising framework gaps as register items</td><td>D</td></tr>
+<tr><td><b>qotoba-addin</b></td><td>touching the language server, the shells or the web UI</td><td>the shared-server rule, the shell line budget, the smoke script, how a panel becomes a widget</td><td>B</td></tr>
+<tr><td><b>qotoba-emitter</b></td><td>changing an emitter</td><td>idiomatic output rules per target, baselines, the review page, never special-casing an app</td><td>B</td></tr>
+<tr><td><b>qotoba-workbench</b></td><td>every session</td><td>W1 to W14 and the programme's added rules, in under 600 words</td><td>A</td></tr>
+</tbody></table></div>
+
+<h2 id="hooks">Hooks</h2>
+<p>Hooks run on session events and tool calls; they are the checks a session meets before the owner sees anything.</p>
+<ul>
+  <li><b>On every <code>.qo</code> write</b>: run the printer and the validator; reject the write if the file does not round-trip or has a failing finding, and return the finding to the session.</li>
+  <li><b>Before a tool call</b>: block any edit under <code>generated/</code>; block a push to master without a Push press; block a full solution build nobody asked for.</li>
+  <li><b>On session start</b>: load the brief, and record which Skills are loaded; writing <code>.qo</code> later without <code>qotoba-lang</code> is a Health finding.</li>
+  <li><b>After each tool call</b>: stream progress to the live strip; attach provenance to any diff of emitted output so the review page can align it.</li>
+  <li><b>On stop</b>: post the session state; refuse to stop while a reply is unread.</li>
+</ul>
+</section>
+
+<section>
+<h2 id="budget">The reading budget</h2>
+<p>A tool is working when the owner's reading stays inside a budget. The plan sets one and the Workbench reports it weekly on the board, from the session ledger and the card timestamps.</p>
+<div class="tw"><table>
+<thead><tr><th>Measure</th><th>Target</th><th>Today</th></tr></thead>
+<tbody>
+<tr><td>Time per card, median</td><td>under one minute</td><td>not measured; measured minutes read zero (WS0-4)</td></tr>
+<tr><td>Owner messages that answer a turn-ending question</td><td>under 10% of messages</td><td>39% in the surveyed session</td></tr>
+<tr><td>Bare go-aheads (commit, push, next)</td><td>zero; presses replace them</td><td>about 12% of one app's messages</td></tr>
+<tr><td>Raw output read by the owner</td><td>zero; every packet has a page</td><td>pages exist; generated code has no page yet</td></tr>
+<tr><td>Decisions asked twice</td><td>zero; Health finding when it happens</td><td>9 reopened decisions in the survey</td></tr>
+<tr><td>Night packets that are noise</td><td>under one in five</td><td>unknown; the night shift has not run alone</td></tr>
+</tbody></table></div>
+<p>When a measure drifts, the fix is a tool on this page, not more owner time. That is the whole point of funding the Workbench and the agents layer as products.</p>
+</section>
+
+<footer>Qotoba documentation · tooling · 5 November 2026 · incident counts and quotations from the Workbench survey of 24 October 2026.</footer>
+</main>
+</div>
+</body>
+</html>

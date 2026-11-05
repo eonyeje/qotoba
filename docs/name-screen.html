@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qotoba Name Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/qotoba-docs.css">
+<style>
+.bar { display:grid; grid-template-columns: 110px minmax(0,1fr) 40px; gap: 8px 12px; align-items:center; font-family: var(--display); font-size: 13.5px; }
+.bar i { display:block; height: 14px; border-radius: 3px; background: var(--good); }
+.bar .l { color: var(--ink2); text-align: right; }
+.bar .n { color: var(--ink3); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <a class="brand" href="index.html"><span class="mark">言</span><span><b>Qotoba</b><span>documentation</span></span></a>
+  <ol>
+    <li><a class="p" href="#method"><i></i>Method</a></li>
+    <li><a class="p" href="#summary"><i></i>Summary</a></li>
+    <li><a class="p" href="#matrix"><i></i>The matrix</a></li>
+  </ol>
+  <div class="back"><a href="index.html">← All documents</a></div>
+</nav>
+<main>
+<header class="hero">
+  <div class="eyebrow">Research record · 5 November 2026</div>
+  <h1>Qotoba Name Screen</h1>
+  <p class="lede">Fifty-three candidate names screened in one pass against GitHub, npm, crates.io, PyPI and four domain endings. The result fed the <a href="naming-decision.html">naming decision</a>.</p>
+</header>
+
+<h2 id="method">Method</h2>
+<p>Each candidate came from a real word (Zulu, Xhosa, Swahili, Somali, Amharic, Quechua, Japanese, Korean, Tamil, Malay, Turkish, Georgian, Greek, Latin) or a mutation of an English word about language, with a Q or X swapped in. Every name was checked the same way, by direct lookup rather than search:</p>
+<ul>
+  <li><b>Registries</b>: the public JSON endpoints of npm, crates.io and PyPI. A 404 means free.</li>
+  <li><b>GitHub</b>: a load of <code>github.com/&lt;name&gt;</code> after the API rate limit ran out; a 404 means neither a user nor an org holds it.</li>
+  <li><b>Domains</b>: RDAP, which is the registries' own protocol. Verisign for .com, Google for .dev, Identity Digital for .io, rdap.org for .ai. A 404 means unregistered.</li>
+</ul>
+<p>The first parallel run tripped rate limits on GitHub and the RDAP relay, so GitHub and domains were re-run one at a time and the .com results were cross-checked against Verisign directly. The matrix below is the corrected run. Trademark databases were not part of this screen; the shortlist was searched on the web separately.</p>
+
+<h2 id="summary">Summary</h2>
+<div class="stats">
+  <div><b>53</b><span>names screened</span></div>
+  <div><b>4</b><span>free on every surface, including .com</span></div>
+  <div><b>7</b><span>free on GitHub, npm, .dev and .io, with only the .com or .ai held</span></div>
+  <div><b>6</b><span>with a free .com</span></div>
+</div>
+<p>Free everywhere: <b>anlaq, ciptaq, idioq, xoxaq</b>. Free on the surfaces that matter to a developer tool (GitHub, npm, .dev, .io) with only a parked .com or .ai in the way: <b>arqot, doyaq, oyeq, qoraal, qotoba, semaq, dialeq</b>.</p>
+<figure>
+  <figcaption style="margin:0 0 10px"><b>How many of the eight surfaces each candidate had free.</b> Sorted by that count, then by name. A short bar means the name is already in use somewhere that matters.</figcaption>
+  <div class="canvas"><div class="bar">
+<span class="l">anlaq</span><span><i style="width:100%"></i></span><span class="n">8</span><span class="l">ciptaq</span><span><i style="width:100%"></i></span><span class="n">8</span><span class="l">idioq</span><span><i style="width:100%"></i></span><span class="n">8</span><span class="l">xoxaq</span><span><i style="width:100%"></i></span><span class="n">8</span><span class="l">arqot</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">doyaq</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">mozhiq</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">oyeq</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">polyqlot</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">qoraal</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">qotoba</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">semaq</span><span><i style="width:88%"></i></span><span class="n">7</span><span class="l">dialeq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">kaqu</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">lekhaq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">majuq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qanqa</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qapaq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qelqa</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qhakaza</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qhuba</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qillqa</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qiniso</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qonde</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">qumba</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">rimaq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">ruraq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">sitqa</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">uqaq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">vernaq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">xieq</span><span><i style="width:75%"></i></span><span class="n">6</span><span class="l">andiq</span><span><i style="width:62%"></i></span><span class="n">5</span><span class="l">jarq</span><span><i style="width:62%"></i></span><span class="n">5</span><span class="l">qhapaq</span><span><i style="width:62%"></i></span><span class="n">5</span><span class="l">syntaq</span><span><i style="width:62%"></i></span><span class="n">5</span><span class="l">tonq</span><span><i style="width:62%"></i></span><span class="n">5</span><span class="l">fundiq</span><span><i style="width:50%"></i></span><span class="n">4</span><span class="l">linqo</span><span><i style="width:50%"></i></span><span class="n">4</span><span class="l">qafza</span><span><i style="width:50%"></i></span><span class="n">4</span><span class="l">xook</span><span><i style="width:50%"></i></span><span class="n">4</span><span class="l">xoxa</span><span><i style="width:50%"></i></span><span class="n">4</span><span class="l">lexiq</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">likho</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">qonda</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">qoqa</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">qoral</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">quba</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">vaq</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">yachaq</span><span><i style="width:38%"></i></span><span class="n">3</span><span class="l">awal</span><span><i style="width:25%"></i></span><span class="n">2</span><span class="l">eloq</span><span><i style="width:25%"></i></span><span class="n">2</span><span class="l">qal</span><span><i style="width:25%"></i></span><span class="n">2</span><span class="l">qlot</span><span><i style="width:25%"></i></span><span class="n">2</span>
+  </div></div>
+</figure>
+
+<h2 id="matrix">The matrix</h2>
+<p>Green is free, red is taken. The last column counts free surfaces out of eight.</p>
+<div class="tw"><table class="wide">
+<thead><tr><th>Name</th><th>GitHub</th><th>npm</th><th>crates</th><th>PyPI</th><th>.com</th><th>.dev</th><th>.io</th><th>.ai</th><th class="num">Free</th></tr></thead>
+<tbody>
+<tr><td><b>anlaq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">8/8</td></tr>
+<tr><td><b>ciptaq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">8/8</td></tr>
+<tr><td><b>idioq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">8/8</td></tr>
+<tr><td><b>xoxaq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">8/8</td></tr>
+<tr><td><b>arqot</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>doyaq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>mozhiq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>oyeq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>polyqlot</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>qoraal</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>qotoba</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>semaq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">7/8</td></tr>
+<tr><td><b>dialeq</b></td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="num">6/8</td></tr>
+<tr><td><b>kaqu</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>lekhaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>majuq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qanqa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qapaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qelqa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qhakaza</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qhuba</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qillqa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qiniso</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qonde</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>qumba</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>rimaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>ruraq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>sitqa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>uqaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>vernaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>xieq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">6/8</td></tr>
+<tr><td><b>andiq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="num">5/8</td></tr>
+<tr><td><b>jarq</b></td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">5/8</td></tr>
+<tr><td><b>qhapaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="num">5/8</td></tr>
+<tr><td><b>syntaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">5/8</td></tr>
+<tr><td><b>tonq</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="num">5/8</td></tr>
+<tr><td><b>fundiq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">4/8</td></tr>
+<tr><td><b>linqo</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">4/8</td></tr>
+<tr><td><b>qafza</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="num">4/8</td></tr>
+<tr><td><b>xook</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">4/8</td></tr>
+<tr><td><b>xoxa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">4/8</td></tr>
+<tr><td><b>lexiq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>likho</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>qonda</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>qoqa</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>qoral</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>quba</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>vaq</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>yachaq</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">3/8</td></tr>
+<tr><td><b>awal</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">2/8</td></tr>
+<tr><td><b>eloq</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">2/8</td></tr>
+<tr><td><b>qal</b></td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">2/8</td></tr>
+<tr><td><b>qlot</b></td><td class="taken">taken</td><td class="free">free</td><td class="free">free</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="taken">taken</td><td class="num">2/8</td></tr>
+</tbody></table></div>
+<footer>Qotoba documentation · screened 5 November 2026 · availability moves daily; re-check before registering anything.</footer>
+</main>
+</div>
+</body>
+</html>
