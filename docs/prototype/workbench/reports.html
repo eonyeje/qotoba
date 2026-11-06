@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Issue Report Pattern</title>
+<meta name="description" content="How the Workbench's FTR, BUG and PER report pages are built: section orders, the three authors, chips, and the What I need from you strip.">
+<link rel="stylesheet" href="workbench.css">
+<style>
+html, body { height: auto; }
+body { padding: 0 max(16px, env(safe-area-inset-left, 0px)) 72px; background: var(--bg); font-size: 16px; }
+.page { display: block; max-width: 1080px; margin: 0 auto; }
+main { padding-top: 40px; }
+h1 { font-family: var(--display); font-size: clamp(30px, 5vw, 46px); font-weight: 900; letter-spacing: -0.03em; }
+h2 { font-family: var(--display); font-size: 24px; font-weight: 900; margin: 56px 0 8px; }
+.lede { font-size: 18px; color: var(--ink2); max-width: 68ch; margin-top: 12px; }
+.intro { color: var(--ink2); max-width: 70ch; margin-bottom: 18px; }
+.orders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .orders { grid-template-columns: minmax(0, 1fr); } }
+.ord { background: var(--surface); border-radius: 12px; padding: 18px 18px 14px; }
+.ord h3 { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 18px; }
+.ord ol { margin: 14px 0; padding-left: 22px; }
+.ord li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); margin: 0; }
+.ord li .on { flex: 1; font-weight: 600; font-size: 14.5px; }
+.ord li.lead .on { color: var(--accent); }
+.ord .cap { font-size: 11px; color: var(--ink3); font-weight: 400; }
+.authors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .authors { grid-template-columns: minmax(0, 1fr); } }
+.authors > div { background: var(--surface); border-radius: 12px; padding: 18px; }
+.authors h3 { font-family: var(--display); font-size: 16px; margin-bottom: 4px; }
+.authors .why { font-size: 13.5px; color: var(--ink3); margin-bottom: 14px; }
+.chipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px 16px; }
+.chipgrid div { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.chipgrid .k { font-size: 12px; color: var(--ink3); font-family: var(--display); font-weight: 700; }
+.chip { cursor: default; }
+.model { background: var(--surface); border-radius: 12px; padding: 18px; }
+.model svg { width: 100%; height: auto; display: block; }
+.model .narrow { display: none; }
+@media (max-width: 640px) { .model .wide { display: none; } .model .narrow { display: block; max-width: 420px; } }
+.model text { font-family: var(--display); font-size: 13px; fill: var(--ink); }
+.model .mut { fill: var(--ink3); font-size: 11.5px; }
+.model .box { fill: var(--sunk); stroke: var(--rule); }
+.model .iss { fill: color-mix(in srgb, var(--bad) 8%, var(--surface)); stroke: color-mix(in srgb, var(--bad) 45%, var(--rule)); }
+.model .ln { stroke: var(--ink3); stroke-width: 1.4; fill: none; }
+.model .dep { stroke: var(--warn); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+.samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.samples a { background: var(--surface); border-radius: 12px; padding: 14px 16px; color: var(--ink); display: flex; gap: 12px; align-items: flex-start; }
+.samples a:hover { text-decoration: none; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.samples b { display: block; font-family: var(--display); }
+.samples span.s { font-size: 13px; color: var(--ink3); }
+.rules { columns: 2 320px; column-gap: 32px; padding-left: 20px; }
+.rules li { break-inside: avoid; margin-bottom: 10px; }
+.need { max-width: 640px; }
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink3); }
+</style>
+</head>
+<body>
+<div class="page"><main>
+<p class="eyebrow">Workbench prototype · issue reports · 6 November 2026</p>
+<h1>Issue report pattern</h1>
+<p class="lede">Features, bugs and performance problems (FTR, BUG, PER) are issues, not tasks. A task is part of a project's work breakdown; an issue comes up while a task is being built, is attached to that task, and carries its own report and dependencies. This page shows the pattern every report follows, so you can review it apart from the six samples.</p>
+
+<h2>Tasks and issues</h2>
+<p class="intro">The tree holds only tasks. Issues hang off the task they were raised on (or off a project with no task yet) and are listed separately on the Issues screen, per task on each task's Issues tab, and as a small count on tree rows. Dependencies can run from an issue to another issue or to a task, and from a task to an issue.</p>
+<div class="model"><svg class="wide" viewBox="0 0 860 250" role="img" aria-label="A project holds tasks; issues attach to tasks and can depend on other issues or tasks.">
+<rect class="box" x="10" y="20" width="170" height="44" rx="10"/><text x="26" y="47">Project · Language</text>
+<rect class="box" x="60" y="100" width="190" height="44" rx="10"/><text x="76" y="127">Task · Parser and printer</text>
+<rect class="box" x="60" y="180" width="190" height="44" rx="10"/><text x="76" y="207">Task · Core constructs</text>
+<path class="ln" d="M40 64 V122 H60 M40 122 V202 H60"/>
+<rect class="iss" x="350" y="90" width="230" height="64" rx="10"/><text x="366" y="116">BUG · Recovery drops a comment</text><text class="mut" x="366" y="136">attached to Parser and printer</text>
+<rect class="iss" x="350" y="172" width="230" height="64" rx="10"/><text x="366" y="198">FTR · class construct in QDL</text><text class="mut" x="366" y="218">attached to Core constructs</text>
+<rect class="iss" x="640" y="90" width="210" height="64" rx="10"/><text x="656" y="116">FTR · Round-trip check</text><text class="mut" x="656" y="136">attached to Parser and printer</text>
+<path class="ln" d="M250 122 H350 M250 202 H350"/>
+<path class="dep" d="M580 122 H640"/><text class="mut" x="586" y="112">needs</text>
+<path class="dep" d="M465 172 C 465 160, 250 160, 250 140"/><text class="mut" x="262" y="180">needs (task)</text>
+</svg><svg class="narrow" viewBox="0 0 380 392" role="img" aria-label="A project holds tasks; issues attach to tasks and can depend on other issues or tasks.">
+<rect class="box" x="6" y="8" width="180" height="40" rx="10"/><text x="20" y="33">Project · Language</text>
+<path class="ln" d="M20 48 V90 H30 M20 90 V290 H30 M44 110 V150 H60 M44 150 V226 H60 M44 310 V350 H60"/>
+<rect class="box" x="30" y="70" width="210" height="40" rx="10"/><text x="44" y="95">Task · Parser and printer</text>
+<rect class="iss" x="60" y="124" width="280" height="52" rx="10"/><text x="74" y="146">BUG · Recovery drops a comment</text><text class="mut" x="74" y="164">attached to Parser and printer</text>
+<path class="dep" d="M200 176 V200"/><text class="mut" x="208" y="193">needs</text>
+<rect class="iss" x="60" y="200" width="280" height="52" rx="10"/><text x="74" y="222">FTR · Round-trip check</text><text class="mut" x="74" y="240">attached to Parser and printer</text>
+<rect class="box" x="30" y="270" width="210" height="40" rx="10"/><text x="44" y="295">Task · Core constructs</text>
+<rect class="iss" x="60" y="324" width="280" height="52" rx="10"/><text x="74" y="346">FTR · class construct in QDL</text><text class="mut" x="74" y="364">attached to Core constructs</text>
+<path class="dep" d="M340 350 C 374 350, 374 90, 240 90"/><text class="mut" x="250" y="82">needs (task)</text>
+</svg></div>
+
+<h2>Section order per kind</h2>
+<p class="intro">Each report is a column of titled sections in a fixed order. A section appears only when it has content, so a simple issue is a short page and a complex one is long, but the order never changes. Every section starts as one closed line: its title, who wrote it, and a one-line summary. Open only the ones you want; what you open and close is remembered per kind. A section the templates don't know yet still shows as a closed line with the same shape.</p>
+<div class="orders"><div class="ord"><h3><span class="ik ik-FTR"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.7 3.6 3.9.5-2.9 2.7.7 3.9L8 10.8l-3.4 1.9.7-3.9-2.9-2.7 3.9-.5z"/></svg></span>Feature</h3><p class="small muted">new construct · new screen or component · API or service · migration or parity · tooling · documentation</p><ol><li class="lead"><span class="on">Goal <span class="cap">shown under the title</span></span><span class="au au-me">You</span></li><li class=""><span class="on">Story</span><span class="au au-me">You</span></li><li class=""><span class="on">Scope</span><span class="au au-me">You</span></li><li class=""><span class="on">Design <span class="cap">one line per option</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Acceptance</span><span class="au au-me">You</span></li><li class=""><span class="on">Parity</span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Risks <span class="cap">max three</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Impact</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Plan <span class="cap">max seven steps</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Claude's note <span class="cap">two lines</span></span><span class="au au-cl">Claude</span></li></ol><p class="small muted">States: idea → shaped → designed → planned → building → review → done → dropped</p></div><div class="ord"><h3><span class="ik ik-BUG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 6.5h5.6v4a2.8 2.8 0 0 1-5.6 0zM6 6.5a2 2 0 0 1 4 0M2.5 9h2.7M10.8 9h2.7M3 13l2.3-1.3M13 13l-2.3-1.3M3.5 5l2 1.5M12.5 5l-2 1.5"/></svg></span>Bug</h3><p class="small muted">crash · wrong result · regression · build or tooling break · flaky · data · UI or visual · security</p><ol><li class="lead"><span class="on">Symptom <span class="cap">its sentence is under the title</span></span><span class="au au-me">You</span></li><li class=""><span class="on">Reproduce <span class="cap">max seven steps</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Evidence</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Environment</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Frequency</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Cause <span class="cap">max three lines</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Possible fixes <span class="cap">max three</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Workaround <span class="cap">two lines</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Acceptance</span><span class="au au-me">You</span></li><li class=""><span class="on">Claude's note <span class="cap">two lines</span></span><span class="au au-cl">Claude</span></li></ol><p class="small muted">States: reported → confirmed → located → fixing → fixed → verified → closed → cannot reproduce → won't fix</p></div><div class="ord"><h3><span class="ik ik-PER"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5a5.5 5.5 0 1 1 11 0M8 11.5l2.8-3.4M8 11.5h.1"/></svg></span>Performance</h3><p class="small muted">latency · startup · throughput · memory · allocations · CPU · size · build time · tool responsiveness · battery</p><ol><li class="lead"><span class="on">Headline <span class="cap">the big number; a row only without a comparison</span></span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Target</span><span class="au au-me">You</span></li><li class=""><span class="on">Comparison</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Series</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Profile</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Resources</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Cause <span class="cap">max three lines</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Possible fixes <span class="cap">max three</span></span><span class="au au-cl">Claude</span></li><li class=""><span class="on">Guard</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Environment and method</span><span class="au au-mc">Machine</span></li><li class=""><span class="on">Claude's note <span class="cap">two lines</span></span><span class="au au-cl">Claude</span></li></ol><p class="small muted">States: observed → targeted → analysed → planned → improving → measured → guarded → done → accepted as is</p></div></div>
+
+<h2>How a report opens</h2>
+<p class="intro">A report shows the least that lets you act, and everything else waits one tap away, the same way a task page does. Nothing below the headline number is open until you open it.</p>
+<ol class="rules">
+<li><b>One line of kind:</b> kind, state and severity on the left; “n things for you” on the right, or the hours it unblocks when nothing waits on you.</li>
+<li><b>Breadcrumb:</b> project › task › issue.</li>
+<li><b>Title</b>, then <b>one sentence</b>: your goal for a feature, the symptom for a bug. A performance issue has none; its number says it.</li>
+<li><b>What I need from you:</b> one row per thing, shown only when something waits on you. Nothing else on the page asks anything.</li>
+<li><b>Tabs:</b> Report, Plan, Changes, Decisions, Activity.</li>
+<li><b>One headline</b> on the Report tab: “Fix 2 chosen”, “2 of 6 steps done”, “0.6 s”, with one quiet line under it.</li>
+<li><b>Sections</b> as closed one-line rows in the fixed order, each marked you, Claude or machine. An amber dot marks a row that wants you: a fix not chosen, a target not set.</li>
+<li><b>About this issue</b>, also closed: Severity (bugs), Dependencies (needs, blocks worked out from needs, related, duplicates, what it unblocks), Time, Where it came from (source, the task it hangs off, machine, branch, schedule).</li>
+<li><b>Inside a section</b>, heavy parts wait behind a second fold: pulled code, proposed syntax, a stack, attachments, a fix's approach and files.</li>
+</ol>
+
+<h2>“What I need from you”</h2>
+<p class="intro">One row per thing, each a single tap: answer a question, confirm or remove a dependency Claude proposed, review assumptions, set a target (PER), choose a fix (BUG, PER), confirm a severity Claude proposed. When the list is empty the strip is not shown.</p>
+<div class="need"><p class="need-h">What I need from you <span class="muted">· 4</span></p>
+<span class="need-row"><span class="nk">Answer</span><span class="nt">Should a computed member cache its value until a member it reads changes?</span><span class="chev"></span></span>
+<span class="need-row"><span class="nk">Confirm</span><span class="nt">Needs Observable core · proposed by Claude</span><span class="chev"></span></span>
+<span class="need-row"><span class="nk">Choose</span><span class="nt">a fix: 3 compared</span><span class="chev"></span></span>
+<span class="need-row"><span class="nk">Confirm</span><span class="nt">severity: minor, proposed by Claude</span><span class="chev"></span></span></div>
+
+<h2>Three authors, always visible</h2>
+<p class="intro">Every section says whose words it holds, in its title row and in its body. Your sections have no caps; machine sections have no caps; Claude's are short by rule and the cap is printed beside its session chip.</p>
+<div class="authors">
+<div><h3><span class="au au-me">You</span> Your words</h3><p class="why">Plain text, no frame. Goal, story, scope, target, acceptance, a symptom you reported.</p><div class="by-me"><p>Let a developer declare a class in QDL with typed members and get an observable C# class and a TypeScript record from it.</p></div></div>
+<div><h3><span class="au au-cl">Claude</span> Claude's words</h3><p class="why">A soft left rule, the session chip and its cap. Design, parity, risks, cause, fixes, notes.</p><div class="by-cl"><div class="cl-h"><span class="chip k-session "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h12v10H2zM4.6 6.4 6.8 8l-2.2 1.6M8.4 10.2h3"/></svg></span><span class="t">Parser recovery investigation</span></span><span class="cap">max three lines</span></div><p>SkipToLineEnd reads every token to the newline as string content. Comment tokens it reads are dropped, never attached as trivia.</p></div></div>
+<div><h3><span class="au au-mc">Machine</span> Machines</h3><p class="why">A sunken panel headed by the run or commit chip that produced it. Evidence, measurements, environment, guards.</p><div class="by-mc"><div class="mc-h"><span class="chip k-run fail"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3.2v9.6L12.8 8z"/></svg></span><span class="t">round-trip · parser corpus 1203/1204</span></span></div><pre class="mono-out">round-trip · parser corpus · 1,204 files
+  recovery/unterminated-string.qo ... MISMATCH</pre></div></div>
+</div>
+
+<h2>Facts over prose</h2>
+<ul class="rules">
+<li>Where a section can show a number, a run, a diff or pulled code, it shows that and not a sentence about it.</li>
+<li>A claim about behaviour without a run beside it carries a red <span class="marker unv">unverified</span> marker; an acceptance line with no check says <span class="marker">no check yet</span>.</li>
+<li>Code is pulled from files, capped near twelve lines, with Open in Rider and Diff since master. Proposed code sits in a dashed panel marked “not yet written”.</li>
+<li>Claude's caps: text sections three lines, steps seven, fixes three, the note two lines.</li>
+<li>Possible fixes are compared in one table: size in Claude-minutes, risk, confidence, whether a regression check exists. You choose one; choosing clears the strip row.</li>
+<li>Charts are inline SVG with a caption that states the claim in one sentence.</li>
+</ul>
+
+<h2>Chip kinds</h2>
+<p class="intro">Every identifier is a chip: an icon, a title in plain words, and a popover with the thing itself, where it came from, what references it, Open and Copy link. No raw ID stands alone.</p>
+<div class="chipgrid"><div><span class="k">issue (FTR, BUG, PER)</span><span class="chip k-fpb fk-FTR"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.7 3.6 3.9.5-2.9 2.7.7 3.9L8 10.8l-3.4 1.9.7-3.9-2.9-2.7 3.9-.5z"/></svg></span><span class="t">Lazy card verbs on the library page</span></span></div><div><span class="k">issue (FTR, BUG, PER)</span><span class="chip k-fpb fk-BUG"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 6.5h5.6v4a2.8 2.8 0 0 1-5.6 0zM6 6.5a2 2 0 0 1 4 0M2.5 9h2.7M10.8 9h2.7M3 13l2.3-1.3M13 13l-2.3-1.3M3.5 5l2 1.5M12.5 5l-2 1.5"/></svg></span><span class="t">Recovery drops the trailing comment</span></span></div><div><span class="k">issue (FTR, BUG, PER)</span><span class="chip k-fpb fk-PER"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5a5.5 5.5 0 1 1 11 0M8 11.5l2.8-3.4M8 11.5h.1"/></svg></span><span class="t">Library opens in 0.6 s instead of 4.8 s</span></span></div><div><span class="k">task</span><span class="chip k-item "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 9h5M5.5 12h2.5"/></svg></span><span class="t">Order hook events across machines</span></span></div><div><span class="k">ruling</span><span class="chip k-ruling "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v11M4.5 13.5h7M3 5h10M3 5l-1.8 4.2a1.9 1.9 0 0 0 3.6 0zM13 5l-1.8 4.2a1.9 1.9 0 0 0 3.6 0z"/></svg></span><span class="t">Recovery never discards tokens</span></span></div><div><span class="k">question</span><span class="chip k-question "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4zM6.3 6.2a1.8 1.8 0 1 1 2.5 1.7c-.6.3-.8.6-.8 1.3M8 11.2v.1"/></svg></span><span class="t">Do computed members cache?</span></span></div><div><span class="k">assumption</span><span class="chip k-assumption "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14V2.2h7.5L10 5.2l1.5 3H4"/></svg></span><span class="t">A comment inside the string belongs to it</span></span></div><div><span class="k">found item</span><span class="chip k-found "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9.2 3.8 3h8.4L14 9.2V13H2zM2 9.2h3.6l.9 1.6h3l.9-1.6H14"/></svg></span><span class="t">Two tool calls in the same second</span></span></div><div><span class="k">file and lines</span><span class="chip k-file "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.8h5.2L12.5 5v9.2H4zM9 1.8V5h3.5"/></svg></span><span class="t">StringRecovery.cs :36–43</span></span></div><div><span class="k">type</span><span class="chip k-type "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.2c-1.6 0-1.8.9-1.8 2.4S4 7.8 2.6 8c1.4.2 1.6 1.9 1.6 3.4s.2 2.4 1.8 2.4M10 2.2c1.6 0 1.8.9 1.8 2.4s.2 3.2 1.6 3.4c-1.4.2-1.6 1.9-1.6 3.4s-.2 2.4-1.8 2.4"/></svg></span><span class="t">RunRecord</span></span></div><div><span class="k">run</span><span class="chip k-run fail"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3.2v9.6L12.8 8z"/></svg></span><span class="t">round-trip · parser corpus 1203/1204</span></span></div><div><span class="k">session</span><span class="chip k-session "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h12v10H2zM4.6 6.4 6.8 8l-2.2 1.6M8.4 10.2h3"/></svg></span><span class="t">Parser recovery investigation</span></span></div><div><span class="k">machine</span><span class="chip k-machine "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h12v8H2zM5.8 14h4.4M8 11v3"/></svg></span><span class="t">desk-pc</span></span></div><div><span class="k">+ comment</span><span class="chip k-comment "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h12v8.2H7.4L4.3 14v-2.8H2zM8 5v4M6 7h4"/></svg></span><span class="t">//+ order events by the hook's sequence number</span></span></div><div><span class="k">CLAUDE.md section</span><span class="chip k-claudemd "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 2h9v12h-9zM5.6 5h4.8M5.6 7.8h4.8M5.6 10.6h3"/></svg></span><span class="t">CLAUDE.md › How to ask</span></span></div><div><span class="k">commit</span><span class="chip k-commit "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h3.7M10.8 8h3.7M8 10.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z"/></svg></span><span class="t">Quanta.Parser 2026.10.30 baseline</span></span></div><div><span class="k">branch</span><span class="chip k-branch "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2.5v11M5 10.5c0-3.5 6-2 6-6M5 13.5a1.4 1.4 0 1 0 0-.1M11 4.5a1.4 1.4 0 1 0 0-.1"/></svg></span><span class="t">wb/2.3-hook-order</span></span></div><div><span class="k">old register ID</span><span class="chip k-reg "><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h12v3H2zM3 6v7h10V6M6.5 8.5h3"/></svg></span><span class="t">Unterminated string loses the trailing comment</span></span></div><div><span class="k">not yet written</span><span class="chip k-nyw nyw"><span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h10v10H3zM6 8h4"/></svg></span><span class="t">ClassEmitter</span></span></div></div>
+
+<h2>The six samples</h2>
+<div class="samples">
+<a href="index.html#/fpb/FTR-1"><span class="ik ik-FTR"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.7 3.6 3.9.5-2.9 2.7.7 3.9L8 10.8l-3.4 1.9.7-3.9-2.9-2.7 3.9-.5z"/></svg></span><span><b>FTR · simple</b><span class="s">Lazy card verbs on the library page: goal, two acceptance lines, one unconfirmed dependency.</span></span></a>
+<a href="index.html#/fpb/FTR-2"><span class="ik ik-FTR"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.7 3.6 3.9.5-2.9 2.7.7 3.9L8 10.8l-3.4 1.9.7-3.9-2.9-2.7 3.9-.5z"/></svg></span><span><b>FTR · complex</b><span class="s">class construct in QDL: design with proposed syntax, three options, parity table, risks, plan, history.</span></span></a>
+<a href="index.html#/fpb/BUG-1"><span class="ik ik-BUG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 6.5h5.6v4a2.8 2.8 0 0 1-5.6 0zM6 6.5a2 2 0 0 1 4 0M2.5 9h2.7M10.8 9h2.7M3 13l2.3-1.3M13 13l-2.3-1.3M3.5 5l2 1.5M12.5 5l-2 1.5"/></svg></span><span><b>BUG · simple</b><span class="s">Same-second hook events: symptom only, promoted from a tray, severity to confirm.</span></span></a>
+<a href="index.html#/fpb/BUG-2"><span class="ik ik-BUG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 6.5h5.6v4a2.8 2.8 0 0 1-5.6 0zM6 6.5a2 2 0 0 1 4 0M2.5 9h2.7M10.8 9h2.7M3 13l2.3-1.3M13 13l-2.3-1.3M3.5 5l2 1.5M12.5 5l-2 1.5"/></svg></span><span><b>BUG · complex</b><span class="s">Recovery drops a comment: seven repro steps, stack, cause, three fixes, a section with no template.</span></span></a>
+<a href="index.html#/fpb/PER-1"><span class="ik ik-PER"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5a5.5 5.5 0 1 1 11 0M8 11.5l2.8-3.4M8 11.5h.1"/></svg></span><span><b>PER · simple</b><span class="s">Tree query 400 ms on 40 nodes: one measurement, a 50 ms target.</span></span></a>
+<a href="index.html#/fpb/PER-2"><span class="ik ik-PER"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5a5.5 5.5 0 1 1 11 0M8 11.5l2.8-3.4M8 11.5h.1"/></svg></span><span><b>PER · complex</b><span class="s">Library opens in 0.6 s: comparison, series, profile, resources, cause, fixes, guard.</span></span></a>
+</div>
+
+<footer>Qotoba documentation · Workbench prototype · generated from the prototype's own section definitions in data.js.</footer>
+</main></div>
+</body>
+</html>
