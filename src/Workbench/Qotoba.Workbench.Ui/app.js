@@ -690,15 +690,12 @@
   function canOpen(id) {
     if (id === 'root') return { ok: false, why: 'The programme is always open.' };
     var p = projOf(id);
-    if (p) return p.state === 'open' ? { ok: false, why: 'Already open.' } : { ok: false, why: 'A project opens when an approved plan opens one of its items.' };
+    if (p) return p.state === 'open' ? { ok: false, why: 'Already open.' } : { ok: false, why: 'A project opens when one of its items opens.' };
     var it = D.items[id];
-    if (it.preview) return { ok: false, why: 'Language is closed. These four appear as real items when an approved plan opens it.' };
-    if (it.unscheduled) return { ok: false, why: 'Unscheduled: no open parent path. Dope must open first.' };
     if (it.isOpen) return { ok: false, why: 'Already open.' };
     if (it.state === 'done') return { ok: false, why: 'Done items do not reopen.' };
-    if (it.plan) return { ok: true, why: 'Opens through its plan.', go: '#/card/' + parseRef(it.plan).id };
     var sibs = keys(D.items).filter(function (k) { var x = D.items[k]; return k !== id && x.parent === it.parent && x.project === it.project && x.isOpen; });
-    if (!sibs.length) return { ok: true, why: 'Nothing is open at this level; opening it starts planning.', go: '#/item/' + id, open: true };
+    if (!sibs.length) return { ok: true, why: 'Nothing else is open at this level. Opening it makes it the node that sessions in this checkout work on.', go: '#/item/' + id, open: true };
     return { ok: true, why: esc(itemTitle(sibs[0])) + ' is open at this level; opening it.', go: '#/item/' + sibs[0] };
   }
   function nodeTitle(id) { if (id === 'root') return D.meta.programme + ' programme'; var p = projOf(id); return p ? p.name : itemTitle(id); }
