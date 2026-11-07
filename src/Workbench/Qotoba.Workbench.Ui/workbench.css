@@ -1030,3 +1030,9 @@ details.drill > summary { padding: 12px 2px; }
 .page-frame{margin:16px 0;border:1px solid var(--rule,#d9d5ca);border-radius:10px;overflow:hidden;background:#fff}
 .page-frame iframe{display:block;width:100%;height:min(70vh,760px);border:0}
 .plain-table th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:.7}
+
+/* the FPB page: the eight fields before the folds */
+.glance-kv{margin:4px 0 20px}
+.glance-kv dd .lnk{display:inline-flex;gap:4px;align-items:center;margin:0 8px 4px 0}
+.bignum.tone-good{color:var(--good,#2f7a4f)}
+.bignum.tone-bad{color:var(--bad,#9b3b35)}

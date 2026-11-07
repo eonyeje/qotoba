@@ -136,7 +136,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             ["reportFolded"] = ReportFolded,
             ["subtypes"] = Subtypes,
             ["states"] = States,
-            ["fpbs"] = reports.ToDictionary(r => r.Id, r => (object?)ReportView(r, edges, byItem)),
+            ["fpbs"] = reports.ToDictionary(r => r.Id, r => (object?)ReportView(r, edges, rulings)),
             ["edges"] = edges.Select(e => new { id = e.Id, from = e.From, to = e.To, type = e.Type.ToString().ToLowerInvariant(), hard = e.Hard, reason = e.Reason, by = e.By == Actor.Owner ? "you" : "claude", session = e.SessionId, confirmed = e.Confirmed, min = e.Min }).ToList(),
             ["cardWhy"] = cards.ToDictionary(c => c.Id, c => (object?)c.Why),
             ["cardOrigin"] = cards.ToDictionary(c => c.Id, c => (object?)new { step = c.OriginStep, from = Json.ReadList<string>(c.OriginFromJson), fromText = c.OriginText })
@@ -327,9 +327,12 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         };
     }
 
-    private object ReportView(Report r, List<Edge> edges, Dictionary<string, Item> byItem)
+    private object ReportView(Report r, List<Edge> edges, List<Ruling> rulings)
     {
         var sections = Json.Read<Dictionary<string, object>>(r.SectionsJson, []);
+        var decided = rulings.Where(x => x.NeverReopened && (x.Text.Contains(r.Id, StringComparison.OrdinalIgnoreCase) || x.RelatedJson.Contains("fpb:" + r.Id))).Select(x => "ruling:" + x.Id).ToList();
+        var parts = sections.TryGetValue("parts", out var pv) && pv is System.Text.Json.JsonElement pe && pe.ValueKind == System.Text.Json.JsonValueKind.Object && pe.TryGetProperty("rows", out var rows) && rows.ValueKind == System.Text.Json.JsonValueKind.Array
+            ? rows.EnumerateArray().Select(x => new { t = x.TryGetProperty("t", out var t) ? t.GetString() : x.TryGetProperty("part", out var pp) ? pp.GetString() : "", state = x.TryGetProperty("state", out var st) ? st.GetString() : "", note = x.TryGetProperty("note", out var nt) ? nt.GetString() : null }).ToList() : [];
         var me = "fpb:" + r.Id;
         var links = edges.Where(e => e.From == me || e.To == me).Select(e => new { id = e.Id, other = e.From == me ? e.To : e.From, type = e.Type.ToString().ToLowerInvariant(), outward = e.From == me, reason = e.Reason }).ToList();
         return new
@@ -340,7 +343,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             time = new { est = r.EstMin, estBy = r.EstBy, actual = 0, factor = (double?)null, forecast = (int?)null },
             source = new { type = r.SourceType, session = r.SourceSessionId, found = (string?)null, date = fmt.DayTime(r.Created) },
             changed = r.Changed is null ? null : fmt.DayTime(r.Changed.Value),
-            sections, links, steps = new List<object>(), checks = new List<string>(), changes = (object?)null, sessions = new List<string>(), rulings = new List<string>(),
+            sections, links, parts, steps = new List<object>(), checks = new List<string>(), changes = (object?)null, sessions = new List<string>(), rulings = decided,
             history = Json.Read<List<object>>(r.HistoryJson, []), takenOnBy = r.TakenOnItemId is null ? new List<string>() : [r.TakenOnItemId]
         };
     }

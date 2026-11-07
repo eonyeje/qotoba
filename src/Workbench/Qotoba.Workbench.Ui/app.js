@@ -91,7 +91,7 @@
 
   /* ================================================================ references */
   var COLL = { fpb: 'fpbs', reg: 'register', ruling: 'rulings', item: 'items', question: 'questions', assumption: 'assumptions', found: 'found', file: 'files', type: 'types', run: 'runs', session: 'sessions', machine: 'machines', comment: 'comments', claudemd: 'claudemd', commit: 'commits', branch: 'branches', card: 'cards', lane: 'lanes', nyw: 'nyw' };
-  var KIND_LABEL = { fpb: 'Issue', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
+  var KIND_LABEL = { fpb: 'FPB', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
   var REF_RE = /\b(fpb|reg|ruling|item|question|assumption|found|file|type|run|session|machine|comment|claudemd|commit|branch|project|card|lane|nyw):([A-Za-z0-9][A-Za-z0-9._\-]*(?::\d+(?:-\d+)?)?)/g;
 
   function parseRef(ref) {
@@ -763,7 +763,7 @@
   function vWork(sel) {
     if (sel) S.work.sel = sel;
     var vis = visibleSet(), fc = filterCount();
-    var tb = '<div class="wtools" style="margin-bottom:12px"><div class="seg"><button class="on">Tasks</button><button data-go="#/issues">Issues · ' + fpbList().length + '</button></div></div><div class="wtools"><div class="seg"><button class="' + (S.work.view === 'outline' ? 'on' : '') + '" data-act="wview" data-v="outline">Outline</button><button class="' + (S.work.view === 'columns' ? 'on' : '') + '" data-act="wview" data-v="columns">Columns</button></div>' +
+    var tb = '<div class="wtools" style="margin-bottom:12px"><div class="seg"><button class="on">Tasks</button><button data-go="#/issues">FPBs · ' + fpbList().length + '</button></div></div><div class="wtools"><div class="seg"><button class="' + (S.work.view === 'outline' ? 'on' : '') + '" data-act="wview" data-v="outline">Outline</button><button class="' + (S.work.view === 'columns' ? 'on' : '') + '" data-act="wview" data-v="columns">Columns</button></div>' +
       '<button class="btn small" data-act="wfilter">Filter' + (fc ? ' · ' + fc : '') + '</button>' + (fc ? '<button class="btn small text" data-act="wclear">Clear</button>' : '') + '<span class="spacer"></span><button class="btn small" data-act="additem" data-node="' + (S.work.sel || 'root') + '">' + ic('plus') + 'Add item</button></div>';
     var body = S.work.view === 'columns' ? columnsView(vis) : '<div class="tree">' + treeRow('root', 0, vis) + (vis && keys(vis).length === 0 ? empty('Nothing matches', 'Items of the chosen kind and state would list here with their parents.') : '') + '</div>';
     var left = '<div class="lpane wide"><div class="lhead"><h2>Work</h2><p class="muted">The open path is marked. Closed nodes stay one line until a plan opens them.</p></div>' + tb + body + '</div>';
@@ -815,7 +815,7 @@
   }
 
   /* ================================================================ 8. Item: six tabs, each section one line until opened */
-  var TABS = [['overview', 'Overview'], ['about', 'About'], ['plan', 'Plan'], ['changes', 'Changes'], ['issues', 'Issues'], ['decisions', 'Decisions'], ['activity', 'Activity']];
+  var TABS = [['overview', 'Overview'], ['about', 'About'], ['plan', 'Plan'], ['changes', 'Changes'], ['issues', 'FPBs'], ['decisions', 'Decisions'], ['activity', 'Activity']];
   var TAB_ALIAS = { questions: ['decisions', 'questions'], assumptions: ['decisions', 'assumptions'], found: ['decisions', 'found'], comments: ['changes', 'comments'], runs: ['activity', 'runs'], sessions: ['activity', 'sessions'], history: ['activity', 'history'], rulings: ['overview', 'rulings'] };
   function vItem(id, tab) {
     var it = D.items[id];
@@ -857,7 +857,7 @@
       drill('Time', it.time && it.state === 'done' ? fmtMin(it.time.so) + ' in all, against an estimate of ' + fmtMin(it.time.est) : it.time && it.time.factor ? fmtMin(it.time.so) + ' so far of ' + fmtMin(it.time.forecast) + ' forecast' : it.time ? 'estimate ' + fmtMin(it.time.est) + ' · not started' : esc(it.coarse), it.time ? '<dl class="kv"><dt>So far</dt><dd>' + fmtMin(it.time.so) + ', measured from hooks</dd><dt>Estimate</dt><dd>' + fmtMin(it.time.est) + ' Claude-minutes</dd><dt>Factor</dt><dd>' + (it.time.factor ? it.time.factor + ', actual over estimate' : 'not measured') + '</dd><dt>Forecast</dt><dd>' + fmtMin(it.time.forecast) + ', the estimate times the factor</dd></dl>' : ''),
       drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + plural((it.needs || []).filter(function (n) { return n.note !== 'done'; }).length, 'item') : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? 'about ' + fmtMin(b.min) + ' of work behind it' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
       drill('Assumptions', as.length ? plural(as.length, 'assumption') + ' Claude proceeded on' : 'none', as.length ? '<ul class="plain">' + as.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What a session proceeded on without asking appears here.')),
-      drill('Issues', fpbsUnder(id).length ? fpbCountLabel(fpbsUnder(id)) + ' raised here' : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems raised on this task appear here.'), {}),
+      drill('FPBs', fpbsUnder(id).length ? fpbSummary(fpbsUnder(id)) : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No FPBs', 'Features, bugs and performance problems Claude raises on this item appear here.'), {}),
       drill('Comments in scope', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
       drill('Claude’s note', it.note ? esc(trunc(it.note.text, 56)) : 'none', it.note ? '<p>' + esc(it.note.text) + '</p><p class="small muted">' + (it.note.session ? 'Session ' + parseRef(it.note.session).id : 'Seed import') + ' · ' + esc(it.note.date) + '</p>' + (it.claims ? '<p class="small muted" style="margin-top:12px">Claims</p>' + claimsList(it.claims) : '') : ''),
       drill('Rulings that apply', plural((it.rulings || []).length, 'ruling'), (it.rulings || []).length ? '<div class="list">' + it.rulings.map(function (r) { return '<a class="li link" href="' + hrefFor(r) + '"><span class="li-main">' + esc(get(r).title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings this item\'s brief carries appear here.'), { open: openSec === 'rulings' }),
@@ -1247,7 +1247,7 @@
     }
     group('Rulings', D.rulings, 'ruling', ['title', 'text', 'origin']);
     group('Items', D.items, 'item', ['title', 'goal', function (e) { return e.info && (e.info.text || e.info.symptom || e.info.purpose || e.info.goal); }, function (e) { return e.note && e.note.text; }]);
-    group('Issues', D.fpbs, 'fpb', ['title', function (e) { return keys(e.sections).map(function (k) { var x = e.sections[k]; return x && (x.text || ''); }).join(' · '); }]);
+    group('FPBs', D.fpbs, 'fpb', ['title', function (e) { return keys(e.sections).map(function (k) { var x = e.sections[k]; return x && (x.text || ''); }).join(' · '); }]);
     group('Questions', D.questions, 'question', ['text', 'context', 'answer', function (e) { return (e.options || []).map(function (o) { return o.t + ' ' + o.why; }).join(' · '); }]);
     group('Files', D.files, 'file', ['path', function (e) { return e.lines.join('\n'); }]);
     group('Comments', D.comments, 'comment', ['text', function (e) { return e.handled && e.handled.note; }]);
@@ -1359,7 +1359,8 @@
     var word = same ? { FTR: 'feature', BUG: 'bug', PER: 'perf issue' }[k[0]] : 'issue';
     return plural(ids.length, word);
   }
-  function fpbLead(id) { var s = D.fpbs[id].sections; return (s.goal && s.goal.text) || (s.symptom && s.symptom.text) || (targetOf(id) && targetOf(id).text) || ''; }
+  function fpbLead(id) { var s = D.fpbs[id].sections; return (s.why && s.why.text) || (s.goal && s.goal.text) || (s.symptom && s.symptom.text) || (s.headline && s.headline.text) || ''; }
+  function fpbSummary(ids) { var open = ids.filter(function (i) { return !D.fpbs[i].closed; }).length; return open ? open + ' open of ' + plural(ids.length, 'FPB') : 'all ' + plural(ids.length, 'FPB') + ' done'; }
   function sourceText(f) {
     var s = f.source;
     if (s.type === 'promoted') return 'promoted by you from the found tray, ' + esc(s.date) + ' · found by ' + chip(s.session) + ' on ' + esc(D.sessions[parseRef(s.session).id].machine) + ' as ' + chip(s.found);
@@ -1387,7 +1388,7 @@
     if (sv && !sv.confirmed) out.push({ key: 'sev', html: '<button class="need-row" data-act="sev" data-fpb="' + id + '"><span class="nk">Confirm</span><span class="nt">severity: ' + esc(sv.level) + ', proposed by Claude</span><span class="chev"></span></button>' });
     return out;
   }
-  function stateTone(st) { return /done|verified|closed|fixed|guarded|measured/.test(st) ? 'good' : /dropped|won't|cannot/.test(st) ? 'bad' : /reported|idea|observed/.test(st) ? '' : 'accent'; }
+  function stateTone(st) { st = String(st || '').toLowerCase(); return /^(done|exists)/.test(st) ? 'good' : /won't|wont|dropped|cannot/.test(st) ? 'bad' : /^(open|verify)/.test(st) ? '' : 'accent'; }
   var SEV_TONE = { blocking: 'bad', serious: 'bad', minor: 'warn', cosmetic: '' };
 
   /* ================================================================ Issues list */
@@ -1400,29 +1401,38 @@
       if (q.attach && f.attach !== (q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach)) return false;
       return true;
     });
-    var all = fpbList(), takenN = all.filter(function (id) { return (D.fpbs[id].takenOnBy || []).length; }).length;
-    var tasks = {}; all.forEach(function (id) { tasks[D.fpbs[id].attach] = 1; });
-    var h = '<div class="lpane"><div class="lhead"><h2>Issues</h2><p class="muted">' + plural(all.length, 'issue') + ' on ' + keys(tasks).length + ' tasks and projects · ' + takenN + ' taken on by a task</p></div>';
-    h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Tasks</button><button class="on">Issues</button></div></div>';
+    var all = fpbList().filter(function (id) { return S.project === 'all' || D.fpbs[id].project === S.project; }), openN = all.filter(function (id) { return !D.fpbs[id].closed; }).length;
+    var h = '<div class="lpane"><div class="lhead"><h2>FPBs</h2><p class="muted">' + (all.length ? openN + ' open of ' + plural(all.length, 'FPB') + ', raised by Claude; attached to the item they came up in' : 'Features, bugs and performance problems Claude raises, attached to the item they came up in') + '</p></div>';
+    h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Items</button><button class="on">FPBs</button></div></div>';
+    if (all.length) h += fpbStatusTable(all);
     h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div></div>';
     if (q.attach) h += '<div class="notice soft"><p>Only issues on ' + chip(q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach) + ' · <a href="#/issues">show all</a></p></div>';
-    if (!ids.length) return h + empty('No issues match', 'Features, bugs and performance issues raised while building a task appear here, grouped by the task they belong to.') + '</div>';
+    if (!ids.length) return h + empty('No FPBs match', 'An FTR comes from what you ask for in chat; a BUG or PER from what Claude finds while checking. Nothing is typed here.') + '</div>';
     var groups = {}, order = [];
     ids.forEach(function (id) { var a = D.fpbs[id].attach; if (!groups[a]) { groups[a] = []; order.push(a); } groups[a].push(id); });
     order.sort(function (a, b) { return (refProject(a) || '').localeCompare(refProject(b) || ''); });
     order.forEach(function (a) {
       var p = projOf(refProject(a));
-      h += '<p class="lgroup"><a href="' + hrefFor(a) + '">' + esc(chipInfo(a).title) + '</a>' + (parseRef(a).kind === 'item' ? ' <span class="muted">· ' + esc(p.name) + '</span>' : ' <span class="muted">· no task yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
+      h += '<p class="lgroup"><a href="' + hrefFor(a) + '">' + esc(chipInfo(a).title) + '</a>' + (parseRef(a).kind === 'item' ? ' <span class="muted">· ' + esc(p.name) + '</span>' : ' <span class="muted">· on the project, no item yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
     });
     return h + '</div>';
   }
   function issueRow(id, sel) {
     var f = D.fpbs[id], t = f.takenOnBy || [], sv = severityOf(id);
-    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2">' + f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + t.join(', ') : ' · no task yet') + '</span></span></a>';
+    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2"><span class="mono">' + id + '</span> · <span class="tone-' + (stateTone(f.state) || 'neutral') + '">' + esc(f.state) + '</span>' + (f.left ? ' · ' + esc(trunc(f.left, 60)) : '') + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + esc(itemTitle(t[0])) : '') + '</span></span></a>';
+  }
+  function fpbStatusTable(ids) {
+    var kinds = ['FTR', 'BUG', 'PER'], rows = kinds.map(function (k) {
+      var mine = ids.filter(function (i) { return D.fpbs[i].kind === k; });
+      if (!mine.length) return '';
+      var open = mine.filter(function (i) { return !D.fpbs[i].closed; }).length, prog = mine.filter(function (i) { return /progress|design/i.test(D.fpbs[i].state); }).length, verify = mine.filter(function (i) { return /verify/i.test(D.fpbs[i].state); }).length;
+      return '<tr><td>' + k + '</td><td>' + mine.length + '</td><td>' + (open || '—') + '</td><td>' + (prog || '—') + '</td><td>' + (verify || '—') + '</td><td>' + ((mine.length - open) || '—') + '</td></tr>';
+    }).join('');
+    return '<div class="tw" style="padding:0 16px 8px"><table class="plain-table"><thead><tr><th>Kind</th><th>All</th><th>Open</th><th>In hand</th><th>Verify first</th><th>Done</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
   /* ================================================================ report page */
-  var FPB_TABS = [['report', 'Report'], ['plan', 'Plan'], ['changes', 'Changes'], ['decisions', 'Decisions'], ['activity', 'Activity']];
+  var FPB_TABS = [['report', 'Report'], ['activity', 'Activity']];
   var FPB_ALIAS = { overview: ['report'], questions: ['decisions', 'questions'], assumptions: ['decisions', 'assumptions'], found: ['decisions', 'found'], comments: ['changes', 'comments'], runs: ['activity', 'runs'], sessions: ['activity', 'sessions'], history: ['activity', 'history'], rulings: ['report', 'rulings'] };
   function heroFor(id) {
     var f = D.fpbs[id], x = f.sections, t = targetOf(id);
@@ -1446,7 +1456,7 @@
   }
   function vFpb(id, tab) {
     var f = D.fpbs[id];
-    if (!f) return head(null) + '<div class="pane">' + empty('No such issue', 'Issues are features, bugs and performance problems attached to tasks.') + '</div>';
+    if (!f) return head(null) + '<div class="pane">' + empty('No such FPB', 'FPBs are features, bugs and performance problems attached to items.') + '</div>';
     var openSec = null;
     if (FPB_ALIAS[tab]) { openSec = FPB_ALIAS[tab][1] || null; tab = FPB_ALIAS[tab][0]; }
     tab = tab || 'report';
@@ -1457,8 +1467,7 @@
     h += dhead(f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : ''), 'fk-' + f.kind, right, esc(f.title), lead);
     h += '<nav class="tabs" aria-label="Issue sections">' + FPB_TABS.map(function (x) { return '<a class="tab' + (x[0] === tab ? ' on' : '') + '" href="#/fpb/' + id + '/' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>';
     if (tab === 'report') {
-      var hero = heroFor(id);
-      h += '<div class="status"><div><p class="bignum">' + esc(hero[0]) + '</p><p class="muted small">' + esc(hero[1]) + '</p></div></div>' + takenOnLine(id);
+      h += glanceBlock(id);
       h += reportSections(id, openSec) + aboutRows(id, openSec);
       var kf = S.folds[f.kind] || {};
       if (keys(kf).some(function (k) { return kf[k]; })) h += '<p class="fold-reset"><button class="btn text small" data-act="fold-reset" data-kind="' + f.kind + '">Close all sections</button><span class="small muted">Open sections are remembered for every ' + KIND_NAME[f.kind].toLowerCase() + '.</span></p>';
@@ -1469,14 +1478,30 @@
     else h += fpbActivity(id, openSec);
     return h + '</div>';
   }
-  var SRC_SHORT = { promoted: 'promoted from a found tray', imported: 'imported from the old register', split: 'split from another issue', duplicate: 'duplicate of another issue', created: 'created by you' };
+  var SRC_SHORT = { chat: 'from what you said in chat', check: 'from a check Claude ran', run: 'from a run', read: 'from reading the code, not run', split: 'split from another FPB', duplicate: 'duplicate of another FPB', created: 'created by you' };
+  var LINK_WORD = { needs: ['needs', 'needed by'], splitfrom: ['split from', 'split into'], replacedby: ['replaced by', 'replaces'], carriedby: ['carried by', 'carries'], foundin: ['found in', 'where it was found'], duplicate: ['duplicates', 'duplicated by'], related: ['related to', 'related to'] };
+  function linkWord(l) { var w = LINK_WORD[l.type] || [l.type, l.type]; return l.outward ? w[0] : w[1]; }
+  /* the eight fields the owner reads: headline (the title), why (the lead), status and what is left, attached to, links, parts, decisions, evidence */
+  function glanceBlock(id) {
+    var f = D.fpbs[id], t = f.takenOnBy || [], links = f.links || [], parts = f.parts || [], ev = f.sections.evidence, dec = f.rulings || [];
+    var doneParts = parts.filter(function (x) { return /done|built|tested/i.test(x.state || ''); }).length;
+    var h = '<div class="status"><div><p class="bignum tone-' + (stateTone(f.state) || 'neutral') + '">' + esc(f.state) + '</p><p class="muted small">' + (f.left ? esc(f.left) : f.closed ? 'nothing left' : 'nothing noted as left') + (f.changed ? ' · last change ' + esc(f.changed) : '') + '</p></div></div>';
+    h += '<dl class="kv glance-kv">';
+    h += '<dt>Attached to</dt><dd>' + chip(f.attach) + (t.length ? ' <span class="muted small">· taken on by</span> ' + cchip('item:' + t[0]) : '') + '</dd>';
+    h += '<dt>Raised</dt><dd>' + esc(SRC_SHORT[f.source.type] || f.source.type) + (f.source.date ? ', ' + esc(f.source.date) : '') + (f.source.session ? ' · ' + chip('session:' + f.source.session, { nometa: true }) : '') + '</dd>';
+    h += '<dt>Links</dt><dd>' + (links.length ? links.map(function (l) { return '<span class="lnk"><span class="muted small">' + esc(linkWord(l)) + '</span> ' + chip(l.other) + '</span>'; }).join(' ') : '<span class="muted">none</span>') + '</dd>';
+    if (parts.length) h += '<dt>Parts</dt><dd>' + doneParts + ' of ' + plural(parts.length, 'part') + ' done · <a href="#" data-act="open-sec" data-target="sec-parts">see them</a></dd>';
+    h += '<dt>Decisions</dt><dd>' + (dec.length ? dec.map(function (r) { return chip(r); }).join(' ') : '<span class="muted">none yet</span>') + '</dd>';
+    h += '<dt>Evidence</dt><dd>' + (ev ? esc(trunc(ev.text || (ev.lines && ev.lines[0]) || (ev.run ? 'a run' : ''), 90)) + ' · <a href="#" data-act="open-sec" data-target="sec-evidence">see it</a>' : '<span class="muted">none recorded</span>') + '</dd>';
+    return h + '</dl>';
+  }
   function aboutRows(id, openSec) {
     var f = D.fpbs[id], sv = severityOf(id), t = f.time, at = parseRef(f.attach);
     var waits = at.kind === 'item' && !onOpenPath(at.id);
-    var rows = [lifeRow(id)];
+    var rows = [stateRow(id)];
     if (sv) rows.push(fold(f.kind, 'severity', 'Severity<span class="au-w au-w-' + (sv.by === 'you' ? 'me' : 'claude') + '">' + (sv.by === 'you' ? 'you' : 'Claude') + '</span>', esc(sv.level) + (sv.by === 'you' ? ' · changed by you' : ' · Claude\'s proposal'),
       '<p>' + esc(sv.reason) + '</p><p class="small muted" style="margin-top:12px">' + (sv.by === 'you' ? 'You changed it with Edit.' : 'Claude proposed it. Nothing waits on it; change it with Edit at the top of the report if you disagree.') + '</p>'));
-    rows.push(depsPanel(id, openSec));
+    rows.push(linksPanel(id, openSec));
     rows.push(fold(f.kind, 'time', 'Time', t.forecast ? 'forecast ' + fmtMin(t.forecast) : t.est != null ? 'estimate ' + t.est + ' Claude-min' : 'no estimate yet',
       '<dl class="kv"><dt>Estimate</dt><dd>' + (t.est != null ? t.est + ' Claude-min, ' + esc(t.estBy) : 'not yet') + '</dd><dt>Actual</dt><dd>' + (t.actual ? fmtMin(t.actual) + ' from sessions' : 'no session time yet') + '</dd>' + (t.factor ? '<dt>Factor</dt><dd>' + t.factor + ', actual over estimate</dd>' : '') + (t.forecast ? '<dt>Forecast</dt><dd>' + fmtMin(t.forecast) + '</dd>' : '') + '</dl>'));
     rows.push(fold(f.kind, 'origin', 'Where it came from', esc(SRC_SHORT[f.source.type] || 'created by you') + (f.source.date ? ', ' + esc(f.source.date) : ''),
@@ -1614,6 +1639,8 @@
       '<div class="legend"><span><i class="l-b50"></i>before p50</span><span><i class="l-b90"></i>before p90</span><span><i class="l-a50"></i>after p50</span><span><i class="l-a90"></i>after p90</span></div>';
   }
   var SECTIONS = {
+    why: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap(s.author || 'claude', '<p class="lead-p" style="margin:0">' + esc(s.text) + '</p>', { session: s.session ? 'session:' + s.session : null }) }; },
+    parts: function (f, s) { var rows = s.rows || []; return { sum: rows.filter(function (r) { return /done|built|tested/i.test(r.state || ''); }).length + ' of ' + plural(rows.length, 'part') + ' done', body: wrap(s.author || 'claude', '<table class="plain-table"><tbody>' + rows.map(function (r) { return '<tr><td>' + esc(r.t || r.part || '') + '</td><td>' + esc(r.state || '') + '</td><td class="muted">' + esc(r.note || '') + '</td></tr>'; }).join('') + '</tbody></table>') }; },
     goal: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap('me', '<p class="lead-p" style="margin:0">' + esc(s.text) + '</p>') }; },
     story: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap('me', '<p>' + esc(s.text) + '</p>') }; },
     scope: function (f, s) { return { sum: s.in.length + ' in · ' + s.out.length + ' out', body: wrap('me', '<div class="two"><div><p class="small muted">In</p>' + plainList(s.in.map(esc)) + '</div><div><p class="small muted">Out</p>' + plainList(s.out.map(esc)) + '</div></div>') }; },
@@ -1649,7 +1676,7 @@
     },
     environment: function (f, s) { return { sum: [s.machine ? parseRef(s.machine).id : null].concat(s.tags.slice(0, 3)).filter(Boolean).join(' · '), body: wrap('machine', '<div class="chips">' + (s.machine ? chip(s.machine, { meta: true }) : '') + (s.commit ? chip(s.commit) : '') + s.tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' + (s.method ? '<p class="small" style="margin-top:12px">Method ' + chip(s.method, { meta: true }) + ' · ' + s.iterations + ' iterations</p>' : ''), { chips: [] }) }; },
     frequency: function (f, s) { return { sum: esc(s.level) + ' · ' + esc(s.count), body: wrap('machine', '<p class="bignum" style="font-size:24px">' + esc(s.level) + '</p><p class="small muted">' + esc(s.count) + '</p>') }; },
-    cause: function (f, s) { return { sum: esc(s.status) + ' · ' + esc(s.confidence) + ' confidence', body: wrap('claude', causeBody(f, s), { session: s.session, by: s.by, cap: 'max three lines' }) }; },
+    cause: function (f, s) { if (!s.status && s.text) return { sum: esc(trunc(s.text, 80)), body: wrap(s.author || 'claude', '<p>' + esc(s.text) + '</p>', { session: s.session ? 'session:' + s.session : null }) }; return { sum: esc(s.status) + ' · ' + esc(s.confidence) + ' confidence', body: wrap('claude', causeBody(f, s), { session: s.session, by: s.by, cap: 'max three lines' }) }; },
     fixes: function (f, s, id) { var ch = chosenFix(id); return { sum: ch != null ? 'fix ' + (ch + 1) + ' of ' + s.rows.length + (fixSettled(id) ? ' settled in a plan' : ' recommended by Claude') : s.rows.length + ' compared, none recommended yet', body: wrap('claude', fixesBody(f, s, id), { session: s.session, by: s.by, cap: 'max three fixes' }) }; },
     workaround: function (f, s) { return { sum: esc(trunc(s.text, 70)), body: wrap('claude', '<p>' + esc(s.text) + '</p><p class="small muted" style="margin-top:6px">Applies to: ' + esc(s.who) + '</p>', { session: s.session, cap: 'two lines' }) }; },
     headline: function (f, s) {
@@ -1678,24 +1705,23 @@
 
   /* activity for an issue: runs, sessions, and a history with actors and small diffs */
   function fpbActivity(id, openSec) {
-    var f = D.fpbs[id], tk = f.takenOnBy || [], r = itemRuns([id].concat(tk)), s = (f.sessions || []).concat([].concat.apply([], tk.map(function (x) { return D.items[x].sessions || []; })));
+    var f = D.fpbs[id], tk = f.takenOnBy || [], s = (f.sessions || []).concat([].concat.apply([], tk.map(function (x) { return (D.items[x] && D.items[x].sessions) || []; })));
     var hist = f.history.slice().reverse().map(function (e) {
       var actor = e[1] === 'you' ? '<span class="au au-me">You</span>' : e[1] === 'seed' ? '<span class="au">Old register</span>' : e[1].indexOf('machine:') === 0 ? '<span class="au au-mc">Machine</span> ' + chip(e[1]) : chip(e[1]);
       return '<div class="li col"><span class="li-main">' + actor + ' <span class="small muted">' + esc(e[0]) + '</span></span><span class="li-sub rich">' + rich(e[2]) + '</span>' + (e[3] ? diffBlock(e[3], { small: true }) : '') + '</div>';
     }).join('');
     return drills([
       drill('History', plural(f.history.length, 'event'), '<div class="list">' + hist + '</div>', { open: openSec === 'history' }),
-      drill('Runs', r.length ? plural(r.length, 'run') : 'none', r.length ? runsTable(r) : empty('No runs', 'Runs that measure or reproduce this issue appear here.'), { open: openSec === 'runs' }),
       drill('Sessions', s.length ? plural(s.length, 'session') : 'none', s.length ? '<div class="list">' + s.map(function (x) { return '<div class="li"><span class="li-main">' + chip(x[0], { meta: true }) + '</span><span class="li-meta">' + fmtMin(x[1]) + '</span></div>'; }).join('') + '</div>' : empty('No sessions', 'Sessions that worked on this issue list here with their minutes.'), { open: openSec === 'sessions' }),
-      drill('Rulings cited', plural((f.rulings || []).length, 'ruling'), (f.rulings || []).length ? chips(f.rulings) : empty('No rulings', 'Rulings this issue relies on appear here.'))
+      drill('Decisions', plural((f.rulings || []).length, 'decision'), (f.rulings || []).length ? chips(f.rulings) : empty('No decisions', 'Decisions you made about this FPB appear here.'))
     ]);
   }
 
   /* issues per task, on the item page */
   function tabIssues(id) {
     var list = fpbsUnder(id);
-    var h = '<div class="actions" style="margin-bottom:20px"><a class="btn small text" href="#/issues">All issues</a></div>';
-    if (!list.length) return h + empty('No issues on this task', 'Features, bugs and performance problems raised while building this task are attached here, separate from its plan.');
+    var h = '<div class="actions" style="margin-bottom:20px"><a class="btn small text" href="#/issues">All FPBs</a></div>';
+    if (!list.length) return h + empty('No FPBs on this item', 'Features, bugs and performance problems Claude raises while building this item are attached here, separate from its steps.');
     return h + '<div class="slist">' + list.map(function (i) { return issueRow(i); }).join('') + '</div>';
   }
 
@@ -1789,7 +1815,18 @@
   }
   function takenOnLine(id) {
     var f = D.fpbs[id], t = f.takenOnBy || [];
-    return '<p class="taken">' + (t.length ? '<span class="muted">Taken on by</span> ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '<span class="muted">No task yet. A task takes a report on when you add it in the tree with Implements.</span>') + '</p>';
+    return '<p class="taken">' + (t.length ? '<span class="muted">Taken on by</span> ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '<span class="muted">No item has taken it on yet.</span>') + '</p>';
+  }
+  function stateRow(id) {
+    var f = D.fpbs[id], states = (D.states && D.states[f.kind]) || [], cur = states.indexOf(f.state);
+    var body = '<ol class="life">' + states.map(function (st, i) { return '<li class="' + (i < cur ? 'past' : i === cur ? 'now' : '') + '">' + esc(st) + '</li>'; }).join('') + '</ol>' +
+      '<p class="small muted" style="margin-top:12px">Claude moves it; say so in chat ("not a bug", "drop it", "done") and it is recorded with your words as the reason.</p>';
+    return fold(f.kind, 'life', 'State', esc(f.state) + (f.left ? ' · ' + esc(trunc(f.left, 60)) : ''), body);
+  }
+  function linksPanel(id, openSec) {
+    var f = D.fpbs[id], links = f.links || [];
+    var body = links.length ? '<div class="list">' + links.map(function (l) { return '<div class="li col"><span class="li-main"><span class="muted small">' + esc(linkWord(l)) + '</span> ' + chip(l.other) + '</span>' + (l.reason ? '<span class="li-sub">' + esc(l.reason) + '</span>' : '') + '</div>'; }).join('') + '</div>' : '<p class="muted">No links to other FPBs or items yet.</p>';
+    return fold(f.kind, 'deps', 'Links', links.length ? links.map(function (l) { return linkWord(l) + ' ' + chipInfo(l.other).title; }).slice(0, 3).join(' · ') + (links.length > 3 ? ' · +' + (links.length - 3) : '') : 'none', body, { force: openSec === 'deps' });
   }
   function lifeRow(id) {
     var f = D.fpbs[id], n = lifeOf(id), t = f.takenOnBy || [];
@@ -1998,7 +2035,7 @@
 
   /* ================================================================ header, navigation, drawer */
   var NAV = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
-  var NAV_WIDE = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['issues', 'Issues', '#/issues'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
+  var NAV_WIDE = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['issues', 'FPBs', '#/issues'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
   var MORE = [['projects', 'Projects', '#/projects'], ['machines', 'Machines', '#/machines'], ['settings', 'Settings', '#/settings']];
   function waitingSessions() { return keys(D.sessions).filter(function (s) { return D.sessions[s].state === 'waiting'; }).length; }
   function projectSelect() {
