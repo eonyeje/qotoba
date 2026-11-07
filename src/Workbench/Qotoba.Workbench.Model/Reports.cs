@@ -19,9 +19,12 @@ public class Report
     public DateTimeOffset Created { get; set; }
     public int? EstMin { get; set; }
     public string? EstBy { get; set; }
-    /// <summary>Section payloads keyed by section name, each {author, session?, data}. Shapes live in Contracts.</summary>
+    /// <summary>Section payloads keyed by section name, each an object with an author field and the section's own fields.</summary>
     public string SectionsJson { get; set; } = "{}";
     public string HistoryJson { get; set; } = "[]";
+    public int? ChosenFix { get; set; }
+    public string? TargetJson { get; set; }
+    public int NextLine { get; set; } = 1;
 }
 
 /// <summary>One "When implementing" line. Written by Claude at report time; moved only by plans, cards, runs and packets.</summary>
@@ -42,6 +45,8 @@ public class ImplLine
     public string? Note { get; set; }
     public DateTimeOffset? Date { get; set; }
     public string? QuestionId { get; set; }
+    /// <summary>The task that took this line on, once a plan has drawn it.</summary>
+    public string? ItemId { get; set; }
 }
 
 /// <summary>A dependency between items and reports. Claude proposes, the owner confirms through a plan's settle pass.</summary>

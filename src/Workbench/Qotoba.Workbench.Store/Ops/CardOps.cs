@@ -14,7 +14,7 @@ public sealed partial class WorkbenchOps
     /* ---------------------------------------------------------------- questions */
 
     public async Task<Card> AskAsync(string sessionId, string itemId, int step, string text, List<OptionInput> options,
-        string? context, string? codeRef, string? commentId, List<string>? tried, CancellationToken ct = default)
+        string? context, string? codeRef, string? commentId, List<string>? tried, CancellationToken ct = default, string? implLine = null)
     {
         var s = await RequireSessionAsync(sessionId, ct);
         var it = await RequireItemAsync(itemId, ct);
@@ -44,6 +44,8 @@ public sealed partial class WorkbenchOps
         card.EvidenceJson = Json.Write(new List<object> { new { text = $"questions {open + 1}/{Caps.OpenQuestionsPerItem}", tone = open + 1 >= Caps.OpenQuestionsPerItem ? "warn" : "neutral" } });
         db.Cards.Add(card);
         q.CardId = card.Id;
+        if (implLine is not null) await LineAskedAsync(implLine, card, q, ct);
+        if (commentId is not null && await db.Comments.FindAsync([commentId], ct) is { } cm) { cm.QuestionId = q.Id; q.Shape = "comment"; }
         var stepRec = List<Step>(it.StepsJson).FirstOrDefault(x => x.N == step);
         if (stepRec is not null)
         {

@@ -114,12 +114,45 @@ app.MapGet("/open", (string file, int line) =>
     catch (Exception ex) { return Results.Json(new { ok = false, error = ex.Message }); }
 });
 
+async Task IndexAllAsync()
+{
+    foreach (var c in checkouts)
+    {
+        try
+        {
+            var post = await Qotoba.Workbench.Host.Indexer.IndexAsync(name, c, null, (a, cwd, _) => RunAsync("git", a, cwd, TimeSpan.FromSeconds(60)));
+            var r = await http.PostAsJsonAsync("api/index", post);
+            if (!r.IsSuccessStatusCode) Console.WriteLine($"index of {c} refused: {(int)r.StatusCode}");
+        }
+        catch (Exception ex) { Console.WriteLine($"index of {c} failed: {ex.Message}"); }
+    }
+}
+
 var heartbeat = Task.Run(async () =>
 {
     await RegisterAsync();
+    await IndexAllAsync();
     using var t = new PeriodicTimer(TimeSpan.FromSeconds(60));
-    while (await t.WaitForNextTickAsync()) await RegisterAsync();
+    while (await t.WaitForNextTickAsync()) { await RegisterAsync(); await IndexAllAsync(); }
 });
+
+// a save in any checkout re-indexes it a few seconds later
+var watchers = new List<FileSystemWatcher>();
+var pending = 0;
+foreach (var c in checkouts.Where(Directory.Exists))
+{
+    var w = new FileSystemWatcher(c, "*.cs") { IncludeSubdirectories = true, EnableRaisingEvents = true, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName };
+    FileSystemEventHandler h = async (_, e) =>
+    {
+        if (e.FullPath.Contains("\\bin\\") || e.FullPath.Contains("\\obj\\")) return;
+        if (Interlocked.Exchange(ref pending, 1) == 1) return;
+        await Task.Delay(3000);
+        Interlocked.Exchange(ref pending, 0);
+        await IndexAllAsync();
+    };
+    w.Changed += h; w.Created += h; w.Deleted += h; w.Renamed += (s2, e2) => h(s2, e2);
+    watchers.Add(w);
+}
 
 Console.WriteLine($"qotoba-host {Version} · {name} · listening on http://localhost:{port} · workbench {workbench}");
 app.Run();

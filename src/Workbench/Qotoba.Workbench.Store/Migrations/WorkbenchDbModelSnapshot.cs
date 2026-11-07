@@ -95,6 +95,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<int>("Behind")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Checkout")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CommitsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -117,6 +120,9 @@ namespace Qotoba.Workbench.Store.Migrations
 
                     b.Property<bool>("Pushed")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReportedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -252,8 +258,14 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("ItemId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("LastSeenInIndex")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Line")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProofSessionId")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("QuestionId")
                         .HasColumnType("TEXT");
@@ -392,6 +404,13 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Branch")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Checkout")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DiffJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -400,11 +419,20 @@ namespace Qotoba.Workbench.Store.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IndexedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ItemId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("LastSeenAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LinesJson")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MachineId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("NewLines")
@@ -425,6 +453,9 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("SeenCommit")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SeenHash")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -494,6 +525,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Date")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ItemId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -559,6 +593,10 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Created")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DecisionsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -965,6 +1003,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("AttachItemId")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("ChosenFix")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Created")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -982,6 +1023,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("NextLine")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ProjectId")
                         .IsRequired()
@@ -1016,6 +1060,9 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Subtype")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetJson")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")

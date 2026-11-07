@@ -20,7 +20,13 @@ public sealed partial class WorkbenchOps(WorkbenchDb db, IClock clock, IChangeNo
 
     private async Task SaveAsync(string kind, string id, CancellationToken ct = default)
     {
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("Machines.Id") == true)
+        {
+            // the Host registered this machine between our lookup and our save: keep its row, drop ours, save the rest
+            foreach (var e in db.ChangeTracker.Entries<Machine>().Where(e => e.State == EntityState.Added).ToList()) e.State = EntityState.Detached;
+            await db.SaveChangesAsync(ct);
+        }
         notify.Changed(kind, id);
     }
 

@@ -84,10 +84,65 @@ public static class WorkbenchTools
         [Description("The options")] List<OptionInput> options,
         [Description("Two or three sentences of context; reference files as file:<id>:<from>-<to>, rulings as ruling:R-n")] string? context = null,
         [Description("The code the question is about, as file:<id>:<from>-<to> (pulled, never pasted)")] string? codeRef = null,
-        [Description("What you tried before asking, one line each")] List<string>? tried = null)
+        [Description("What you tried before asking, one line each")] List<string>? tried = null,
+        [Description("The When implementing line this settles, if it comes from a report (for example BUG-2-L1)")] string? implLine = null,
+        [Description("The + comment this is about, if the question comes from one")] string? comment = null)
     {
-        try { var c = await ops.AskAsync(session, item, step, text, options, context, codeRef, null, tried); return $"Question card {c.Id} is in the owner's inbox. Wait with card_wait, or continue on other steps."; }
+        try { var c = await ops.AskAsync(session, item, step, text, options, context, codeRef, comment, tried, default, implLine); return $"Question card {c.Id} is in the owner's inbox. Wait with card_wait, or continue on other steps."; }
         catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "report_get"), Description("A report (FTR, BUG or PER) with its sections and its When implementing lines and their ids and statuses.")]
+    public static async Task<string> ReportGet(WorkbenchOps ops, [Description("Report id, for example BUG-2")] string report)
+    {
+        var r = await ops.Db.Reports.FindAsync(report);
+        if (r is null) return $"REFUSED (report.unknown): there is no report {report}.";
+        var lines = await ops.Db.ImplLines.Where(l => l.ReportId == report).OrderBy(l => l.Order).ToListAsync();
+        var takers = await ops.Db.Items.Where(i => i.ImplementsJson.Contains("fpb:" + report)).Select(i => i.Id).ToListAsync();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"{r.Id} · {r.Kind} · {r.Title} · state {r.State} · severity {(r.Severity?.ToString().ToLowerInvariant() ?? "not set")} · taken on by {(takers.Count == 0 ? "no task yet" : string.Join(", ", takers))}");
+        sb.AppendLine("Sections: " + r.SectionsJson);
+        foreach (var l in lines) sb.AppendLine($"  {l.Id} [{l.Kind.ToString().ToLowerInvariant()} · {l.Status.ToString().ToLowerInvariant()}] {l.Text}" + (l.Rec is null ? "" : $" · rec {l.Rec}") + (l.Note is null ? "" : $" · {l.Note}"));
+        return sb.ToString();
+    }
+
+    [McpServerTool(Name = "report_write"), Description("Write sections of a report the owner created, and its When implementing lines: decisions (options, one recommended, each with a reason and a cost to change), proofs (acceptance lines a run must prove), dependencies (rec = item:<id> or fpb:<id>), preconditions. Sections are objects keyed by the report's section names; text fields are at most 3 lines, the note 2, possible fixes 3.")]
+    public static async Task<string> ReportWrite(WorkbenchOps ops, string session, [Description("Report id")] string report,
+        [Description("Sections keyed by name, each an object, e.g. {\"symptom\":{\"text\":\"...\",\"expected\":\"...\",\"actual\":\"...\"}}")] Dictionary<string, System.Text.Json.JsonElement>? sections = null,
+        [Description("The When implementing lines; replaces the lines no task has drawn yet")] List<ImplLineInput>? lines = null)
+    {
+        try { var r = await ops.WriteReportAsync(session, report, sections, lines); return $"{r.Id} updated · {await ops.Db.ImplLines.CountAsync(l => l.ReportId == r.Id)} lines"; }
+        catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "impl_prove"), Description("A run proves a When implementing proof line (or a precondition). Pass the line id and the run id.")]
+    public static async Task<string> ImplProve(WorkbenchOps ops, string session, [Description("Line id, for example BUG-2-L3")] string line, [Description("Run id")] string run)
+    {
+        try { await ops.ProveLineAsync(session, line, run); return "ok"; } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "impl_drop"), Description("Drop a When implementing line that no longer applies, with the reason. Settled and proved lines cannot be dropped.")]
+    public static async Task<string> ImplDrop(WorkbenchOps ops, string session, string line, string why)
+    {
+        try { await ops.DropLineAsync(session, line, why); return "ok"; } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "dependency_propose"), Description("Propose that one item or report needs another. The owner confirms it in the next plan's settle pass; until then it is a proposal.")]
+    public static async Task<string> DependencyPropose(WorkbenchOps ops, string session,
+        [Description("The dependant: item:WB-2.3 or fpb:BUG-1")] string from, [Description("What it needs: item:WB-2.1 or fpb:FTR-3")] string to,
+        [Description("needs, related or duplicate")] string type, [Description("Why, up to three lines")] string reason, [Description("Hard: nothing can start before it")] bool hard = false)
+    {
+        try { var e = await ops.ProposeEdgeAsync(session, from, to, type, reason, hard); return e.Id; } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "code_pull"), Description("Pull up to 20 lines of a file from the session's checkout, to cite in a question as file:<id>:<from>-<to>. Code is pulled, never pasted into a card.")]
+    public static async Task<string> CodePull(WorkbenchOps ops, IHostClient host, string session, [Description("Path, repo-relative or absolute")] string file, int from, int to)
+    {
+        var s = await ops.Db.Sessions.FindAsync(session);
+        if (s is null) return "REFUSED (session.unknown): call session_hello first.";
+        if (to - from + 1 > Caps.PulledCodeLines) to = from + Caps.PulledCodeLines - 1;
+        var text = await host.ReadLinesAsync(s.MachineId ?? ops.Options.MachineId, s.Cwd ?? "", file, from, to);
+        return text ?? "The Host could not read that file.";
     }
 
     [McpServerTool(Name = "card_wait"), Description("Wait for the owner to answer a card. Returns the answer, or 'no answer yet' after the timeout (max 600 s). Call again to keep waiting.")]

@@ -37,6 +37,7 @@ public sealed class FakeHost : IHostClient
     public Task<GitResult> RunGitAsync(string machineId, GitInstruction instruction, CancellationToken ct = default) { Ran.Add(instruction); return Task.FromResult(new GitResult(Ok, Ok ? "merged a1b2c3d" : "conflict")); }
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>("line");
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(true);
+    public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(true);
 }
 
 public class OpsTests : IDisposable

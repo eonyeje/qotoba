@@ -61,7 +61,19 @@
       return api('POST', '/api/rulings', body).then(function (r) { if (r.message) { toast(esc(r.message)); return r; } toast('Recorded as ' + esc(r.id)); refresh(); location.hash = '#/ruling/' + r.id; return r; }).catch(function (e) { toast(esc(e.message)); });
     },
     seen: function (file, type) {
-      return api('POST', '/api/seen', { file: file, type: type }).then(function () { refresh(); }).catch(function (e) { toast(esc(e.message)); });
+      return api('POST', '/api/seen', { file: file, type: type }).then(function () { toast('Marked as seen'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
+    },
+    report: function (id, patch) {
+      return api('PATCH', '/api/reports/' + encodeURIComponent(id), patch).then(function (r) { toast(r.message ? esc(r.message) : 'Recorded by you'); refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
+    edge: function (id, confirmed) {
+      return api('PATCH', '/api/edges/' + encodeURIComponent(id), { confirmed: confirmed }).then(function () { toast(confirmed ? 'Dependency confirmed · the unblock weight is updated' : 'Dependency removed'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
+    },
+    addEdge: function (from, to) {
+      return api('POST', '/api/edges', { from: from, to: to }).then(function (r) { toast(r.message ? esc(r.message) : 'Dependency recorded by you'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
+    },
+    open: function (machine, path, line) {
+      return api('POST', '/api/open', { machine: machine, file: path, line: line }).then(function (r) { toast(r.ok ? 'Opening ' + esc(path.split(/[\\/]/).pop()) + ':' + line + ' in Rider on ' + esc(machine) : 'The Host on ' + esc(machine) + ' could not open Rider'); }).catch(function (e) { toast(esc(e.message)); });
     }
   };
 

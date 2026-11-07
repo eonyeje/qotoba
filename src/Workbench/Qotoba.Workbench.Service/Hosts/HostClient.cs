@@ -46,6 +46,16 @@ public sealed class HostClient(HttpClient http, IServiceScopeFactory scopes, IOp
         catch { return null; }
     }
 
+    public async Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default)
+    {
+        try
+        {
+            using var res = await http.SendAsync(Req(HttpMethod.Get, $"{await UrlFor(machineId, ct)}/open?file={Uri.EscapeDataString(file)}&line={line}", null), ct);
+            return res.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
     public async Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default)
     {
         try

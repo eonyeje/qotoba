@@ -59,9 +59,13 @@ public class Item
     public string? PlanCardId { get; set; }
     public string? PacketCardId { get; set; }
     public string HistoryJson { get; set; } = "[]";
+    public string DecisionsJson { get; set; } = "[]";
     public bool Preview { get; set; }
     public DateTimeOffset Created { get; set; }
 }
+
+/// <summary>A decision settled on this task: from a settle pass or a question card, possibly drawn from a report line.</summary>
+public sealed record Decision(string T, string A, string How, string? Ref, string? From, string Date, string? Ruling);
 
 public sealed record Step(int N, string Text, int EstMin, StepState State, string? ProofRef, List<string>? Needs, string? Note, string? ProofText = null);
 public sealed record Claim(string Text, string? ProofRef);

@@ -95,6 +95,7 @@
   var REF_RE = /\b(fpb|reg|ruling|item|question|assumption|found|file|type|run|session|machine|comment|claudemd|commit|branch|project|card|lane|nyw):([A-Za-z0-9][A-Za-z0-9._\-]*(?::\d+(?:-\d+)?)?)/g;
 
   function parseRef(ref) {
+    if (!ref || typeof ref !== 'string') return { kind: '', id: '', range: null, base: '' };
     var i = ref.indexOf(':'), kind = ref.slice(0, i), rest = ref.slice(i + 1), range = null;
     if (kind === 'file') { var p = rest.split(':'); rest = p[0]; if (p[1]) { var ab = p[1].split('-').map(Number); range = [ab[0], ab[1] || ab[0]]; } }
     return { kind: kind, id: rest, range: range, base: kind + ':' + rest };
@@ -321,7 +322,7 @@
     var cap = opt.cap || 12, shown = Math.min(b, a + cap - 1), more = b - shown;
     return '<div class="code' + (opt.small ? ' small' : '') + '"><div class="code-h">' + chip(ref, { nometa: true }) +
       (!f.seen ? '<span class="marker new">new to you · ' + f.newLines + ' lines</span>' : '') +
-      '<span class="acts"><button class="btn sm" data-toast="Opening ' + esc(f.path.split('/').pop()) + ':' + a + ' in Rider on ' + esc(homeMachineForFile(f)) + '">' + ic('rider') + 'Open in Rider</button>' +
+      '<span class="acts"><button class="btn sm" data-act="open-rider" data-path="' + esc(f.path) + '" data-line="' + a + '" data-machine="' + esc(homeMachineForFile(f)) + '">' + ic('rider') + 'Open in Rider</button>' +
       '<a class="btn sm" href="#/diff/' + r.id + '">' + ic('diff') + 'Diff since master</a></span></div>' +
       '<pre><code>' + codeLines(f, a, shown, opt.focus) + '</code></pre>' +
       (more > 0 ? '<div class="more">' + more + ' more lines · <a href="' + hrefFor(ref) + '">show all</a></div>' : '') + '</div>';
@@ -646,7 +647,7 @@
     var it = D.items[id];
     if (it.preview) return { ok: false, why: 'Language is closed. These four appear as real items when an approved plan opens it.' };
     if (it.unscheduled) return { ok: false, why: 'Unscheduled: no open parent path. Dope must open first.' };
-    if (it.isOpen) return { ok: false, why: 'Already open in lane ' + it.lane + '.' };
+    if (it.isOpen) return { ok: false, why: 'Already open' + (it.lane ? ' in lane ' + it.lane : '') + '.' };
     if (it.state === 'done') return { ok: false, why: 'Done items do not reopen; add a BUG under it instead.' };
     if (it.state === 'review') return { ok: false, why: 'In review: approve or ask for changes on its packet.' };
     if (it.plan) return { ok: true, why: 'Opens through its plan' + (it.lane ? ' in lane ' + it.lane : '') + '.', go: '#/card/' + parseRef(it.plan).id };
@@ -928,7 +929,7 @@
       (c.question ? '<div class="chips" style="margin-bottom:12px"><span class="small muted">became</span>' + chip(c.question) + '</div>' : '') +
       '<details class="inline"><summary>Show the lines</summary>' + codeBlock('file:' + c.file + ':' + Math.max(1, c.line - 1) + '-' + Math.min(f.lines.length, c.line + 6), { small: true, focus: c.line }) + '</details>' +
       '<details class="inline"><summary>History · ' + plural(c.versions.length, 'version') + '</summary><ul class="versions">' + c.versions.map(function (v, i) { return '<li><span class="small muted">v' + (i + 1) + ' · ' + esc(v.date) + '</span><code>//+ ' + esc(v.text) + '</code></li>'; }).join('') + '</ul></details>' +
-      '<div class="actions small-gap"><button class="btn small" data-toast="Opening ' + esc(f.path.split('/').pop()) + ':' + c.line + ' in Rider">Open in Rider</button><a class="btn small text" href="#/comment/' + cid + '">Comment page</a></div>';
+      '<div class="actions small-gap"><button class="btn small" data-act="open-rider" data-path="' + esc(f.path) + '" data-line="' + c.line + '" data-machine="' + esc(homeMachineForFile(f)) + '">Open in Rider</button><a class="btn small text" href="#/comment/' + cid + '">Comment page</a></div>';
     return '<details class="cmt-row ' + c.state + '"><summary><code>//+ ' + esc(c.text) + '</code>' + state + '<span class="chev"></span></summary><div class="db">' + body + '</div></details>';
   }
   function runsTable(runIds) {
@@ -1037,7 +1038,7 @@
     var files = filesWithComments();
     var scopeList = S.filesScope === 'item' ? (D.items[S.filesItem].commentScope || []) : null;
     if (scopeList) files = files.filter(function (f) { return scopeList.some(function (c) { return D.comments[c].file === f; }); });
-    if (S.project !== 'all' && S.project !== 'wb') files = [];
+    if (S.project !== 'all') files = files.filter(function (f) { var fe = D.files[f]; return !fe.project || fe.project === S.project; });
     var h = '<div class="lpane"><div class="lhead"><h2>Files</h2><p class="muted">Files with + comments. Read only.</p></div>';
     h += '<div class="lctrl"><div class="seg"><button class="' + (S.filesScope === 'all' ? 'on' : '') + '" data-act="fscope" data-v="all">All</button><button class="' + (S.filesScope === 'item' ? 'on' : '') + '" data-act="fscope" data-v="item">One item</button></div>' +
       (S.filesScope === 'item' ? '<select data-act="fitem" aria-label="Item">' + keys(D.items).map(function (i) { return '<option value="' + i + '"' + (S.filesItem === i ? ' selected' : '') + '>' + esc(trunc(itemTitle(i), 28)) + '</option>'; }).join('') + '</select>' : '') + '</div>';
@@ -1060,7 +1061,7 @@
     h += drills([
       drill(range ? 'Lines ' + range[0] + '–' + range[1] : 'All lines', f.lines.length + ' lines', codeBlock('file:' + id + (range ? ':' + range[0] + '-' + range[1] : ':1-' + f.lines.length), { cap: range ? 12 : 400, focus: range ? range[0] : null }), { open: !!range }),
       drill('Diff since master', f.added ? 'new file' : 'changed', diffBlock(fileDiff(id), { small: true })),
-      drill('Branch', f.branch ? esc(D.branches[f.branch].name) : 'Dope repository', f.branch ? chip('branch:' + f.branch, { meta: true }) : '<p>From the Dope seed.</p>')
+      drill('Branch', f.branch && D.branches[f.branch] ? esc(D.branches[f.branch].name) : esc(f.branchName || 'main'), f.branch && D.branches[f.branch] ? chip('branch:' + f.branch, { meta: true }) : '<p>On ' + esc(f.branchName || 'the main branch') + ' in ' + esc(f.repo || 'the checkout') + '.</p>')
     ]);
     return h + '</div>';
   }
@@ -1152,7 +1153,7 @@
       drill('Items', items.length ? items.length + ' · ' + ['FTR', 'BUG', 'PER', 'task'].filter(function (k) { return kc[k]; }).map(function (k) { return kc[k] + ' ' + k; }).join(', ') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
-      p.lanes ? drill('Lanes', plural(p.lanes.length, 'lane') + ' · factor ' + p.factor, '<div class="list">' + p.lanes.map(function (l) { var ln = D.lanes[l]; return '<div class="li"><span class="li-main">' + chip('lane:' + l, { meta: true }) + '</span><span class="li-meta">' + esc(ln.state) + '</span></div>'; }).join('') + '</div>') : '',
+      p.lanes ? drill('Lanes', plural(p.lanes.length, 'lane') + ' · factor ' + (p.factor != null ? p.factor : '1.2 by default'), '<div class="list">' + p.lanes.map(function (l) { var ln = D.lanes[l]; return '<div class="li"><span class="li-main">' + chip('lane:' + l, { meta: true }) + '</span><span class="li-meta">' + esc(ln.state) + '</span></div>'; }).join('') + '</div>') : '',
       drill('Issues', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? fpbCountLabel(l) : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
@@ -1264,7 +1265,7 @@
     else if (D.files[id]) { files = [id]; title = D.files[id].path.split('/').pop(); refs = ['file:' + id]; }
     var h = head(refs) + '<div class="pane">' + dhead('Diff since master', 'info', plural(files.length, 'file'), esc(title || 'Diff'), 'Files you have not seen are open; the rest are one line.');
     if (!files.length) return h + empty('Nothing to diff', 'A branch with changes against master shows its diff here.') + '</div>';
-    h += drills(files.map(function (f) { var fe = D.files[f]; var d = fileDiff(f); return drill(esc(fe.path.split('/').pop()), (fe.seen ? 'seen' : 'new to you · ' + fe.newLines + ' lines') + ' · ' + d.filter(function (l) { return l[0] === '+' || l[0] === '-'; }).length + ' changed lines', diffBlock(d, { small: true }) + '<div class="actions small-gap"><button class="btn small" data-toast="Marked ' + esc(fe.path.split('/').pop()) + ' as seen">Mark seen</button><a class="btn small text" href="#/file/' + f + '">File page</a></div>', { open: !fe.seen || files.length === 1, attn: !fe.seen }); }));
+    h += drills(files.map(function (f) { var fe = D.files[f]; var d = fileDiff(f); return drill(esc(fe.path.split('/').pop()), (fe.seen ? 'seen' : 'new to you · ' + fe.newLines + ' lines') + ' · ' + d.filter(function (l) { return l[0] === '+' || l[0] === '-'; }).length + ' changed lines', diffBlock(d, { small: true }) + '<div class="actions small-gap"><button class="btn small" data-act="mark-seen" data-file="' + f + '">Mark seen</button><a class="btn small text" href="#/file/' + f + '">File page</a></div>', { open: !fe.seen || files.length === 1, attn: !fe.seen }); }));
     return h + '</div>';
   }
   function vMore() {
@@ -1287,7 +1288,7 @@
   function unblockMin(ref) { return blocksOf(ref).filter(edgeConfirmed).reduce(function (a, e) { return a + (e.min || 0); }, 0); }
   function pendingMin(ref) { return blocksOf(ref).filter(function (e) { return !edgeConfirmed(e); }).reduce(function (a, e) { return a + (e.min || 0); }, 0); }
   function chosenFix(id) { var sec = D.fpbs[id].sections.fixes; if (!sec) return undefined; return (id in S.fix) ? S.fix[id] : sec.chosen; }
-  function severityOf(id) { var sv = D.fpbs[id].severity; if (!sv) return null; return S.sev[id] ? { level: S.sev[id], reason: sv.reason, confirmed: true, by: 'you' } : sv; }
+  function severityOf(id) { var sv = D.fpbs[id].severity; if (!sv) return S.sev[id] ? { level: S.sev[id], reason: '', confirmed: true, by: 'you' } : null; return S.sev[id] ? { level: S.sev[id], reason: sv.reason, confirmed: true, by: 'you' } : sv; }
   function targetOf(id) { return S.target[id] || D.fpbs[id].sections.target || null; }
   function refProject(ref) { var r = parseRef(ref); if (r.kind === 'item') return D.items[r.id] && D.items[r.id].project; if (r.kind === 'fpb') return D.fpbs[r.id].project; if (r.kind === 'project') return r.id; return null; }
   function attachOpen(f) { var at = parseRef(f.attach); if (at.kind === 'project') return projOf(at.id).state === 'open' && false; return onOpenPath(at.id); }
@@ -1472,6 +1473,21 @@
     return fold(kind, key, esc(title) + '<span class="au-w au-w-' + a + '">' + AU_WORD[a] + '</span>', summary, body, { attn: attn, force: force, cls: 'sec a-' + a });
   }
   var NEEDS_YOU = {};
+  /* a section written without every field its template expects shows as written, field by field */
+  function genericSection(sec) {
+    var skip = { author: 1, session: 1, by: 1 }, first = null, rows = [];
+    keys(sec).forEach(function (k) {
+      if (skip[k]) return;
+      var v = sec[k], txt;
+      if (v == null) return;
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') txt = String(v);
+      else if (Array.isArray(v)) txt = v.map(function (x) { return typeof x === 'object' && x ? (x.t || x.text || x.what || JSON.stringify(x)) : String(x); }).join(' · ');
+      else txt = keys(v).map(function (kk) { return kk + ': ' + (typeof v[kk] === 'object' ? JSON.stringify(v[kk]) : v[kk]); }).join(' · ');
+      if (first == null && typeof v === 'string') first = v;
+      rows.push('<dt>' + esc(k) + '</dt><dd>' + (typeof v === 'string' && /\[\[/.test(v) ? rich(v) : esc(txt)) + '</dd>');
+    });
+    return { author: sec.author || 'claude', sum: esc(trunc(first || (rows.length ? keys(sec).filter(function (k) { return !skip[k]; }).join(', ') : ''), 80)), body: wrap(sec.author || 'claude', '<dl class="kv">' + rows.join('') + '</dl>', { session: sec.session }) };
+  }
   function reportSections(id, openSec) {
     var f = D.fpbs[id], out = [];
     D.reportOrder[f.kind].forEach(function (pair) {
@@ -1481,7 +1497,9 @@
       if (key === 'headline' && f.sections.comparison) return;
       if (!sec && key !== 'impact' && key !== 'plan' && !(key === 'target' && f.kind === 'PER')) return;
       if (key === 'impact' && !sec && !blocksOf('fpb:' + id).length) return;
-      var r = SECTIONS[key] ? SECTIONS[key](f, sec || {}, id) : null;
+      var r = null;
+      try { r = SECTIONS[key] ? SECTIONS[key](f, sec || {}, id) : null; }
+      catch (e) { r = sec ? genericSection(sec) : null; }
       if (r) out.push(rsec(f.kind, key, pair[1], (sec && sec.author) || r.author || 'claude', r.sum, r.body, NEEDS_YOU[key] && NEEDS_YOU[key](f, id), openSec === key));
     });
     (f.sections.extra || []).forEach(function (x, i) {
@@ -1506,9 +1524,10 @@
     var ch = chosenFix(id);
     return '<div class="fixes">' + sec.rows.map(function (r, i) {
       var chosen = ch === i;
-      return '<details class="fxrow' + (chosen ? ' chosen' : '') + '"><summary class="fx"><span class="fx-n">' + (i + 1) + '</span><span class="fx-t">' + esc(r.t) + (chosen ? ' <span class="marker ' + (fixSettled(id) ? 'good">settled in a plan' : 'rec">Claude recommends') + '</span>' : '') + '</span><span class="fx-m">' + r.size + ' min · <span class="' + (r.risk === 'high' ? 'tone-bad' : r.risk === 'medium' ? 'tone-warn' : 'tone-good') + '">' + esc(r.risk) + ' risk</span></span><span class="chev"></span></summary>' +
-        '<div class="fx-b"><dl class="kv"><dt>Confidence</dt><dd>' + esc(r.confidence) + '</dd><dt>Regression check</dt><dd>' + (r.regression === 'exists' ? 'exists' : 'proposed, not written') + '</dd></dl>' +
-        subfold('Approach · ' + r.approach.length + ' steps', '<ol class="plain-ol">' + r.approach.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ol><div class="chips" style="margin:10px 0"><span class="small muted">files</span>' + chips(r.files) + '</div>') +
+      var size = r.size == null ? '' : (/^\d+$/.test(String(r.size)) ? r.size + ' min' : String(r.size));
+      return '<details class="fxrow' + (chosen ? ' chosen' : '') + '"><summary class="fx"><span class="fx-n">' + (i + 1) + '</span><span class="fx-t">' + esc(r.t) + (chosen ? ' <span class="marker ' + (fixSettled(id) ? 'good">settled in a plan' : 'rec">Claude recommends') + '</span>' : '') + '</span><span class="fx-m">' + esc(size) + (size && r.risk ? ' · ' : '') + (r.risk ? '<span class="' + (r.risk === 'high' ? 'tone-bad' : r.risk === 'medium' ? 'tone-warn' : 'tone-good') + '">' + esc(r.risk) + ' risk</span>' : '') + '</span><span class="chev"></span></summary>' +
+        '<div class="fx-b"><dl class="kv">' + (r.confidence ? '<dt>Confidence</dt><dd>' + esc(r.confidence) + '</dd>' : '') + (r.regression ? '<dt>Regression check</dt><dd>' + (r.regression === 'exists' ? 'exists' : 'proposed, not written') + '</dd>' : '') + '</dl>' +
+        (r.approach && r.approach.length ? subfold('Approach · ' + r.approach.length + ' steps', '<ol class="plain-ol">' + r.approach.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ol>' + (r.files && r.files.length ? '<div class="chips" style="margin:10px 0"><span class="small muted">files</span>' + chips(r.files) + '</div>' : '')) : '') +
         '</div></details>';
     }).join('') + '</div>';
   }
@@ -1561,8 +1580,8 @@
     note: function (f, s) { return { sum: esc(trunc(s.text, 70)), body: wrap('claude', '<p>' + esc(s.text) + '</p><p class="small muted" style="margin-top:6px">' + esc(s.date) + '</p>', { session: s.session, by: s.by, cap: 'two lines' }) }; },
     symptom: function (f, s) { return { sum: s.expected ? 'expected: ' + esc(trunc(s.expected, 70)) : esc(trunc(s.text, 80)), body: wrap(s.author, '<p>' + esc(s.text) + '</p><dl class="kv" style="margin-top:12px"><dt>Expected</dt><dd>' + esc(s.expected) + '</dd><dt>Actual</dt><dd>' + esc(s.actual) + '</dd></dl>', { session: s.session, cap: 'max three lines' }) }; },
     reproduce: function (f, s) {
-      var x = D.runs[parseRef(s.run).id];
-      return { sum: s.steps.length + ' steps · reproduces in run ' + parseRef(s.run).id, body: wrap('claude', '<div class="repro r1"><ol class="steps-n">' + s.steps.map(function (st) { return '<li><span>' + esc(st.t) + '</span>' + (st.expect ? '<span class="exp">expect: ' + esc(st.expect) + '</span>' : '') + '</li>'; }).join('') + '</ol><div class="repro-run"><p class="small muted">Reproduced by</p>' + chip(s.run) + '<p class="small ' + (x.result === 'pass' ? 'tone-good' : 'tone-bad') + '" style="margin-top:4px">' + runResult(s.run) + ' · ' + esc(x.at) + '</p></div></div>', { session: s.session, cap: 'max seven steps' }) };
+      var x = s.run ? D.runs[parseRef(s.run).id] : null;
+      return { sum: (s.steps || []).length + ' steps' + (x ? ' · reproduces in run ' + parseRef(s.run).id : ' · not reproduced by a run yet'), body: wrap('claude', '<div class="repro r1"><ol class="steps-n">' + (s.steps || []).map(function (st) { return '<li><span>' + esc(st.t) + '</span>' + (st.expect ? '<span class="exp">expect: ' + esc(st.expect) + '</span>' : '') + '</li>'; }).join('') + '</ol>' + (x ? '<div class="repro-run"><p class="small muted">Reproduced by</p>' + chip(s.run) + '<p class="small ' + (x.result === 'pass' ? 'tone-good' : 'tone-bad') + '" style="margin-top:4px">' + runResult(s.run) + ' · ' + esc(x.at) + '</p></div>' : '<p class="small"><span class="marker unv">unverified</span> no run reproduces it yet</p>') + '</div>', { session: s.session, cap: 'max seven steps' }) };
     },
     evidence: function (f, s) {
       var x = D.runs[parseRef(s.run).id];
@@ -1806,12 +1825,12 @@
       '<p class="small muted" style="padding:8px 12px 4px;max-width:260px">Nothing waits on these. A task that takes this report on settles its decisions in the inbox.</p>';
   }
   function reportEditSheet(id, what) {
-    var f = D.fpbs[id], foot = function (msg) { return '<button class="btn primary" data-act="close" data-toast2="' + esc(msg) + '">Save</button><button class="btn" data-act="close">Cancel</button>'; };
-    if (what === 'rename') return openSheet('Rename ' + id, '<input type="text" style="width:100%" value="' + esc(f.title) + '" aria-label="Title"><p class="tiny" style="margin-top:6px">Titles are yours; sessions cannot rename.</p>', foot('Rename would be recorded by you'));
-    if (what === 'severity') return openSheet('Severity of ' + id, '<p class="small">Claude proposed <b>' + esc(severityOf(id).level) + '</b>: ' + esc(f.severity.reason) + '</p><div class="seg big">' + ['blocking', 'serious', 'minor', 'cosmetic'].map(function (l) { return '<button class="' + (l === severityOf(id).level ? 'on' : '') + '" data-act="pickone">' + l + '</button>'; }).join('') + '</div>', foot('Severity change would be recorded by you'));
-    if (what === 'fix') return openSheet('Recommended fix for ' + id, '<p class="small">The plan of the task that takes this on offers the recommended fix as its default.</p><div class="seg big col">' + f.sections.fixes.rows.map(function (r, i) { return '<button class="' + (i === chosenFix(id) ? 'on' : '') + '" data-act="pickone">Fix ' + (i + 1) + ': ' + esc(r.t) + '</button>'; }).join('') + '</div>', foot('Recommended fix change would be recorded by you'));
-    if (what === 'target') { var tg = targetOf(id) || {}; return openSheet('Target for ' + id, '<p class="small">One line in your words, with the conditions. The plan of the task that takes this on offers it as its default.</p><div class="target-entry"><input type="number" step="any" value="' + (tg.v != null ? tg.v : '') + '" aria-label="Value"><select aria-label="Unit">' + ['ms', 's', 'MB', '%', 'items/s'].map(function (u) { return '<option' + (u === tg.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div><input type="text" style="width:100%;margin-top:10px" aria-label="Conditions" value="' + esc(tg.text || '') + '">', foot('Target change would be recorded by you')); }
-    return openSheet('Dependencies of ' + id, '<p class="small">Links Claude proposed stay proposals until a plan confirms them. Add or remove one here.</p><input type="text" style="width:100%" placeholder="e.g. BUG-1 or WB-2.3" aria-label="Item or report">', foot('Dependency change would be recorded by you'));
+    var f = D.fpbs[id], foot = function (msg) { return '<button class="btn primary" data-act="report-save" data-fpb="' + id + '" data-what="' + what + '">Save</button><button class="btn" data-act="close">Cancel</button>'; };
+    if (what === 'rename') return openSheet('Rename ' + id, '<input id="re-title" type="text" style="width:100%" value="' + esc(f.title) + '" aria-label="Title"><p class="tiny" style="margin-top:6px">Titles are yours; sessions cannot rename.</p>', foot('Rename would be recorded by you'));
+    if (what === 'severity') return openSheet('Severity of ' + id, '<p class="small">Claude proposed <b>' + esc((severityOf(id) || {}).level || 'nothing') + '</b>: ' + esc((f.severity || {}).reason || '') + '</p><div class="seg big" id="re-sev">' + ['blocking', 'serious', 'minor', 'cosmetic'].map(function (l) { return '<button class="' + (l === severityOf(id).level ? 'on' : '') + '" data-act="pickone">' + l + '</button>'; }).join('') + '</div>', foot('Severity change would be recorded by you'));
+    if (what === 'fix') return openSheet('Recommended fix for ' + id, '<p class="small">The plan of the task that takes this on offers the recommended fix as its default.</p><div class="seg big col" id="re-fix">' + f.sections.fixes.rows.map(function (r, i) { return '<button class="' + (i === chosenFix(id) ? 'on' : '') + '" data-act="pickone">Fix ' + (i + 1) + ': ' + esc(r.t) + '</button>'; }).join('') + '</div>', foot('Recommended fix change would be recorded by you'));
+    if (what === 'target') { var tg = targetOf(id) || {}; return openSheet('Target for ' + id, '<p class="small">One line in your words, with the conditions. The plan of the task that takes this on offers it as its default.</p><div class="target-entry"><input id="re-tv" type="number" step="any" value="' + (tg.v != null ? tg.v : '') + '" aria-label="Value"><select id="re-tu" aria-label="Unit">' + ['ms', 's', 'MB', '%', 'items/s'].map(function (u) { return '<option' + (u === tg.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div><input id="re-tc" type="text" style="width:100%;margin-top:10px" aria-label="Conditions" value="' + esc(tg.text || '') + '">', foot('Target change would be recorded by you')); }
+    return openSheet('Dependencies of ' + id, '<p class="small">Links Claude proposed stay proposals until a plan confirms them. Add or remove one here.</p><input id="re-dep" type="text" style="width:100%" placeholder="e.g. BUG-1 or WB-2.3" aria-label="Item or report">', foot('Dependency change would be recorded by you'));
   }
 
   /* ---------------------------------------------------------------- rulings proposed from chat: an Action card in the inbox */
@@ -2147,6 +2166,9 @@
       case 'pick': var radios = [].slice.call(document.querySelectorAll('input[name="opt-' + dv.card + '"]')); var ci = radios.findIndex(function (r) { return r.checked; }); if (ci < 0) { toast('Pick one first'); return true; } var qo = D.questions[D.cards[dv.card].question]; var ordered = qo.options.filter(function (o) { return o.rec; }).concat(qo.options.filter(function (o) { return !o.rec; })); WBAPI.press(dv.card, 'pick', { index: qo.options.indexOf(ordered[ci]) }); return true;
       case 'talk': openTalk(dv.ctx); return true;
       case 'use-rec': WBAPI.press(dv.card, 'recommended'); return true;
+      case 'report-save': { var w = dv.what, patch = null; if (w === 'rename') patch = { title: document.getElementById('re-title').value.trim() }; else if (w === 'severity') { var sb = document.querySelector('#re-sev .on'); patch = { severity: sb ? sb.textContent.trim() : null }; } else if (w === 'fix') { var fb = [].slice.call(document.querySelectorAll('#re-fix button')); var fi = fb.findIndex(function (b) { return b.classList.contains('on'); }); patch = { chosenFix: fi < 0 ? null : fi }; } else if (w === 'target') { var tv = parseFloat(document.getElementById('re-tv').value); if (isNaN(tv)) { toast('Enter a number'); return true; } patch = { target: { v: tv, unit: document.getElementById('re-tu').value, text: document.getElementById('re-tc').value.trim() } }; } else if (w === 'dependencies') { var dep = document.getElementById('re-dep').value.trim(); closeLayers(); if (dep) WBAPI.addEdge('fpb:' + dv.fpb, dep); return true; } closeLayers(); if (patch) WBAPI.report(dv.fpb, patch); return true; }
+      case 'add-issue-save': { var k2 = document.querySelector('#ai2-kind .on'), t2 = document.getElementById('ai2-title').value.trim(); if (!t2) { toast('A title, in your words'); return true; } closeLayers(); WBAPI.addItem({ kind: k2 ? k2.textContent.trim() : 'BUG', title: t2, place: dv.node }); return true; }
+      case 'open-rider': WBAPI.open(dv.machine, dv.path, +dv.line); return true;
       case 'defer': WBAPI.press(dv.card, 'defer'); return true;
       case 'plan-approve': WBAPI.press(dv.card, 'approve'); return true;
       case 'stuck-retry': WBAPI.press(dv.card, 'retry'); return true;
@@ -2157,7 +2179,7 @@
       case 'found-drop': var fd = D.found[dv.f]; var pkd = D.sessions[fd.session] && D.sessions[fd.session].packet; if (pkd) WBAPI.press(parseRef(pkd).id, 'found-drop', { target: dv.f }); else toast(esc(fd.title) + ' dropped'); return true;
       case 'proposals-discard': WBAPI.press(dv.card, 'discard'); return true;
       case 'ruling-save': var rlt = document.getElementById('rl-text').value.trim(); closeLayers(); WBAPI.press(dv.card, 'make-ruling', { text: rlt }); return true;
-      case 'additem-save': var aik = document.querySelector('#ai-kind .on'), ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aii = [].slice.call(document.querySelectorAll('#ai-impl input:checked')).map(function (x) { return x.getAttribute('data-f'); }); var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); var kindv = aik ? aik.textContent.trim() : 'task'; closeLayers(); if (kindv !== 'task') { toast('Reports arrive in a later slice; add a task for now'); return true; } WBAPI.addItem({ kind: kindv, title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days', implements: aii }); return true;
+      case 'additem-save': var aik = document.querySelector('#ai-kind .on'), ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aii = [].slice.call(document.querySelectorAll('#ai-impl input:checked')).map(function (x) { return x.getAttribute('data-f'); }); var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); var kindv = aik ? aik.textContent.trim() : 'task'; closeLayers(); WBAPI.addItem({ kind: kindv, title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days', implements: aii }); return true;
       case 'rename-save': var rnv = document.getElementById('rn-title').value.trim(); closeLayers(); if (rnv) WBAPI.patchItem(dv.node, { title: rnv }); return true;
       case 'move-save': var mvv = document.getElementById('mv-place').value; closeLayers(); WBAPI.patchItem(dv.node, { parentId: D.items[mvv] ? mvv : '' }); return true;
       case 'message-send': var mtv = document.getElementById('msg-text').value.trim(); closeLayers(); if (mtv) WBAPI.message(dv.session, mtv); return true;
@@ -2184,15 +2206,15 @@
       case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'question' ? 'write' : cty === 'packet' ? 'changes' : cty === 'plan' ? 'change' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
       case 'iss-kind': S.iss.kind = dv.k; render(true); return true;
       case 'edge': var eg = D.edges.filter(function (x) { return x.id === dv.edge; })[0]; openMenu(el, '<div class="mi-h">' + esc(chipInfo(eg.from).title) + ' ' + (eg.type === 'needs' ? 'needs' : eg.type) + ' ' + esc(chipInfo(eg.to).title) + '</div><p class="small muted" style="padding:0 12px 8px">' + esc(eg.reason) + '</p><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="confirmed">' + ic('run') + '<span>Confirm<span class="why">' + (eg.min ? '~' + fmtMin(eg.min) + ' of work waits behind it' : 'keeps the link') + '</span></span></button><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="removed">' + ic('close') + '<span>Remove<span class="why">Claude proposed it; nothing waits on it then</span></span></button>'); return true;
-      case 'edge-set': S.edgeState[dv.edge] = dv.v; closeLayers(); render(true); toast(dv.v === 'confirmed' ? 'Dependency confirmed · the unblock weight is updated' : 'Dependency removed'); return true;
-      case 'choose-fix': var cur = chosenFix(dv.fpb); S.fix[dv.fpb] = cur === +dv.i ? null : +dv.i; render(true); toast(S.fix[dv.fpb] == null ? 'Fix unchosen · the strip asks you to choose' : 'Fix ' + (+dv.i + 1) + ' chosen'); return true;
+      case 'edge-set': S.edgeState[dv.edge] = dv.v; closeLayers(); WBAPI.edge(dv.edge, dv.v === 'confirmed'); return true;
+      case 'choose-fix': var curFix = chosenFix(dv.fpb); WBAPI.report(dv.fpb, { chosenFix: curFix === +dv.i ? null : +dv.i }); return true;
       case 'sev': var svv = severityOf(dv.fpb); openMenu(el, '<div class="mi-h">Severity · proposed ' + esc(svv.level) + '</div>' + ['blocking', 'serious', 'minor', 'cosmetic'].map(function (l) { return '<button class="mi" data-act="sev-set" data-fpb="' + dv.fpb + '" data-v="' + l + '"><span>' + l + (l === svv.level ? '<span class="why">' + esc(svv.reason) + '</span>' : '') + '</span></button>'; }).join('')); return true;
-      case 'sev-set': S.sev[dv.fpb] = dv.v; closeLayers(); render(true); toast('Severity set to ' + dv.v); return true;
+      case 'sev-set': closeLayers(); WBAPI.report(dv.fpb, { severity: dv.v }); return true;
       case 'set-target': var tg = targetOf(dv.fpb) || {}; openSheet('Target', '<p class="small">One line in your words, with the conditions.</p><div class="target-entry"><input type="number" step="any" value="' + (tg.v != null ? tg.v : '') + '" aria-label="Value" id="tg-v"><select id="tg-u" aria-label="Unit">' + ['ms', 's', 'MB', '%', 'items/s'].map(function (u) { return '<option' + (u === tg.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div><input type="text" style="width:100%;margin-top:10px" id="tg-c" aria-label="Conditions" placeholder="e.g. warm, 40 nodes, median of 5" value="' + esc(tg.text || '') + '">', '<button class="btn primary" data-act="save-target" data-fpb="' + dv.fpb + '">Save target</button><button class="btn" data-act="close">Cancel</button>'); return true;
-      case 'save-target': var v = parseFloat(document.getElementById('tg-v').value), u = document.getElementById('tg-u').value, cnd = document.getElementById('tg-c').value.trim(); if (isNaN(v)) { toast('Enter a number'); return true; } S.target[dv.fpb] = { v: v, unit: u, text: cnd || ('Under ' + v + ' ' + u + '.'), by: 'you', date: '6 Nov' }; closeLayers(); render(true); toast('Target set: ' + v + ' ' + u); return true;
+      case 'save-target': var v = parseFloat(document.getElementById('tg-v').value), u = document.getElementById('tg-u').value, cnd = document.getElementById('tg-c').value.trim(); if (isNaN(v)) { toast('Enter a number'); return true; } closeLayers(); WBAPI.report(dv.fpb, { target: { v: v, unit: u, text: cnd || ('Under ' + v + ' ' + u + '.') } }); return true;
       case 'fold-reset': S.folds[dv.kind] = {}; store('folds2', JSON.stringify(S.folds)); [].forEach.call(document.querySelectorAll('#detail details[open]'), function (d) { d.open = false; }); render(false); return true;
       case 'open-sec': var sec = document.getElementById(dv.target); if (sec) { sec.open = true; sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); } return true;
-      case 'add-issue': openSheet('Add an issue', '<p class="small">Issues are separate from the plan: they record a feature, bug or performance problem raised while building this task.</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg">' + ['FTR', 'BUG', 'PER'].map(function (k, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div><div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input type="text" style="width:100%" aria-label="Title" placeholder="e.g. Login button stays disabled after a failed attempt"></div><div class="sec"><div class="sec-h"><h3>Attached to</h3></div><p>' + chip('item:' + dv.node) + '</p></div>', '<button class="btn primary" data-act="close" data-toast2="Issue would be added to ' + esc(itemTitle(dv.node)) + ', state reported">Add</button><button class="btn" data-act="close">Cancel</button>'); return true;
+      case 'add-issue': openSheet('Add an issue', '<p class="small">Issues are separate from the plan: they record a feature, bug or performance problem raised while building this task.</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg" id="ai2-kind">' + ['FTR', 'BUG', 'PER'].map(function (k, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div><div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai2-title" type="text" style="width:100%" aria-label="Title" placeholder="e.g. Login button stays disabled after a failed attempt"></div><div class="sec"><div class="sec-h"><h3>Attached to</h3></div><p>' + chip('item:' + dv.node) + '</p></div>', '<button class="btn primary" data-act="add-issue-save" data-node="' + dv.node + '">Add</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'wclear': S.work.kinds = {}; S.work.state = 'all'; S.work.unsched = false; render(true); return true;
       case 'open-drill': var dd = document.getElementById(dv.target); if (dd) { dd.open = true; dd.scrollIntoView({ block: 'start', behavior: 'smooth' }); } return true;
       case 'drawer-from-menu': closeLayers(); toggleDrawer(true); return true;

@@ -31,6 +31,7 @@ builder.Services.AddSingleton<TokenAuth>();
 builder.Services.AddHttpClient<IHostClient, HostClient>(c => c.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddScoped<WorkbenchOps>();
 builder.Services.AddScoped<Snapshot>();
+builder.Services.AddHostedService<DailySampler>();
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;

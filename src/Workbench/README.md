@@ -45,6 +45,13 @@ Then start `claude` in the repository. The session appears on **Now** within a s
 5. Checks run through the Host or the hooks; a step is done only with a run that proves it.
 6. `packet_submit` draws the packet. The owner's Approve runs the git lines through the Host and closes the item.
 
+## Reports, dependencies and the code index
+
+- **Reports (FTR, BUG, PER)** are information. The owner creates one (Add item with the kind, or "Add an issue to this task"); a session writes its sections with `report_write`, each section an object in the report's own section order, plus the **When implementing** lines: decisions (options, one recommended, with a cost to change), proofs, dependencies and preconditions. Nothing on a report waits on the owner.
+- **Lines move only through a task.** When a task that implements the report submits a plan, low-cost decisions, dependencies and preconditions become settle-pass defaults on the plan card; high-cost decisions wait for a Question Card (`question_ask` with `implLine`); proofs wait for a run (`impl_prove`). The report shows each line's status with a chip to the plan, the card or the run that moved it, and its state follows its takers (fixing, fixed, verified).
+- **Dependencies** are proposed by a session (`dependency_propose`) and confirmed by the owner in the next settle pass, or set by the owner directly. The critical path, the unblock weights that order the inbox, and the burn-down on project cards are computed from them.
+- **The code index.** The Host parses every `.cs` file in its checkouts with Roslyn on every save and every minute: `//+` comments with the symbol they sit under, `//+=` lines that handle them, public types in files changed on the branch, the branch state and its commits. The Files screen, the comment, type, branch and commit pages, and the seen-state ("new to you · N lines") come from that index. The Workbench reads comments and never edits them.
+
 ## Moving to Azure later
 
 The Service never touches a disk, talks to the Host over HTTP only, and reads every setting from `appsettings.json` or the environment. Moving means a container app, a Postgres server (regenerate the migrations), and new URLs in three places: the Host's `--workbench`, `.mcp.json` and `.claude/settings.json`.

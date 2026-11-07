@@ -3,7 +3,7 @@ namespace Qotoba.Workbench.Contracts;
 /* Card payloads, stored as JSON on Card.PayloadJson and rendered by the prototype's card views. */
 
 public sealed record PlanStep(string T, int Est, List<string>? Needs, string? Proof);
-public sealed record SettleQ(string Id, string Q, List<string> Options, int Rec, string? From, int? Chosen);
+public sealed record SettleQ(string Id, string Q, List<string> Options, int Rec, string? From, int? Chosen, string? Line = null, string? Edge = null);
 
 public sealed class PlanPayload
 {

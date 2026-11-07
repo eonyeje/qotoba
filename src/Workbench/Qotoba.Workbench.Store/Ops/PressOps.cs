@@ -82,7 +82,11 @@ public sealed partial class WorkbenchOps
                 if (i >= 0 && steps[i].State == StepState.Blocked) { steps[i] = steps[i] with { State = StepState.Current }; it.StepsJson = Json.Write(steps); }
                 if (it.State == ItemState.Blocked) it.State = ItemState.Building;
                 await HistoryAsync(it.Id, "question answered", $"[[question:{qq.Id}]]: {answer}", k);
+                var decisions = Json.ReadList<Decision>(it.DecisionsJson);
+                decisions.Add(new Decision(qq.Text, answer, "question", "card:" + c.Id, qq.ReportId is null ? null : "fpb:" + qq.ReportId, fmt.DayTime(Now), null));
+                it.DecisionsJson = Json.Write(decisions);
             }
+            await LineAnsweredAsync(qq, answer, k);
             await TellSessionAsync(c, $"Answer to {qq.Id} ({qq.Text}): {answer}", k);
             return new PressResult(true, $"{how} · sent to session {(s is null ? "" : Short(s.Id))} on {s?.MachineId}");
         }
@@ -123,6 +127,7 @@ public sealed partial class WorkbenchOps
                     it.StepsJson = Json.Write(steps);
                     await HistoryAsync(it.Id, "packet approved", pk.MergedCommit is null ? "Merged" : $"Merged as [[commit:{pk.MergedCommit}]]", ct);
                     await RecomputeFactorAsync(it, pk, ct);
+                    await AdvanceReportsOfAsync(it, ct);
                 }
                 await TellSessionAsync(card, "Packet approved and merged by the owner. Nothing further runs on this branch.", ct);
                 return new PressResult(true, $"Instruction sent to the Host on {machine}" + (pk.MergedCommit is null ? "" : $" · merged as {pk.MergedCommit}"));
@@ -213,11 +218,16 @@ public sealed partial class WorkbenchOps
                 if (pl.Lane is { } lane) { it.LaneKey = lane; await EnsureLaneAsync(it.ProjectId, lane, pl.Machine, ct); }
                 var p = await ProjectOfAsync(it, ct);
                 if (p.State == ProjectState.Coarse) p.State = ProjectState.Open;
+                var decisions = Json.ReadList<Decision>(it.DecisionsJson);
                 foreach (var q in pl.Settle)
                 {
                     var choice = q.Chosen is int c && c >= 0 && c < q.Options.Count ? q.Options[c] : q.Options[q.Rec];
                     await HistoryAsync(it.Id, "settled", $"{q.Q} → {choice}" + (q.From is null ? "" : $" (from [[{q.From}]])"), ct);
+                    decisions.Add(new Decision(q.Q, choice, "settle", "card:" + card.Id, q.From, fmt.DayTime(Now), null));
                 }
+                it.DecisionsJson = Json.Write(decisions);
+                await SettleLinesAsync(it, card, pl.Settle, ct);
+                await SettleEdgesAsync(pl.Settle, ct);
                 await HistoryAsync(it.Id, "plan approved", $"{pl.Steps.Count} steps, {it.EstMin} Claude-min", ct);
                 var settled = string.Join("\n", pl.Settle.Select(q => $"- {q.Q}: {(q.Chosen is int c2 && c2 < q.Options.Count ? q.Options[c2] : q.Options[q.Rec])}"));
                 await TellSessionAsync(card, "Plan approved by the owner. Start step 1." + (settled.Length > 0 ? "\nSettled defaults:\n" + settled : ""), ct);

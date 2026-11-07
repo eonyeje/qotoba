@@ -11,6 +11,7 @@ public sealed partial class WorkbenchOps
     public async Task<Item> AddItemAsync(AddItemRequest req, Actor actor, CancellationToken ct = default)
     {
         Rules.OnlyOwnerCreatesStructure(actor, "task");
+        if (!req.Kind.Equals("task", StringComparison.OrdinalIgnoreCase)) throw new WorkbenchRuleException("item.kind", "FTR, BUG and PER are reports: use the report endpoint.");
         if (string.IsNullOrWhiteSpace(req.Title)) throw new WorkbenchRuleException("item.title", "A title, in your words.");
         Item? parent = null; Project? project = null;
         if (req.Place is { Length: > 0 } place)
@@ -40,6 +41,7 @@ public sealed partial class WorkbenchOps
         };
         it.HistoryJson = Json.Write(new List<HistoryLine> { new(fmt.DayTime(Now), "opened", parent is null ? $"You added the item under {project.Name}" : $"You added the item under [[item:{parent.Id}]]") });
         db.Items.Add(it);
+        if (req.FromFound is not null && await db.Founds.FindAsync([req.FromFound], ct) is { } found) { found.State = FoundState.Task; found.PromotedTo = "item:" + it.Id; }
         Audit(Actor.Owner, "add", "item", it.Id, it.Title);
         await SaveAsync("item", it.Id, ct);
         return it;
@@ -84,10 +86,13 @@ public sealed partial class WorkbenchOps
         Rules.PlanFits(modelSteps);
         var p = await ProjectOfAsync(it, ct);
         var factor = it.Factor ?? p.Factor ?? 1.2;
+        var own = (settle ?? []).Select((q, i) => new SettleQ("s" + (i + 1), q.Question, q.Options, q.Recommended, q.FromReport, null)).ToList();
+        var fromReports = await DrawSettleFromReportsAsync(it, own.Count, ct);
+        var fromEdges = await DrawSettleFromEdgesAsync(it, own.Count + fromReports.Count, ct);
         var payload = new PlanPayload
         {
             Steps = steps.Select(x => new PlanStep(x.Text, x.EstMin, x.Needs, x.Proof)).ToList(),
-            Settle = (settle ?? []).Select((q, i) => new SettleQ("s" + (i + 1), q.Question, q.Options, q.Recommended, q.FromReport, null)).ToList(),
+            Settle = own.Concat(fromReports).Concat(fromEdges).ToList(),
             Lane = lane ?? it.LaneKey, Factor = factor, Goal = goal, Machine = s.MachineId,
             FactorNote = p.Factor is null ? "the programme default 1.2 applies" : null
         };

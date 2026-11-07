@@ -16,6 +16,12 @@ public class FileSeen
     public string? SeenCommit { get; set; }
     public string LinesJson { get; set; } = "[]";
     public string DiffJson { get; set; } = "[]";
+    public string ContentHash { get; set; } = "";
+    public string? SeenHash { get; set; }
+    public string? MachineId { get; set; }
+    public string? Checkout { get; set; }
+    public string? ItemId { get; set; }
+    public DateTimeOffset? IndexedAt { get; set; }
 }
 
 public class TypeSeen
@@ -55,7 +61,12 @@ public class Comment
     public string? StaleWhy { get; set; }
     public string? QuestionId { get; set; }
     public string VersionsJson { get; set; } = "[]";
+    public DateTimeOffset? LastSeenInIndex { get; set; }
+    public string? ProofSessionId { get; set; }
 }
+
+public sealed record CommentVersion(string Date, string Text, string? Above);
+public sealed record HandledInfo(string Date, string Time, string? Session, string? Note, string? Proof);
 
 public class Commit
 {
@@ -86,6 +97,8 @@ public class Branch
     public string? Worktree { get; set; }
     public string CommitsJson { get; set; } = "[]";
     public bool Dirty { get; set; }
+    public string? Checkout { get; set; }
+    public DateTimeOffset? ReportedAt { get; set; }
 }
 
 public class ClaudeMdSection

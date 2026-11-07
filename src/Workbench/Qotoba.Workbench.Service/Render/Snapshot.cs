@@ -41,6 +41,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         var edges = await db.Edges.ToListAsync(ct);
         var reports = await db.Reports.ToListAsync(ct);
         var implLines = await db.ImplLines.OrderBy(l => l.Order).ToListAsync(ct);
+        var burns = await db.Settings.Where(s => s.Key.StartsWith("burn:")).ToDictionaryAsync(s => s.Key[5..], s => Json.ReadList<BurnSample>(s.Value), ct);
         var decisionsMeasured = await db.Cards.CountAsync(c => c.AnsweredAt != null && c.Type != CardType.Info, ct);
         var firstDecision = await db.Cards.Where(c => c.AnsweredAt != null).OrderBy(c => c.AnsweredAt).Select(c => c.AnsweredAt).FirstOrDefaultAsync(ct);
 
@@ -65,7 +66,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
                 new { key = "planSteps", label = "Steps per plan", value = Caps.PlanSteps, def = 7, note = "A longer plan is refused; split the item instead." },
                 new { key = "noteLines", label = "Lines in a Claude note", value = Caps.NoteLines, def = 2, note = "Anything longer belongs in a question or the packet." }
             },
-            ["projects"] = projects.Select(p => ProjectView(p, items, lanes, cards)).ToList(),
+            ["projects"] = projects.Select(p => ProjectView(p, items, lanes, cards, edges, burns)).ToList(),
             ["lanes"] = lanes.GroupBy(l => l.Key).ToDictionary(g => g.Key, g => (object?)LaneView(g.First(), items, sessions)),
             ["items"] = items.ToDictionary(i => i.Id, i => (object?)ItemView(i, children, runsByItem, sessionsByItem, comments, edges, questions, cardsById)),
             ["questions"] = questions.ToDictionary(q => q.Id, q => (object?)QuestionView(q, byItem)),
@@ -84,7 +85,9 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             ["proposed"] = ProposedView(cards, proposals),
             ["files"] = files.ToDictionary(f => f.Id, f => (object?)new
             {
-                path = f.Path, repo = f.Repo, proj = f.ProjectId, folder = f.Folder, branch = f.Branch, seen = f.Seen, newLines = f.NewLines,
+                path = f.Path.Replace('\\', '/'), repo = f.Repo, proj = string.IsNullOrEmpty(f.Folder) ? f.Repo : f.Folder, project = f.ProjectId, folder = f.Folder,
+                branch = branches.FirstOrDefault(b => b.Name == f.Branch && (b.Checkout == null || b.Checkout == f.Checkout))?.Id, branchName = f.Branch,
+                seen = f.Seen, newLines = f.NewLines, item = f.ItemId, machine = f.MachineId,
                 lastSeen = f.LastSeenAt is null ? null : fmt.DayTime(f.LastSeenAt.Value), added = f.AddedAt is null ? null : fmt.DayTime(f.AddedAt.Value),
                 lines = Json.ReadList<string>(f.LinesJson), diff = Json.ReadList<string>(f.DiffJson)
             }),
@@ -158,28 +161,29 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
 
     /* ---------------------------------------------------------------- views */
 
-    private object ProjectView(Project p, List<Item> items, List<Lane> lanes, List<Card> cards)
+    private object ProjectView(Project p, List<Item> items, List<Lane> lanes, List<Card> cards, List<Edge> edges, Dictionary<string, List<BurnSample>> burns)
     {
         var mine = items.Where(i => i.ProjectId == p.Id).ToList();
         var top = mine.Where(i => i.ParentId is null).OrderBy(i => i.Order).Select(i => i.Id).ToList();
         var next = cards.Where(c => c.ProjectId == p.Id && c.State == CardState.Open && c.Type != CardType.Info).OrderByDescending(c => c.WeightMin).FirstOrDefault();
         var measured = MeasuredWeeks(mine);
         var open = p.State == ProjectState.Open;
+        var burn = burns.GetValueOrDefault(p.Id) ?? [];
         return new
         {
             id = p.Id, code = p.Code, name = p.Name, color = p.Color, state = open ? "open" : "coarse", coarseWeeks = p.CoarseWeeks, measuredWeeks = measured,
             factor = open ? (p.Factor ?? LaneAverage(lanes.Where(l => l.ProjectId == p.Id))) : null, purpose = p.Purpose,
             children = open ? top : new List<string>(), lanes = lanes.Where(l => l.ProjectId == p.Id).Select(l => l.Key).OrderBy(k => k).ToList(),
-            burn = Array.Empty<int>(), burnDays = Array.Empty<string>(),
-            criticalPath = CriticalPath(mine), nextDecision = next is null ? null : "card:" + next.Id, repo = p.Repo, closedWhy = p.ClosedWhy,
+            burn = burn.Count >= 2 ? burn.Select(b => b.H).ToArray() : [], burnDays = burn.Count >= 2 ? burn.Select(b => b.Day).ToArray() : [],
+            criticalPath = WorkbenchOps.CriticalPath(items, edges, p.Id), nextDecision = next is null ? null : "card:" + next.Id, repo = p.Repo, closedWhy = p.ClosedWhy,
             preview = open ? null : top
         };
     }
 
     private static double? LaneAverage(IEnumerable<Lane> lanes) { var l = lanes.ToList(); return l.Count == 0 ? null : Math.Round(l.Average(x => x.Factor), 1); }
 
-    private static List<string> CriticalPath(List<Item> mine) =>
-        mine.Where(i => i.IsOpen && i.State != ItemState.Done).OrderBy(i => i.Id.Length).ThenBy(i => i.Order).Select(i => "item:" + i.Id).Take(6).ToList();
+    /// <summary>One point of the burn-down: measured hours of work left on a day.</summary>
+    public sealed record BurnSample(string Day, int H);
 
     private object LaneView(Lane l, List<Item> items, List<Session> sessions)
     {
@@ -207,7 +211,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         var needs = edges.Where(e => e.From == itemRef && e.Type == EdgeType.Needs).Select(e => new { @ref = e.To, min = e.Min ?? 0, note = e.Confirmed ? null : "proposed by Claude" }).ToList();
         var blocks = edges.Where(e => e.To == itemRef && e.Type == EdgeType.Needs).Select(e => new { @ref = e.From, min = e.Min ?? 0, note = (string?)null }).ToList();
         var rulingRefs = questions.Where(q => q.ItemId == i.Id && q.RulingId is not null).Select(q => "ruling:" + q.RulingId).Distinct().ToList();
-        var decisions = Json.ReadList<HistoryLine>(i.HistoryJson).Where(h => h.Event is "settled" or "question answered").Select(h => new { t = h.Text, date = h.Date, how = h.Event == "settled" ? "settle" : "question" }).ToList();
+        var decisions = Json.ReadList<Decision>(i.DecisionsJson).Select(d => new { t = d.T, a = d.A, how = d.How, @ref = d.Ref, from = d.From, date = d.Date, ruling = d.Ruling }).ToList();
         return new
         {
             kind = "task", title = i.Title, project = i.ProjectId, parent = i.ParentId, children = kids,
@@ -380,10 +384,16 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         var sections = Json.Read<Dictionary<string, object>>(r.SectionsJson, []);
         var impl = lines.Where(l => l.ReportId == r.Id).Select(l => new
         {
-            kind = l.Kind.ToString().ToLowerInvariant(), text = l.Text, rec = l.Rec, why = l.Why, cost = l.Cost, status = l.Status.ToString().ToLowerInvariant(),
-            @ref = l.Ref, via = l.Via, note = l.Note, date = l.Date is null ? null : fmt.DayTime(l.Date.Value), q = l.QuestionId, options = Json.Read<List<object>>(l.OptionsJson, [])
+            id = l.Id, kind = l.Kind.ToString().ToLowerInvariant(), text = l.Text, rec = l.Rec, why = l.Why, cost = l.Cost, status = l.Status.ToString().ToLowerInvariant(),
+            @ref = l.Ref, via = l.Via, note = l.Note, date = l.Date is null ? null : fmt.DayTime(l.Date.Value), q = l.QuestionId, item = l.ItemId,
+            options = Json.ReadList<QuestionOption>(l.OptionsJson).Select(o => new { t = o.T, why = o.Why, cost = o.Cost, rec = o.Rec }).ToList()
         }).ToList();
         if (impl.Count > 0) sections["implementing"] = new { author = "claude", lines = impl };
+        if (r.ChosenFix is int cf && sections.TryGetValue("fixes", out var fx) && fx is System.Text.Json.JsonElement fe && fe.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            var d = Json.Read<Dictionary<string, object>>(fe.GetRawText(), []);
+            d["chosen"] = cf; sections["fixes"] = d;
+        }
         return new
         {
             kind = r.Kind.ToString(), subtype = r.Subtype, title = r.Title, project = r.ProjectId, attach = r.AttachItemId is null ? "project:" + r.ProjectId : "item:" + r.AttachItemId,
