@@ -53,7 +53,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
                 workLeft = new { coarseWeeks = projects.Where(p => p.State == ProjectState.Coarse).Sum(p => p.CoarseWeeks), measuredWeeks = MeasuredWeeks(items) }
             },
             ["budgets"] = new object[] { new { key = "noteLines", label = "Lines in a Claude note", value = Caps.NoteLines, def = 2, note = "Anything longer belongs on the item's page." } },
-            ["projects"] = projects.Select(p => ProjectView(p, items, cards, edges, burns)).ToList(),
+            ["projects"] = projects.Select(p => ProjectView(p, items, cards, edges, burns, sessions, reports)).ToList(),
             ["lanes"] = new Dictionary<string, object?>(),
             ["items"] = items.ToDictionary(i => i.Id, i => (object?)ItemView(i, branches, children, sessionsByItem, comments, edges, reports, cardsById)),
             ["questions"] = new Dictionary<string, object?>(),
@@ -146,9 +146,33 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
 
     /* ---------------------------------------------------------------- views */
 
-    private object ProjectView(Project p, List<Item> items, List<Card> cards, List<Edge> edges, Dictionary<string, List<BurnSample>> burns)
+    private object ProjectView(Project p, List<Item> items, List<Card> cards, List<Edge> edges, Dictionary<string, List<BurnSample>> burns, List<Session> sessions, List<Report> reports)
     {
         var mine = items.Where(i => i.ProjectId == p.Id).ToList();
+        var leaves = mine.Where(i => !mine.Any(k => k.ParentId == i.Id)).ToList();                 // progress counts the leaves, so a parent is not counted twice
+        var doneLeaves = leaves.Count(i => i.State == Model.ItemState.Done);
+        double LeafProgress(Item i)
+        {
+            if (i.State == Model.ItemState.Done) return 100;
+            var st = Json.ReadList<Step>(i.StepsJson);
+            return st.Count == 0 ? 0 : 100.0 * st.Count(x => x.State == StepState.Done) / st.Count;
+        }
+        var pct = leaves.Count == 0 ? 0 : (int)Math.Round(leaves.Average(LeafProgress));
+        var leftMin = leaves.Where(i => i.State != Model.ItemState.Done).Sum(i =>
+        {
+            var est = i.EstMin ?? Json.ReadList<Step>(i.StepsJson).Sum(x => x.EstMin);
+            return Math.Max(0, (int)Math.Round(est * (i.Factor ?? p.Factor ?? 1.2)) - i.SoMin);
+        });
+        var unsized = leaves.Count(i => i.State != Model.ItemState.Done && (i.EstMin ?? 0) == 0 && Json.ReadList<Step>(i.StepsJson).Count == 0);
+        var ids = mine.Select(i => i.Id).ToHashSet();
+        var mySessions = sessions.Where(s => s.ItemId is not null && ids.Contains(s.ItemId)).ToList();
+        var weekAgo = Now.AddDays(-7);
+        var paceMin = mySessions.Where(s => (s.LastEvent ?? s.Started) >= weekAgo).Sum(s => s.Minutes) / 7.0;
+        var etaDays = paceMin <= 0 || leftMin == 0 ? (double?)null : Math.Round(leftMin / paceMin, 1);
+        var now = mySessions.Where(s => s.State != SessionState.Ended && s.LastEvent is { } le && (Now - le) < TimeSpan.FromHours(6)).Select(s => s.Id).ToList();
+        var waiting = cards.Where(c => c.ProjectId == p.Id && c.State == CardState.Open && c.Type != CardType.Info).Select(c => "card:" + c.Id).ToList();
+        var fpbs = reports.Where(r => r.ProjectId == p.Id).ToList();
+        var lastEvent = mySessions.Select(s => s.LastEvent ?? s.Started).DefaultIfEmpty().Max();
         var top = mine.Where(i => i.ParentId is null).OrderBy(i => i.Order).Select(i => i.Id).ToList();
         var next = cards.Where(c => c.ProjectId == p.Id && c.State == CardState.Open && c.Type != CardType.Info).OrderByDescending(c => c.WeightMin).FirstOrDefault();
         var measured = MeasuredWeeks(mine);
@@ -163,7 +187,11 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             criticalPath = WorkbenchOps.CriticalPath(items, edges, p.Id), nextDecision = next is null ? null : "card:" + next.Id, repo = p.Repo, closedWhy = p.ClosedWhy,
             preview = open ? null : top,
             results = Json.ReadList<CheckResult>(p.ResultsJson).Select(r => new { check = r.Check, result = r.Result, passed = r.Passed, total = r.Total, dur = r.DurationSec, at = r.At, cmd = r.Cmd, session = r.SessionId, item = r.ItemId, prev = r.Prev is null ? null : new { result = r.Prev.Result, passed = r.Prev.Passed, total = r.Prev.Total, dur = r.Prev.DurationSec, at = r.Prev.At } }).ToList(),
-            done = mine.Count(i => i.State == Model.ItemState.Done), total = mine.Count
+            done = doneLeaves, total = leaves.Count, pct, leftMin, leftHours = Math.Round(leftMin / 60.0, 1), unsized,
+            paceMinPerDay = (int)Math.Round(paceMin), etaDays, sessionsNow = now, waiting,
+            fpbOpen = fpbs.Count(r => !ReportStates.IsClosed(r.State)), fpbTotal = fpbs.Count,
+            lastActivity = lastEvent == default ? null : fmt.DayTime(lastEvent),
+            itemsByState = new { done = mine.Count(i => i.State == Model.ItemState.Done), building = mine.Count(i => i.State is Model.ItemState.Building or Model.ItemState.Blocked or Model.ItemState.Planning), notStarted = mine.Count(i => i.State is Model.ItemState.Coarse or Model.ItemState.Planned) }
         };
     }
 

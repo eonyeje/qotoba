@@ -72,6 +72,9 @@ public class ServiceTests : IClassFixture<ServiceFactory>
             Assert.True(wb.TryGetProperty(key, out _), "missing " + key);
         Assert.Equal(8, wb.GetProperty("projects").GetArrayLength());
         Assert.Equal("open", wb.GetProperty("projects")[0].GetProperty("state").GetString());
+        // the project is the progress dashboard: how far, what is left, how long, what waits on the owner
+        foreach (var key in new[] { "pct", "done", "total", "leftHours", "paceMinPerDay", "sessionsNow", "waiting", "results", "fpbOpen", "itemsByState" })
+            Assert.True(wb.GetProperty("projects")[0].TryGetProperty(key, out _), "project is missing " + key);
     }
 
     [Fact]

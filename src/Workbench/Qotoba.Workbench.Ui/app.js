@@ -729,9 +729,9 @@
     if (it.state === 'planned') return 'planned · ' + it.coarse;
     if (it.state === 'review') return 'in review';
     if (it.state === 'done') return 'done';
-    if (it.state === 'planning') return 'plan waiting';
+    if (it.state === 'planning') return 'open';
     var st = it.steps || [];
-    return (it.state === 'blocked' ? 'blocked' : 'building') + (st.length ? ' · ' + stepsDone(it) + ' of ' + st.length : '');
+    return (it.state === 'blocked' ? 'blocked' : 'building') + (st.length ? ' · ' + (it.progress != null ? it.progress + '%' : stepsDone(it) + ' of ' + st.length) : '');
   }
   function treeRow(id, d, vis) {
     var p = projOf(id), it = D.items[id], isRoot = id === 'root';
@@ -1173,17 +1173,27 @@
       return '<tr><td>' + esc(r.check) + '</td><td>' + now + '</td><td class="muted">' + was + '</td><td class="muted">' + esc(r.at) + (r.session ? ' · ' + chip('session:' + r.session, { nometa: true }) : '') + '</td></tr>';
     }).join('') + '</tbody></table></div>';
   }
+  function leftText(p) {
+    if (!p.total) return 'not started';
+    if (p.done === p.total) return 'all done';
+    var left = p.leftHours ? 'about ' + p.leftHours + ' Claude-h left' : 'left not sized yet';
+    if (p.unsized) left += ' · ' + plural(p.unsized, 'item') + ' unsized';
+    if (p.etaDays) left += ' · about ' + p.etaDays + ' days at the current pace';
+    else if (p.paceMinPerDay) left += ' · pace ' + fmtMin(p.paceMinPerDay) + ' a day';
+    return left;
+  }
   function projectCard(p) {
     var bo = blockedOnYou(p.id);
     return '<article class="pcard" data-act="pfilter-go" data-p="' + p.id + '" style="--pc:var(--' + p.color + ')"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
-      '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small">' + (p.measuredWeeks ? ' · ' + p.measuredWeeks + ' measured' : '') + '</span></p>' +
-      '<div class="wbar"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>' +
+      (p.total ? '<p class="pc-num">' + p.pct + '%<span class="muted small"> · ' + p.done + ' of ' + plural(p.total, 'item') + ' done</span></p>' : '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small"> · not started</span></p>') +
+      '<div class="wbar"><span class="m" style="width:' + (p.total ? p.pct : 0) + '%"></span><span class="c"></span></div>' +
+      (p.total ? '<p class="small muted">' + leftText(p) + (p.sessionsNow && p.sessionsNow.length ? ' · ' + plural(p.sessionsNow.length, 'session') + ' now' : '') + '</p>' : '') +
       (p.burn && p.burn.length ? spark(p) : '') +
-      '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting' : esc(trunc(p.closedWhy, 70))) + '</p>' +
+      '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting on you' : esc(trunc(p.closedWhy, 70))) + '</p>' +
       '<a class="btn small text" href="#/project/' + p.id + '">Project page</a></article>';
   }
   function vProjects() {
-    return '<div class="pane wide-pane"><div class="lhead flush"><h2>Projects</h2><p class="muted">About ' + D.meta.workLeft.coarseWeeks + ' weeks of work, ' + D.meta.workLeft.measuredWeeks + ' measured. Tap a project to filter everything to it.</p></div><div class="pgrid">' + D.projects.map(projectCard).join('') + '</div></div>';
+    return '<div class="pane wide-pane"><div class="lhead flush"><h2>Projects</h2><p class="muted">' + (function () { var t = D.projects.reduce(function (a, p) { return a + (p.total || 0); }, 0), d = D.projects.reduce(function (a, p) { return a + (p.done || 0); }, 0), w = D.projects.reduce(function (a, p) { return a + (p.waiting ? p.waiting.length : 0); }, 0); return t ? d + ' of ' + plural(t, 'item') + ' done across the programme' + (w ? ' · ' + plural(w, 'decision') + ' waiting on you' : ' · nothing waiting on you') : 'Nothing started yet. About ' + D.meta.workLeft.coarseWeeks + ' weeks of work, coarse.'; })() + '</p></div><div class="pgrid">' + D.projects.map(projectCard).join('') + '</div></div>';
   }
   function vProject(id) {
     var p = projOf(id);
@@ -1191,16 +1201,18 @@
     var items = keys(D.items).filter(function (i) { return D.items[i].project === id; });
     var kc = kindCounts(id), bo = blockedOnYou(id), rs = keys(D.rulings).filter(function (r) { return D.rulings[r].project === id; });
     var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
-    h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">' + (p.measuredWeeks ? p.measuredWeeks + ' measured, the rest coarse' : 'none measured yet') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>';
+    if (p.total) h += '<p class="bignum">' + p.pct + '% done <span class="bignum-ref">' + p.done + ' of ' + plural(p.total, 'item') + '</span></p><p class="muted small">' + leftText(p) + (p.lastActivity ? ' · last activity ' + esc(p.lastActivity) : '') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + p.pct + '%"></span><span class="c"></span></div>';
+    else h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">nothing started yet; the estimate is coarse</p>';
     h += '<div class="actions"><button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>';
     h += drills([
       p.burn && p.burn.length ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
       (p.results && p.results.length) ? drill('Last results', (function () { var bad = p.results.filter(function (r) { return r.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : 'all ' + plural(p.results.length, 'check') + ' passing'; })(), resultsTable(p.results), { attn: p.results.some(function (r) { return r.result !== 'pass'; }) }) : '',
-      drill('Items', items.length ? plural(items.length, 'item') + (p.done != null ? ' · ' + p.done + ' done' : '') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
+      drill('Items', items.length ? plural(items.length, 'item') + (p.itemsByState ? ' · ' + p.itemsByState.done + ' done · ' + p.itemsByState.building + ' building · ' + p.itemsByState.notStarted + ' not started' : '') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { var x = D.items[i]; return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + (x.parent ? ' <span class="muted small">under ' + esc(itemTitle(x.parent)) + '</span>' : '') + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', 'Say the work in chat, or add it here, and it appears.'), { open: true }),
+      (p.sessionsNow && p.sessionsNow.length) ? drill('Sessions now', plural(p.sessionsNow.length, 'session') + ' working', '<div class="list">' + p.sessionsNow.map(function (sid) { var sx = D.sessions[sid]; return sx ? '<a class="li link" href="#/session/' + sid + '"><span class="li-main">' + esc(sx.title) + '</span><span class="li-meta">' + esc(stateLabel(sx)) + ' · ' + fmtMin(sx.minutes) + '</span></a>' : ''; }).join('') + '</div>') : '',
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
       '',
-      drill('Issues', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? fpbCountLabel(l) : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
+      drill('FPBs', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? (p.fpbOpen ? p.fpbOpen + ' open of ' : 'all done, ') + plural(l.length, 'FPB') : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
     return h + '</div>';
