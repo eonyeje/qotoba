@@ -18,20 +18,6 @@ public class Project
     public DateTimeOffset Created { get; set; }
 }
 
-/// <summary>A parallel path of open work inside a project. Proposed by a plan, confirmed by the owner.</summary>
-public class Lane
-{
-    public required string Id { get; set; }          // "wb:A"
-    public required string ProjectId { get; set; }
-    public required string Key { get; set; }         // "A"
-    public string Name { get; set; } = "";
-    public double Factor { get; set; } = 1.0;
-    public double? Was { get; set; }
-    public string? MachineId { get; set; }
-    public string State { get; set; } = "";
-    public bool Proposed { get; set; }
-}
-
 /// <summary>A task in the owner's tree. Only the owner creates one; Claude fills its capped slots.</summary>
 public class Item
 {
@@ -42,9 +28,11 @@ public class Item
     public required string Title { get; set; }
     public ItemState State { get; set; } = ItemState.Coarse;
     public bool IsOpen { get; set; }
-    public string? LaneKey { get; set; }
     public string? HomeMachineId { get; set; }
+    /// <summary>The git branch of an opened top-level item (its children share it), created in the owner's checkout when its first plan is approved.</summary>
     public string? Branch { get; set; }
+    /// <summary>Where the branch is checked out on the home machine.</summary>
+    public string? Checkout { get; set; }
     public string CoarseSize { get; set; } = "~1 week";
     public string Goal { get; set; } = "";
     public string StepsJson { get; set; } = "[]";

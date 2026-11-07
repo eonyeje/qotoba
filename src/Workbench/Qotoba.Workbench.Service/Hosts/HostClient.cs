@@ -56,6 +56,18 @@ public sealed class HostClient(HttpClient http, IServiceScopeFactory scopes, IOp
         catch { return false; }
     }
 
+    public async Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default)
+    {
+        try
+        {
+            using var res = await http.SendAsync(Req(HttpMethod.Get, $"{await UrlFor(machineId, ct)}/branch?checkout={Uri.EscapeDataString(checkout)}", null), ct);
+            if (!res.IsSuccessStatusCode) return null;
+            var b = (await res.Content.ReadAsStringAsync(ct)).Trim().Trim('"');
+            return b.Length == 0 ? null : b;
+        }
+        catch { return null; }
+    }
+
     public async Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default)
     {
         try

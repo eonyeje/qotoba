@@ -15,7 +15,7 @@ public static class ProgrammeSeed
         ("dope", "DOPE", "Dope", "apps", 6, "The media library rewritten in Qotoba: 1,356 movies, seven providers, the library and movie pages.", null, "Closed (phase D)."),
         ("ks", "KS", "KraveSoccer", "apps", 3, "A small football app that proves the mobile head and the first device contracts.", null, "Closed (phase E)."),
         ("ent", "ENT", "Entrepreneur", "apps", 5, "A business simulation with a map: processes, state machines and custom drawing.", null, "Closed (phase E)."),
-        ("kf", "KF", "KraveFlow", "agents", 12, "Distributor ordering through AI agents on WhatsApp, SMS and email; fifteen modules on Qotoba.Server.", null, "Closed. Its backend lane starts in phase D once the services family exists.")
+        ("kf", "KF", "KraveFlow", "agents", 12, "Distributor ordering through AI agents on WhatsApp, SMS and email; fifteen modules on Qotoba.Server.", null, "Closed. Its backend work starts in phase D once the services family exists.")
     ];
 
     public static async Task ApplyAsync(WorkbenchDb db, DateTimeOffset now, CancellationToken ct = default)

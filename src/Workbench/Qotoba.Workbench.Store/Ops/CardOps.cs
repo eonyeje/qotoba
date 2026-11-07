@@ -78,14 +78,16 @@ public sealed partial class WorkbenchOps
 
     /* ---------------------------------------------------------------- packets, stuck, proposals, info */
 
-    public async Task<Card> SubmitPacketAsync(string sessionId, string itemId, string outcome, List<string> instruction, string? checkout,
+    public async Task<Card> SubmitPacketAsync(string sessionId, string itemId, string outcome,
         List<CheckInput>? checks, List<ClaimInput>? claims, List<BeyondInput>? beyond, string? note, List<string>? files, int plus, int minus, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
         var it = await RequireItemAsync(itemId, ct);
         Rules.TextFits(outcome, "The outcome");
         if (note is not null) Rules.NoteFits(note);
-        if (instruction.Count == 0) throw new WorkbenchRuleException("packet.instruction", "Say exactly which git lines Approve should run, one per line.");
+        var top = await TopOfAsync(it, ct);
+        var closesTop = await TopFinishesWithAsync(top, it, ct);
+        var instruction = MergeInstruction(top, it, closesTop);
         var runs = await db.Runs.Where(r => r.SessionId == s.Id).ToListAsync(ct);
         var payload = new PacketPayload
         {
@@ -93,9 +95,9 @@ public sealed partial class WorkbenchOps
             Checks = (checks ?? []).Select(c => new PacketCheck(c.Label, c.RunId is null ? null : NormaliseRunRef(c.RunId), c.Text)).ToList(),
             Claims = (claims ?? []).Select(c => new PacketClaim(c.Text, c.RunId is null ? null : NormaliseRunRef(c.RunId))).ToList(),
             Beyond = (beyond ?? []).Select(b => new PacketBeyond(b.What, b.TypeName is null ? null : "type:" + b.TypeName, b.Why)).ToList(),
-            Note = note?.Trim(), NoteDate = fmt.DayTime(Now), Instruction = instruction, Checkout = checkout, Machine = s.MachineId,
+            Note = note?.Trim(), NoteDate = fmt.DayTime(Now), Instruction = instruction, Checkout = top.Checkout, Machine = s.MachineId,
             Files = files ?? [], Plus = plus, Minus = minus,
-            Deliver = $"Host on {s.MachineId} · the Host runs git for session {Short(s.Id)}"
+            Deliver = top.Branch is null ? "No branch: Approve closes the item without a merge" : $"Host on {s.MachineId} merges {top.Branch} into main" + (closesTop ? $" and deletes it; {top.Id} is finished" : "")
         };
         if (payload.Checks.Count == 0 && runs.Count > 0)
             payload.Checks = runs.GroupBy(r => r.Check).Select(g => g.OrderByDescending(r => r.At).First()).Select(r => new PacketCheck(r.Check, "run:" + r.Id, r.Total > 0 ? $"{r.Check} {r.Passed}/{r.Total}" : r.Check)).ToList();

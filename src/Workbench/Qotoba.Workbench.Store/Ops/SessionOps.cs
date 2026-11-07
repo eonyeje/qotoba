@@ -34,7 +34,7 @@ public sealed partial class WorkbenchOps
             card.PayloadJson = Json.Write(new InfoPayload
             {
                 Body = s.ItemId is null
-                    ? $"Started in {e.Cwd}. No item is attached yet; name one in the prompt (for example WB-1) or let the session call session_hello."
+                    ? $"Started in {e.Cwd}. Nothing is open in the tree for this checkout, so the session has no item. Open a node and start it again."
                     : $"Working on {s.ItemId} from {e.Cwd}.",
                 Chip = "session:" + s.Id,
                 Origin = $"SessionStart hook from {machine.Id}"
@@ -175,13 +175,18 @@ public sealed partial class WorkbenchOps
         Item? it = s?.ItemId is null ? null : await db.Items.FindAsync([s.ItemId], ct);
         if (it is null)
         {
-            sb.AppendLine("No item is attached to this session. Only the owner creates items. If the prompt names one (for example WB-1), call `session_hello` with `item`.");
+            sb.AppendLine("No item is attached to this session: nothing is open in the tree for this checkout. Only the owner creates and opens items. Call `session_hello` without an item; if the owner has opened a node since, you get it.");
         }
         else
         {
             var p = await ProjectOfAsync(it, ct);
             sb.AppendLine($"## Item {it.Id} · {it.Title}");
             sb.AppendLine($"Project {p.Name} ({p.Code}) · state {it.State.ToString().ToLowerInvariant()} · home machine {it.HomeMachineId ?? "not set"}");
+            var top = await TopOfAsync(it, ct);
+            if (top.Id != it.Id) sb.AppendLine($"Under {top.Id} · {top.Title}");
+            sb.AppendLine(top.Branch is null
+                ? "Branch: none yet; it is created in your checkout when the plan is approved."
+                : $"Branch: {top.Branch} in {top.Checkout} (shared by everything under {top.Id}). Commit there; never merge or push to main.");
             if (!string.IsNullOrWhiteSpace(it.Goal)) sb.AppendLine("Goal: " + it.Goal);
             var steps = List<Step>(it.StepsJson);
             if (steps.Count > 0)
@@ -213,7 +218,7 @@ public sealed partial class WorkbenchOps
         }
         sb.AppendLine();
         sb.AppendLine("## How to work");
-        sb.AppendLine($"- You never create projects, items or lanes. You fill capped slots on your item: a plan (≤{Caps.PlanSteps} steps), questions (≤{Caps.OpenQuestionsPerItem} open), assumptions, found items (≤{Caps.FoundPerSession}), a note (≤{Caps.NoteLines} lines), claims with runs, and a packet at the end.");
+        sb.AppendLine($"- You never create projects or items. You fill capped slots on your item: a plan (≤{Caps.PlanSteps} steps), questions (≤{Caps.OpenQuestionsPerItem} open), assumptions, found items (≤{Caps.FoundPerSession}), a note (≤{Caps.NoteLines} lines), claims with runs, and a packet at the end.");
         sb.AppendLine("- Ask a question only when a step is blocked; give 2 to 4 options, each with a reason and a cost to change, and recommend one. Otherwise assume the recommended answer with `assume` and carry on.");
         sb.AppendLine("- Never say tests passed: run them, and the Workbench records the run. A claim without a run shows as unverified.");
         sb.AppendLine("- Git: commit on your item's branch; never merge or push to main. Submit a packet with `packet_submit`; the owner's Approve runs the git instruction.");
@@ -236,14 +241,6 @@ public sealed partial class WorkbenchOps
         ? "Windows " + Environment.OSVersion.Version.Major
         : Environment.OSVersion.VersionString;
 
-    private async Task<string?> ItemForCwdAsync(Machine m, string? cwd, CancellationToken ct)
-    {
-        if (cwd is null) return null;
-        var checkouts = List<Checkout>(m.CheckoutsJson);
-        var hit = checkouts.Where(c => c.ItemId is not null && cwd.StartsWith(c.Path, StringComparison.OrdinalIgnoreCase)).OrderByDescending(c => c.Path.Length).FirstOrDefault();
-        if (hit?.ItemId is not null && await db.Items.AnyAsync(i => i.Id == hit.ItemId, ct)) return hit.ItemId;
-        return null;
-    }
 
     private async Task RunFromBashAsync(Session s, string cmd, HookEvent e, bool failed, CancellationToken ct)
     {

@@ -102,7 +102,12 @@ public sealed partial class WorkbenchOps
             {
                 if (pk.Approved) return new PressResult(false, "Already approved.");
                 var machine = pk.Machine ?? options.MachineId;
-                var git = await host.RunGitAsync(machine, new GitInstruction(pk.Checkout ?? "", pk.Instruction), ct);
+                var top = it is null ? null : await TopOfAsync(it, ct);
+                var closesTop = top is not null && it is not null && await TopFinishesWithAsync(top, it, ct);
+                var lines = top is null || it is null ? pk.Instruction : MergeInstruction(top, it, closesTop);
+                pk.Instruction = lines;
+                pk.Checkout ??= top?.Checkout;
+                var git = lines.Count == 0 ? new GitResult(true, "") : await host.RunGitAsync(machine, new GitInstruction(pk.Checkout ?? "", lines), ct);
                 pk.GitOutput = git.Output;
                 if (!git.Ok)
                 {
@@ -110,8 +115,9 @@ public sealed partial class WorkbenchOps
                     if (it is not null) await HistoryAsync(it.Id, "approve failed", "The Host reported: " + Trim(git.Output, 200), ct);
                     return new PressResult(false, "The Host could not run the instruction: " + Trim(git.Output, 160));
                 }
-                pk.Approved = true; pk.Merged = true;
-                var sha = System.Text.RegularExpressions.Regex.Match(git.Output, @"\b[0-9a-f]{7,40}\b");
+                pk.Approved = true; pk.Merged = lines.Count > 0;
+                var shas = System.Text.RegularExpressions.Regex.Matches(git.Output, @"^[0-9a-f]{7,40}$", System.Text.RegularExpressions.RegexOptions.Multiline);
+                var sha = shas.Count > 0 ? shas[^1] : System.Text.RegularExpressions.Regex.Match(git.Output, @"\b[0-9a-f]{7,40}\b");
                 if (sha.Success)
                 {
                     pk.MergedCommit = sha.Value[..Math.Min(7, sha.Value.Length)];
@@ -125,12 +131,13 @@ public sealed partial class WorkbenchOps
                     it.State = ItemState.Done; it.IsOpen = false; it.SoMin = Math.Max(it.SoMin, pk.ActualMin);
                     var steps = List<Step>(it.StepsJson).Select(st => st.State == StepState.Done ? st : st with { State = StepState.Done }).ToList();
                     it.StepsJson = Json.Write(steps);
-                    await HistoryAsync(it.Id, "packet approved", pk.MergedCommit is null ? "Merged" : $"Merged as [[commit:{pk.MergedCommit}]]", ct);
+                    await HistoryAsync(it.Id, "packet approved", pk.MergedCommit is null ? (lines.Count == 0 ? "Closed; there was no branch to merge" : "Merged into main") : $"Merged as [[commit:{pk.MergedCommit}]]", ct);
                     await RecomputeFactorAsync(it, pk, ct);
                     await AdvanceReportsOfAsync(it, ct);
+                    if (closesTop && top is not null) await CloseTopAsync(top, ct);
                 }
-                await TellSessionAsync(card, "Packet approved and merged by the owner. Nothing further runs on this branch.", ct);
-                return new PressResult(true, $"Instruction sent to the Host on {machine}" + (pk.MergedCommit is null ? "" : $" · merged as {pk.MergedCommit}"));
+                await TellSessionAsync(card, "Packet approved and merged by the owner. Nothing further runs on this item.", ct);
+                return new PressResult(true, lines.Count == 0 ? $"{it?.Id} closed" : $"Merged into main on {machine}" + (pk.MergedCommit is null ? "" : $" as {pk.MergedCommit}") + (closesTop && top is not null ? $" · {top.Id} is finished, its branch is deleted" : ""));
             }
             case "changes":
                 if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Say what to change.");
@@ -171,15 +178,13 @@ public sealed partial class WorkbenchOps
         if (pk.EstMin <= 0 || pk.ActualMin <= 0) return;
         var f = Math.Round(pk.ActualMin / (double)pk.EstMin, 2);
         it.Factor = f;
-        if (it.LaneKey is { } lk && await db.Lanes.FirstOrDefaultAsync(l => l.ProjectId == it.ProjectId && l.Key == lk, ct) is { } lane)
-        {
-            var was = lane.Factor;
-            lane.Was = was; lane.Factor = Math.Round((was + f) / 2, 1);
-            if (Math.Abs(lane.Factor - was) >= 0.1)
-                await InfoAsync($"Lane {lk} factor is now {lane.Factor:0.0} (was {was:0.0})",
-                    $"{it.Id} took {pk.ActualMin} minutes against {pk.EstMin} Claude-minutes. Lane {lk} forecasts now use {lane.Factor:0.0}.",
-                    "lane:" + lk, "Computed by the Workbench after the packet was approved", it.Id, null, null, ct);
-        }
+        var p = await ProjectOfAsync(it, ct);
+        var was = p.Factor;
+        p.Factor = was is null ? Math.Round(f, 1) : Math.Round((was.Value + f) / 2, 1);
+        if (was is not null && Math.Abs(p.Factor.Value - was.Value) >= 0.1)
+            await InfoAsync($"{p.Name} factor is now {p.Factor:0.0} (was {was:0.0})",
+                $"{it.Id} took {pk.ActualMin} minutes against {pk.EstMin} Claude-minutes. {p.Name} forecasts now use {p.Factor:0.0}.",
+                "project:" + p.Id, "Computed by the Workbench after the packet was approved", it.Id, null, null, ct);
     }
 
     private async Task<PressResult> PressPlanAsync(Card card, PressRequest req, CancellationToken ct)
@@ -215,9 +220,12 @@ public sealed partial class WorkbenchOps
                 it.Factor ??= pl.Factor;
                 it.State = ItemState.Building;
                 it.IsOpen = true;
-                if (pl.Lane is { } lane) { it.LaneKey = lane; await EnsureLaneAsync(it.ProjectId, lane, pl.Machine, ct); }
                 var p = await ProjectOfAsync(it, ct);
                 if (p.State == ProjectState.Coarse) p.State = ProjectState.Open;
+                var top = await TopOfAsync(it, ct);
+                var planner = card.SessionId is null ? null : await db.Sessions.FindAsync([card.SessionId], ct);
+                var branchNote = await EnsureBranchAsync(top, pl.Machine ?? options.MachineId, planner?.Cwd, ct);
+                pl.Branch = top.Branch; pl.Checkout = top.Checkout; card.PayloadJson = Json.Write(pl);
                 var decisions = Json.ReadList<Decision>(it.DecisionsJson);
                 foreach (var q in pl.Settle)
                 {
@@ -231,7 +239,7 @@ public sealed partial class WorkbenchOps
                 await HistoryAsync(it.Id, "plan approved", $"{pl.Steps.Count} steps, {it.EstMin} Claude-min", ct);
                 var settled = string.Join("\n", pl.Settle.Select(q => $"- {q.Q}: {(q.Chosen is int c2 && c2 < q.Options.Count ? q.Options[c2] : q.Options[q.Rec])}"));
                 await TellSessionAsync(card, "Plan approved by the owner. Start step 1." + (settled.Length > 0 ? "\nSettled defaults:\n" + settled : ""), ct);
-                return new PressResult(true, $"Plan approved · {it.Id} opens" + (pl.Lane is null ? "" : $" in lane {pl.Lane}") + (pl.Machine is null ? "" : $" on {pl.Machine}"));
+                return new PressResult(true, $"Plan approved · {it.Id} opens · {branchNote}");
             }
             case "change":
                 if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Say what to change.");
@@ -240,14 +248,6 @@ public sealed partial class WorkbenchOps
                 return new PressResult(true, "Sent to the session; a new plan card comes back");
             default: return new PressResult(false, "Unknown action " + req.Action);
         }
-    }
-
-    private async Task EnsureLaneAsync(string projectId, string key, string? machine, CancellationToken ct)
-    {
-        var id = projectId + ":" + key;
-        var lane = await db.Lanes.FindAsync([id], ct);
-        if (lane is null) db.Lanes.Add(new Lane { Id = id, ProjectId = projectId, Key = key, Name = key, Factor = 1.2, MachineId = machine, State = "open", Proposed = false });
-        else { lane.MachineId ??= machine; lane.Proposed = false; }
     }
 
     private async Task<PressResult> PressStuckAsync(Card card, PressRequest req, CancellationToken ct)
@@ -262,7 +262,7 @@ public sealed partial class WorkbenchOps
                 card.State = CardState.Answered; card.Answer = "reassign " + req.Value; card.AnsweredAt = Now;
                 await TellSessionAsync(card, $"The owner moved {it.Id} to {req.Value}. Stop here; a session on {req.Value} continues.", ct);
                 await HistoryAsync(it.Id, "reassigned", $"You moved it to [[machine:{req.Value}]] (one home machine)", ct);
-                return new PressResult(true, $"{it.Id} moves to {req.Value}: worktree recreated there (one home machine)");
+                return new PressResult(true, $"{it.Id} moves to {req.Value}: its branch is checked out there next (one home machine)");
             case "retry":
                 card.State = CardState.Answered; card.Answer = "retry"; card.AnsweredAt = Now;
                 if (it is not null && it.State == ItemState.Blocked) it.State = ItemState.Building;
@@ -368,7 +368,8 @@ public sealed partial class WorkbenchOps
         m.Os = reg.Os; m.HostVersion = reg.HostVersion; m.Online = true; m.LastSeen = Now; m.HostUrl = reg.HostUrl;
         m.Kind = reg.Kind.Equals("cloud", StringComparison.OrdinalIgnoreCase) ? MachineKind.Cloud : MachineKind.Machine;
         m.ClockSkewSec = Math.Round((reg.Clock - Now).TotalSeconds, 1);
-        m.CheckoutsJson = Json.Write(reg.Checkouts.Select(c => new Checkout(c.Path, c.Branch, c.Item, c.Worktree, c.Note)).ToList());
+        var known = List<Checkout>(m.CheckoutsJson);
+        m.CheckoutsJson = Json.Write(reg.Checkouts.Select(c => new Checkout(c.Path, c.Branch, c.Item ?? known.FirstOrDefault(k => k.Path.Equals(c.Path, StringComparison.OrdinalIgnoreCase))?.ItemId, c.Worktree, c.Note)).ToList());
         if (isNew) await InfoAsync($"{m.Id} registered with Host {reg.HostVersion}", $"A Host joined on {reg.Os} with {reg.Checkouts.Count} checkout{(reg.Checkouts.Count == 1 ? "" : "s")}.", "machine:" + m.Id, $"Host on {m.Id}", null, null, null, ct);
         await SaveAsync("machine", m.Id, ct);
         return m;

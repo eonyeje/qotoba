@@ -7,7 +7,6 @@ namespace Qotoba.Workbench.Store;
 public class WorkbenchDb(DbContextOptions<WorkbenchDb> options) : DbContext(options)
 {
     public DbSet<Project> Projects => Set<Project>();
-    public DbSet<Lane> Lanes => Set<Lane>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<ImplLine> ImplLines => Set<ImplLine>();
@@ -42,7 +41,6 @@ public class WorkbenchDb(DbContextOptions<WorkbenchDb> options) : DbContext(opti
     protected override void OnModelCreating(ModelBuilder m)
     {
         m.Entity<Project>(e => { e.HasKey(x => x.Id); e.Property(x => x.State).HasConversion<string>(); e.HasIndex(x => x.Code).IsUnique(); });
-        m.Entity<Lane>(e => { e.HasKey(x => x.Id); e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique(); });
         m.Entity<Item>(e => { e.HasKey(x => x.Id); e.Property(x => x.State).HasConversion<string>(); e.HasIndex(x => x.ParentId); e.HasIndex(x => x.ProjectId); });
         m.Entity<Report>(e =>
         {

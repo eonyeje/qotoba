@@ -584,6 +584,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Branch")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Checkout")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ClaimsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -623,9 +626,6 @@ namespace Qotoba.Workbench.Store.Migrations
 
                     b.Property<bool>("IsOpen")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("LaneKey")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
@@ -677,47 +677,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("Items");
-                });
-
-            modelBuilder.Entity("Qotoba.Workbench.Model.Lane", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("Factor")
-                        .HasColumnType("REAL");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MachineId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProjectId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Proposed")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<double?>("Was")
-                        .HasColumnType("REAL");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId", "Key")
-                        .IsUnique();
-
-                    b.ToTable("Lanes");
                 });
 
             modelBuilder.Entity("Qotoba.Workbench.Model.Machine", b =>
@@ -1211,9 +1170,6 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ItemId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LaneKey")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LastAction")

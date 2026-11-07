@@ -7,7 +7,7 @@ public sealed record PressResult(bool Ok, string Message, string? Navigate = nul
 
 /// <summary>Owner structure controls. Never reachable by Claude.</summary>
 public sealed record AddItemRequest(string Kind, string Title, string? Place, string? CoarseSize, List<string>? Implements, string? Project, string? FromFound = null, string? Subtype = null);
-public sealed record ItemPatch(string? Title, string? ParentId, bool? Open, string? LaneKey);
+public sealed record ItemPatch(string? Title, string? ParentId, bool? Open);
 public sealed record ReportPatch(string? Title, string? Severity, string? Subtype, string? State, int? ChosenFix, TargetInput? Target, string? AttachItemId = null);
 public sealed record TargetInput(double V, string Unit, string Text);
 public sealed record EdgePatch(bool Confirmed);

@@ -8,7 +8,7 @@ using Qotoba.Workbench.Store.Ops;
 namespace Qotoba.Workbench.Mcp;
 
 /// <summary>
-/// The capped slots a Claude Code session may fill. There is no tool that creates a project, an item or a lane.
+/// The capped slots a Claude Code session may fill. There is no tool that creates a project or an item.
 /// Every tool takes the Claude session id so calls from several sessions never mix.
 /// </summary>
 [McpServerToolType]
@@ -60,10 +60,9 @@ public static class WorkbenchTools
         [Description("Item id")] string item,
         [Description("One sentence: what is true when the item is done")] string goal,
         [Description("The steps, in order")] List<StepInput> steps,
-        [Description("Questions you can default; each has options and the index of the recommended one")] List<SettleInput>? settle = null,
-        [Description("Lane key, if the owner named one")] string? lane = null)
+        [Description("Questions you can default; each has options and the index of the recommended one")] List<SettleInput>? settle = null)
     {
-        try { var c = await ops.SubmitPlanAsync(session, item, steps, settle, goal, lane); return $"Plan card {c.Id} is in the owner's inbox. Wait for it with card_wait."; }
+        try { var c = await ops.SubmitPlanAsync(session, item, steps, settle, goal); return $"Plan card {c.Id} is in the owner's inbox. Wait for it with card_wait."; }
         catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
@@ -197,15 +196,13 @@ public static class WorkbenchTools
         catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
-    [McpServerTool(Name = "packet_submit"), Description("Finish: submit the packet for the owner's Approve. Say the outcome in one sentence, list the git lines Approve should run (commit on your branch, merge, push), the checks with their runs, the claims, anything built beyond the plan, and a note of at most 2 lines.")]
+    [McpServerTool(Name = "packet_submit"), Description("Finish: submit the packet for the owner's Approve. Commit everything on the item's branch first; Approve merges that branch into main through the Host. Say the outcome in one sentence, the checks with their runs, the claims, anything built beyond the plan, and a note of at most 2 lines.")]
     public static async Task<string> PacketSubmit(WorkbenchOps ops, string session, string item,
         [Description("One sentence: what is now true")] string outcome,
-        [Description("The git lines the Host runs on Approve, one per entry")] List<string> instruction,
-        [Description("Absolute path of the checkout the git lines run in")] string checkout,
         List<CheckInput>? checks = null, List<ClaimInput>? claims = null, List<BeyondInput>? beyond = null, string? note = null,
         [Description("Files changed, repo-relative")] List<string>? files = null, int plus = 0, int minus = 0)
     {
-        try { var c = await ops.SubmitPacketAsync(session, item, outcome, instruction, checkout, checks, claims, beyond, note, files, plus, minus); return $"Packet card {c.Id} is in the owner's inbox. You are done; a later session continues if the owner asks for changes."; }
+        try { var c = await ops.SubmitPacketAsync(session, item, outcome, checks, claims, beyond, note, files, plus, minus); return $"Packet card {c.Id} is in the owner's inbox. You are done; a later session continues if the owner asks for changes."; }
         catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 

@@ -71,18 +71,16 @@ public static class Rules
                 $"This task's home machine is {currentHome}. Reassign it from the Stuck card before working on {requestedMachine}.");
     }
 
-    /// <summary>One open node per level per lane: a sibling may open only when no sibling is already open in that lane.</summary>
+    /// <summary>One open node per level: a sibling may open only when no sibling is already open.</summary>
     public static void MayOpen(Item node, IEnumerable<Item> siblings)
     {
         if (node.Preview) throw new WorkbenchRuleException("open.preview", "A preview node is not real yet.");
         if (node.IsOpen) throw new WorkbenchRuleException("open.already", "This node is already open.");
         if (node.State == ItemState.Done) throw new WorkbenchRuleException("open.done", "This node is done. Add a BUG under it instead.");
         if (node.State == ItemState.Review) throw new WorkbenchRuleException("open.review", "This node is in review. Approve or change its packet first.");
-        var lane = node.LaneKey;
-        var clash = siblings.FirstOrDefault(s => s.Id != node.Id && s.IsOpen && (lane is null || s.LaneKey == lane || s.LaneKey is null));
+        var clash = siblings.FirstOrDefault(s => s.Id != node.Id && s.IsOpen);
         if (clash is not null)
-            throw new WorkbenchRuleException("open.one",
-                $"One open node per level: {clash.Title} is already open{(lane is null ? "" : " in lane " + lane)}.");
+            throw new WorkbenchRuleException("open.one", $"One open node per level: {clash.Title} is already open.");
     }
 
     public static void ReportNeverWaits(Card card)

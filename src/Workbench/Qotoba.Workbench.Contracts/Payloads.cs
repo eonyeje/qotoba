@@ -9,7 +9,9 @@ public sealed class PlanPayload
 {
     public List<PlanStep> Steps { get; set; } = [];
     public List<SettleQ> Settle { get; set; } = [];
-    public string? Lane { get; set; }
+    /// <summary>The branch the work runs on: the opened top item's, created in the checkout when this plan is approved.</summary>
+    public string? Branch { get; set; }
+    public string? Checkout { get; set; }
     public double Factor { get; set; } = 1.2;
     public string? FactorNote { get; set; }
     public string Goal { get; set; } = "";

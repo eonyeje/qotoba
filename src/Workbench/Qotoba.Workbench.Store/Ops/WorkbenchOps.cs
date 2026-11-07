@@ -70,7 +70,7 @@ public sealed partial class WorkbenchOps(WorkbenchDb db, IClock clock, IChangeNo
     private async Task<Project> ProjectOfAsync(Item it, CancellationToken ct = default) =>
         await db.Projects.FindAsync([it.ProjectId], ct) ?? throw new WorkbenchRuleException("project.unknown", "The item's project is missing.");
 
-    /// <summary>Minutes of estimated work left on an item from a step onward, at the lane or project factor.</summary>
+    /// <summary>Minutes of estimated work left on an item from a step onward, at the item or project factor.</summary>
     private async Task<int> WorkBehindAsync(Item it, int? fromStep, CancellationToken ct = default)
     {
         var steps = List<Step>(it.StepsJson);

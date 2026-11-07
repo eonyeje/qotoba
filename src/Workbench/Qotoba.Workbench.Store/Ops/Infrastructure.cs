@@ -18,6 +18,8 @@ public interface IHostClient
     Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default);
     Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default);
     Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default);
+    /// <summary>The branch a checkout is on right now, or null when the Host cannot say.</summary>
+    Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default);
 }
 
 public sealed class NoHost : IHostClient
@@ -27,6 +29,7 @@ public sealed class NoHost : IHostClient
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>(null);
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 public sealed class OpsOptions

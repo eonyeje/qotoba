@@ -460,7 +460,7 @@
     var shown = S.cleared ? [] : info;
     h += '<details class="fyk"' + (S.fykOpen ? ' open' : '') + ' data-act="fyk"><summary><span>For you to know</span><span class="muted">' + (shown.length ? shown.length + ' updates, nothing to decide' : 'none') + '</span><span class="chev"></span></summary>';
     h += shown.length ? '<div class="fyk-b">' + shown.map(function (id) { var c = D.cards[id]; return '<a class="fyk-row' + (sel === id ? ' sel' : '') + '" href="#/card/' + id + '"><span>' + esc(c.headline) + '</span><span class="muted">' + esc(c.age) + '</span></a>'; }).join('') + '<button class="btn text" data-act="clear-info">Clear all</button></div>'
-      : '<div class="fyk-b">' + empty('Nothing new to know', 'Info cards appear here: a lane factor changed, a machine registered, a branch pushed, a session ended.') + '</div>';
+      : '<div class="fyk-b">' + empty('Nothing new to know', 'Info cards appear here: a project factor changed, a machine registered, a branch pushed, a session ended.') + '</div>';
     return h + '</details></div>';
   }
   function qcard(id, sel) {
@@ -592,7 +592,7 @@
     if (!pl.approved) h += '<div class="actions"><button class="btn primary" data-act="plan-approve" data-card="' + id + '">Approve plan</button><button class="btn" data-act="plan-edit">' + (qs && qs.edit ? 'Done changing' : 'Change') + '</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
       drill('What each step needs and proves', plural(pl.steps.length, 'step'), '<div class="list">' + pl.steps.map(function (s, i) { return '<div class="li col"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(s.t) + '</span><span class="li-sub"><span class="muted">needs</span> ' + (s.needs.length ? s.needs.map(function (n) { return n.indexOf('settle:') === 0 ? '<span class="marker">settle ' + n.slice(8) + '</span>' : chip(n); }).join(' ') : 'nothing') + ' <span class="muted">· proof</span> ' + esc(s.proof) + '</span></div>'; }).join('') + '</div>'),
-      drill('Where it runs', pl.lane === 'C' ? 'lane C on ' + pl.machine : (pl.lane && pl.lane !== '-' ? 'lane ' + pl.lane + ' on ' : 'no lane yet · ') + pl.machine, (pl.approved ? '<p>Approved; the item opened ' + (pl.lane && pl.lane !== '-' ? 'in lane ' + esc(pl.lane) : 'outside the lanes, its project being closed') + '.</p>' : '<p>Approving opens the item in lane C, beside lanes A and B: one open node per level in each lane.</p>') + '<div class="chips">' + (D.lanes[pl.lane] ? chip('lane:' + pl.lane, { meta: true }) : '') + chip('machine:' + pl.machine) + (D.branches[pl.opensBranch] ? chip('branch:' + pl.opensBranch, { meta: true }) : '') + chip('ruling:R-02') + '</div><p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>'),
+      drill('Where it runs', (pl.branch ? esc(pl.branch) + ' on ' : '') + esc(pl.machine), (pl.approved ? '<p>Approved; ' + (pl.branch ? 'the branch ' + esc(pl.branch) + ' is checked out in ' + esc(pl.checkout || 'the checkout') : 'the item opened') + '.</p>' : '<p>Approving checks out ' + (pl.branch ? esc(pl.branch) : 'the branch') + ' in ' + esc(pl.checkout || 'your checkout') + '. Everything under the opened item shares it; each approved packet merges it into main.</p>') + '<div class="chips">' + chip('machine:' + pl.machine) + chip('ruling:R-02') + '</div>' + (pl.factorNote ? '<p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>' : '')),
       drill('Submitted by', 'session ' + pl.session + ' · ' + esc(c.at), chips(['session:' + pl.session, 'machine:' + pl.machine]))
     ], 'Go deeper');
     return h + '</div>';
@@ -647,14 +647,14 @@
     var it = D.items[id];
     if (it.preview) return { ok: false, why: 'Language is closed. These four appear as real items when an approved plan opens it.' };
     if (it.unscheduled) return { ok: false, why: 'Unscheduled: no open parent path. Dope must open first.' };
-    if (it.isOpen) return { ok: false, why: 'Already open' + (it.lane ? ' in lane ' + it.lane : '') + '.' };
+    if (it.isOpen) return { ok: false, why: 'Already open.' };
     if (it.state === 'done') return { ok: false, why: 'Done items do not reopen; add a BUG under it instead.' };
     if (it.state === 'review') return { ok: false, why: 'In review: approve or ask for changes on its packet.' };
-    if (it.plan) return { ok: true, why: 'Opens through its plan' + (it.lane ? ' in lane ' + it.lane : '') + '.', go: '#/card/' + parseRef(it.plan).id };
+    if (it.plan) return { ok: true, why: 'Opens through its plan.', go: '#/card/' + parseRef(it.plan).id };
     var sibs = keys(D.items).filter(function (k) { var x = D.items[k]; return k !== id && x.parent === it.parent && x.project === it.project && x.isOpen; });
     if (!sibs.length) return { ok: true, why: 'Nothing is open at this level; opening it starts planning.', go: '#/item/' + id, open: true };
-    var sib = sibs.map(function (k) { return k + (D.items[k].lane ? ' (lane ' + D.items[k].lane + ')' : ''); }).join(' and ') + (sibs.length === 1 ? ' is' : ' are') + ' open at this level';
-    return { ok: false, why: sib + '. One open node per level per lane (R-02).' };
+    var sib = sibs.join(' and ') + (sibs.length === 1 ? ' is' : ' are') + ' open at this level';
+    return { ok: false, why: sib + '. One open node per level (R-02).' };
   }
   function nodeTitle(id) { if (id === 'root') return D.meta.programme + ' programme'; var p = projOf(id); return p ? p.name : itemTitle(id); }
   function matchesFilter(id) {
@@ -751,7 +751,7 @@
     h += drills([
       drill('Waiting on you', bo.length ? plural(bo.length, 'card') : 'nothing', bo.length ? '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">~' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>' : empty('Nothing waits on you here', 'Cards that block this node or its children list here.'), { attn: bo.length > 0 }),
       drill('Work left', (isRoot ? 'programme' : esc(proj.name)) + ' · ' + measured + ' of ~' + coarse + ' weeks measured', '<div class="wbar"><span class="m" style="width:' + Math.round(100 * measured / coarse) + '%"></span><span class="c"></span></div><div class="wbar-legend"><span><i class="lm"></i>measured ' + measured + ' wk</span><span><i class="lc"></i>coarse ' + (coarse - measured) + ' wk</span></div>'),
-      proj.factor ? drill('Factor', 'factor ' + proj.factor + (proj.id === 'wb' ? ' · lanes A 1.3, B 1.1, C 1.2' : ''), '<p>Actual time over estimate, measured from session hooks.</p>' + (proj.lanes ? chips(proj.lanes.map(function (l) { return 'lane:' + l; }), { meta: true }) : '')) : '',
+      proj.factor ? drill('Factor', 'factor ' + proj.factor, '<p>Actual time over estimate, measured from session hooks.</p>') : '',
       proj.criticalPath ? drill('Critical path', proj.criticalPath.length + ' nodes', '<div class="critical">' + proj.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
       isRoot ? '' : drill('Opening rule', esc(trunc(co.why, 48)), '<p>' + esc(co.why) + '</p>')
     ]);
@@ -1153,7 +1153,7 @@
       drill('Items', items.length ? items.length + ' · ' + ['FTR', 'BUG', 'PER', 'task'].filter(function (k) { return kc[k]; }).map(function (k) { return kc[k] + ' ' + k; }).join(', ') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
-      p.lanes ? drill('Lanes', plural(p.lanes.length, 'lane') + ' · factor ' + (p.factor != null ? p.factor : '1.2 by default'), '<div class="list">' + p.lanes.map(function (l) { var ln = D.lanes[l]; return '<div class="li"><span class="li-main">' + chip('lane:' + l, { meta: true }) + '</span><span class="li-meta">' + esc(ln.state) + '</span></div>'; }).join('') + '</div>') : '',
+      '',
       drill('Issues', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? fpbCountLabel(l) : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
@@ -1270,7 +1270,7 @@
   }
   function vMore() {
     return '<div class="pane"><div class="lhead flush"><h2>More</h2></div><div class="slist">' +
-      [['#/projects', 'Projects', 'Work left, lanes and critical paths'], ['#/machines', 'Machines', 'Hosts, checkouts and tokens'], ['#/settings', 'Settings', 'Budgets, notifications, theme']].map(function (r) { return '<a class="srow" href="' + r[0] + '"><span class="sb-main"><span class="st1">' + r[1] + '</span><span class="st2">' + r[2] + '</span></span></a>'; }).join('') +
+      [['#/projects', 'Projects', 'Work left and critical paths'], ['#/machines', 'Machines', 'Hosts, checkouts and tokens'], ['#/settings', 'Settings', 'Budgets, notifications, theme']].map(function (r) { return '<a class="srow" href="' + r[0] + '"><span class="sb-main"><span class="st1">' + r[1] + '</span><span class="st2">' + r[2] + '</span></span></a>'; }).join('') +
       '</div></div>';
   }
 
@@ -2153,7 +2153,7 @@
       case 'found-task': var fx = D.found[dv.f]; var pkf = D.sessions[fx.session] && D.sessions[fx.session].packet; if (pkf) WBAPI.press(parseRef(pkf).id, 'found-task', { target: dv.f }); toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;
       case 'report-edit': openMenu(el, reportEditMenu(dv.fpb)); return true;
       case 'report-edit-x': closeLayers(); reportEditSheet(dv.fpb, dv.v); return true;
-      case 'move': openSheet('Move ' + nodeTitle(dv.node), '<p class="small">Pick the new parent. Moving keeps the item closed; it never moves an open node out of its lane.</p><select id="mv-place" style="width:100%" aria-label="New parent">' + placeOptions(nodeParent(dv.node)) + '</select>', '<button class="btn primary" data-act="move-save" data-node="' + dv.node + '">Move</button><button class="btn" data-act="close">Cancel</button>'); return true;
+      case 'move': openSheet('Move ' + nodeTitle(dv.node), '<p class="small">Pick the new parent. Moving keeps the item closed; it never moves an open node.</p><select id="mv-place" style="width:100%" aria-label="New parent">' + placeOptions(nodeParent(dv.node)) + '</select>', '<button class="btn primary" data-act="move-save" data-node="' + dv.node + '">Move</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'rename': openSheet('Rename', '<input id="rn-title" type="text" style="width:100%" value="' + esc(nodeTitle(dv.node)) + '" aria-label="Title"><p class="tiny" style="margin-top:6px">Titles are yours; sessions cannot rename.</p>', '<button class="btn primary" data-act="rename-save" data-node="' + dv.node + '">Rename</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'summary': closeLayers(); S.work.sel = dv.node; S.scrollTo = '.split > .side'; location.hash = '#/work/' + dv.node; return true;
       case 'wkind': S.work.kinds[dv.k] = !S.work.kinds[dv.k]; render(true); refreshMenu(); return true;

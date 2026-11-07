@@ -59,7 +59,7 @@ public class ReportTests : IDisposable
     {
         var (bug, task) = await BugTakenOnAsync();
         await f.Ops().HelloAsync("s2", null, task.Id);
-        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "The file prints back with its comment.", null);
+        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "The file prints back with its comment.");
         var pl = Json.Read(plan.PayloadJson, new PlanPayload());
         Assert.Equal(2, pl.Settle.Count);                         // the low-cost decision and the dependency; the high-cost one waits for a card
         Assert.All(pl.Settle, q => Assert.Equal("fpb:" + bug.Id, q.From));
@@ -92,7 +92,7 @@ public class ReportTests : IDisposable
     {
         var (bug, task) = await BugTakenOnAsync();
         await f.Ops().HelloAsync("s2", null, task.Id);
-        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "goal", null);
+        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "goal");
         await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
         string lineId;
         using (var db = f.Db()) lineId = db.ImplLines.Single(l => l.ReportId == bug.Id && l.Text.StartsWith("May recovery")).Id;
@@ -169,7 +169,7 @@ public class ReportTests : IDisposable
         await ops.HelloAsync("s1", null, "WB-2");
         var e = await ops.ProposeEdgeAsync("s1", "WB-2", "WB-1", "needs", "B reads the table A creates", true);
         Assert.False(e.Confirmed);
-        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-2", [new("one", 30, null, null)], null, "g", null);
+        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-2", [new("one", 30, null, null)], null, "g");
         var pl = Json.Read(plan.PayloadJson, new PlanPayload());
         Assert.Single(pl.Settle, q => q.Edge == e.Id);
         await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));

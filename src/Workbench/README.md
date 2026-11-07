@@ -46,12 +46,15 @@ Then start `claude` anywhere in the repository. The session appears on **Now** w
 
 ## The loop
 
-1. The owner adds an item in the tree (Add item). Claude never does.
-2. A session calls `session_hello`, reads its brief, and submits a plan with `plan_submit`. A plan card appears in the inbox.
-3. The owner accepts the settle-pass defaults and approves. The session hears about it at its next stop.
-4. The session works the steps. A blocked step becomes a question card (`question_ask`, 2 to 4 options, one recommended). The owner picks; `card_wait` returns the answer.
-5. Checks run through the Host or the hooks; a step is done only with a run that proves it.
-6. `packet_submit` draws the packet. The owner's Approve runs the git lines through the Host and closes the item.
+1. The owner adds an item in the tree (Add item), say "Login screen", and the items under it, and opens the ones to work. Claude never does.
+2. A session started anywhere in the checkout belongs to the open node there: the checkout's bound item, else the item on the checkout's branch, else the one open top item; then the open node under it. Nobody names an item to a session.
+3. The session calls `session_hello`, reads its brief, and submits a plan with `plan_submit`. A plan card appears in the inbox.
+4. The owner accepts the settle-pass defaults and approves. That is when the branch exists: the top item's branch (`wb/1-login-screen`) is created from main and checked out in the owner's checkout through the Host. Everything under the top item shares it. The session hears about the approval at its next stop.
+5. The session works the steps. A blocked step becomes a question card (`question_ask`, 2 to 4 options, one recommended). The owner picks; `card_wait` returns the answer.
+6. Checks run through the Host or the hooks; a step is done only with a run that proves it.
+7. `packet_submit` draws the packet. The owner's Approve merges the branch into main through the Host and closes the item; the branch carries on for the next item under the top. When the last one is done the top item closes, its branch is deleted and the checkout is back on main.
+
+There is no concept called a lane (ruling R-1). The opened item is the thing; the number of branches is the number of top items open at once.
 
 ## Reports, dependencies and the code index
 

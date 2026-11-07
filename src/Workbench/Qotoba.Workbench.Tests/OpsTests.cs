@@ -38,6 +38,8 @@ public sealed class FakeHost : IHostClient
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>("line");
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(true);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(true);
+    public string? Branch { get; set; }
+    public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult(Branch);
 }
 
 public class OpsTests : IDisposable
@@ -79,7 +81,7 @@ public class OpsTests : IDisposable
     {
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
         await f.Ops().HelloAsync("s1", null, "WB-1");
-        var card = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, "tests"), new("two", 20, null, "smoke")], [new("Name the machine?", ["headline", "body"], 0, null)], "goal", null);
+        var card = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, "tests"), new("two", 20, null, "smoke")], [new("Name the machine?", ["headline", "body"], 0, null)], "goal");
         var r = await f.Ops().PressAsync(new PressRequest(card.Id, "approve"));
         Assert.True(r.Ok, r.Message);
         using var db = f.Db();
@@ -100,7 +102,7 @@ public class OpsTests : IDisposable
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
         await f.Ops().HelloAsync("s1", null, "WB-1");
         var steps = Enumerable.Range(1, 8).Select(i => new StepInput("s" + i, 10, null, null)).ToList();
-        var ex = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().SubmitPlanAsync("s1", "WB-1", steps, null, "g", null));
+        var ex = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().SubmitPlanAsync("s1", "WB-1", steps, null, "g"));
         Assert.Equal("plan.cap", ex.Code);
     }
 
@@ -109,7 +111,7 @@ public class OpsTests : IDisposable
     {
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
         await f.Ops().HelloAsync("s1", null, "WB-1");
-        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, null), new("two", 20, null, null), new("three", 20, null, null)], null, "goal", null);
+        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, null), new("two", 20, null, null), new("three", 20, null, null)], null, "goal");
         await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
         var q1 = await f.Ops().AskAsync("s1", "WB-1", 2, "Output after or live?", Options(), null, null, null, null);
         await f.Ops().AskAsync("s1", "WB-1", 3, "Second?", Options(), null, null, null, null);
@@ -128,19 +130,24 @@ public class OpsTests : IDisposable
     [Fact]
     public async Task PacketApproveRunsGitThroughTheHostAndClosesTheItem()
     {
+        await f.Ops().RegisterMachineAsync(new MachineRegistration("test-pc", "Windows", "1", "machine", "http://localhost:5291", [new CheckoutInfo(@"D:\repo", "main", null, false, null)], f.Clock.Now));
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
-        await f.Ops().HelloAsync("s1", null, "WB-1");
-        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, null)], null, "goal", null);
+        await f.Ops().HelloAsync("s1", @"D:\repo", "WB-1");
+        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, null)], null, "goal");
         await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
+        Assert.Single(f.Host.Ran);                                   // the branch was checked out
         await f.Ops().AssumeAsync("s1", "WB-1", "Times are in the owner zone.");
-        var pk = await f.Ops().SubmitPacketAsync("s1", "WB-1", "Hello card lands", ["git merge --no-ff wb/1"], @"D:\repo", null, [new("A claim", null)], null, "done", null, 0, 0);
+        var pk = await f.Ops().SubmitPacketAsync("s1", "WB-1", "Hello card lands", null, [new("A claim", null)], null, "done", null, 0, 0);
         var r = await f.Ops().PressAsync(new PressRequest(pk.Id, "all-fine"));
         Assert.True(r.Ok);
         r = await f.Ops().PressAsync(new PressRequest(pk.Id, "approve"));
         Assert.True(r.Ok, r.Message);
-        Assert.Single(f.Host.Ran);
+        Assert.Equal(2, f.Host.Ran.Count);                          // then the merge
+        Assert.Contains(f.Host.Ran[1].Lines, l => l.StartsWith("git merge --no-ff wb/1-hello-card"));
+        Assert.Contains(f.Host.Ran[1].Lines, l => l == "git branch -d wb/1-hello-card");
         using var db = f.Db();
         Assert.Equal(ItemState.Done, db.Items.Single().State);
+        Assert.Null(db.Items.Single().Branch);
         Assert.Equal(CardState.Approved, db.Cards.Single(c => c.Id == pk.Id).State);
         Assert.All(db.Assumptions, a => Assert.Equal(AssumptionState.Fine, a.State));
     }
@@ -148,9 +155,12 @@ public class OpsTests : IDisposable
     [Fact]
     public async Task PacketApproveFailsSoftlyWhenTheHostCannot()
     {
+        await f.Ops().RegisterMachineAsync(new MachineRegistration("test-pc", "Windows", "1", "machine", "http://localhost:5291", [new CheckoutInfo(@"D:\repo", "main", null, false, null)], f.Clock.Now));
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
-        await f.Ops().HelloAsync("s1", null, "WB-1");
-        var pk = await f.Ops().SubmitPacketAsync("s1", "WB-1", "Hello card lands", ["git merge wb/1"], @"D:\repo", null, null, null, null, null, 0, 0);
+        await f.Ops().HelloAsync("s1", @"D:\repo", "WB-1");
+        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-1", [new("one", 30, null, null)], null, "goal");
+        await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
+        var pk = await f.Ops().SubmitPacketAsync("s1", "WB-1", "Hello card lands", null, null, null, null, null, 0, 0);
         f.Host.Ok = false;
         var r = await f.Ops().PressAsync(new PressRequest(pk.Id, "approve"));
         Assert.False(r.Ok);

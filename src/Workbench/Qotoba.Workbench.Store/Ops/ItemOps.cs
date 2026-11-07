@@ -58,7 +58,6 @@ public sealed partial class WorkbenchOps
             if (np is not null) it.ProjectId = np.ProjectId;
             await HistoryAsync(id, "moved", np is null ? "You moved it to the top level" : $"You moved it under [[item:{np.Id}]]", ct);
         }
-        if (patch.LaneKey is not null) it.LaneKey = patch.LaneKey == "" ? null : patch.LaneKey;
         if (patch.Open == true) await OpenNodeAsync(it, ct);
         Audit(Actor.Owner, "patch", "item", id);
         await SaveAsync("item", id, ct);
@@ -78,7 +77,7 @@ public sealed partial class WorkbenchOps
 
     /* ---------------------------------------------------------------- Claude's slots */
 
-    public async Task<Card> SubmitPlanAsync(string sessionId, string itemId, List<StepInput> steps, List<SettleInput>? settle, string goal, string? lane, CancellationToken ct = default)
+    public async Task<Card> SubmitPlanAsync(string sessionId, string itemId, List<StepInput> steps, List<SettleInput>? settle, string goal, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
         var it = await RequireItemAsync(itemId, ct);
@@ -89,11 +88,12 @@ public sealed partial class WorkbenchOps
         var own = (settle ?? []).Select((q, i) => new SettleQ("s" + (i + 1), q.Question, q.Options, q.Recommended, q.FromReport, null)).ToList();
         var fromReports = await DrawSettleFromReportsAsync(it, own.Count, ct);
         var fromEdges = await DrawSettleFromEdgesAsync(it, own.Count + fromReports.Count, ct);
+        var top = await TopOfAsync(it, ct);
         var payload = new PlanPayload
         {
             Steps = steps.Select(x => new PlanStep(x.Text, x.EstMin, x.Needs, x.Proof)).ToList(),
             Settle = own.Concat(fromReports).Concat(fromEdges).ToList(),
-            Lane = lane ?? it.LaneKey, Factor = factor, Goal = goal, Machine = s.MachineId,
+            Branch = top.Branch ?? BranchNameFor(p, top), Checkout = top.Checkout ?? s.Cwd, Factor = factor, Goal = goal, Machine = s.MachineId,
             FactorNote = p.Factor is null ? "the programme default 1.2 applies" : null
         };
         var total = steps.Sum(x => x.EstMin);

@@ -73,7 +73,6 @@ public sealed partial class WorkbenchOps
                 row.Msg = c.Message; row.Date = c.Date; row.BranchId = bid; row.FilesJson = Json.Write(c.Files); row.Plus = c.Plus; row.Minus = c.Minus;
                 row.SessionId ??= await db.Sessions.Where(s => s.MachineId == post.Machine && s.Started <= c.Date && (s.Ended == null || s.Ended >= c.Date)).OrderByDescending(s => s.Started).Select(s => s.Id).FirstOrDefaultAsync(ct);
             }
-            if (item is not null && await db.Items.FindAsync([item], ct) is { } it && it.Branch is null) it.Branch = bid;
         }
         if (machine is not null) { machine.LastSeen = Now; machine.Online = true; }
         await SaveAsync("files", post.Checkout, ct);

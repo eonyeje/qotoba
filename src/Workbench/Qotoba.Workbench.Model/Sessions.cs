@@ -7,7 +7,6 @@ public class Session
     public string Title { get; set; } = "";
     public string? MachineId { get; set; }
     public string? ItemId { get; set; }
-    public string? LaneKey { get; set; }
     public SessionState State { get; set; } = SessionState.Working;
     public bool Stuck { get; set; }
     public DateTimeOffset Started { get; set; }

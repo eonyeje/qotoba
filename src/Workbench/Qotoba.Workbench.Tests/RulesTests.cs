@@ -73,13 +73,13 @@ public class RulesTests
     }
 
     [Fact]
-    public void OneOpenNodePerLevelPerLane()
+    public void OneOpenNodePerLevel()
     {
-        var a = new Item { Id = "WB-1", ProjectId = "wb", Title = "a", IsOpen = true, LaneKey = "A" };
-        var b = new Item { Id = "WB-2", ProjectId = "wb", Title = "b", LaneKey = "A" };
-        var c = new Item { Id = "WB-3", ProjectId = "wb", Title = "c", LaneKey = "B" };
-        Assert.Equal("open.one", Assert.Throws<WorkbenchRuleException>(() => Rules.MayOpen(b, [a, b, c])).Code);
-        Rules.MayOpen(c, [a, b, c]);
+        var a = new Item { Id = "WB-1", ProjectId = "wb", Title = "a", IsOpen = true };
+        var b = new Item { Id = "WB-2", ProjectId = "wb", Title = "b" };
+        Assert.Equal("open.one", Assert.Throws<WorkbenchRuleException>(() => Rules.MayOpen(b, [a, b])).Code);
+        a.IsOpen = false;
+        Rules.MayOpen(b, [a, b]);
         Assert.Equal("open.done", Assert.Throws<WorkbenchRuleException>(() => Rules.MayOpen(new Item { Id = "x", ProjectId = "wb", Title = "x", State = ItemState.Done }, [])).Code);
     }
 

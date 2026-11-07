@@ -59,6 +59,14 @@ app.Use(async (ctx, next) =>
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, machine = name, version = Version, at = DateTimeOffset.UtcNow }));
 
+// the branch a checkout is on right now (the Service asks when a session starts)
+app.MapGet("/branch", async (string checkout) =>
+{
+    if (!Directory.Exists(checkout)) return Results.NotFound();
+    var (code, output) = await RunAsync("git", "rev-parse --abbrev-ref HEAD", checkout, TimeSpan.FromSeconds(10));
+    return code == 0 ? Results.Text(output.Trim()) : Results.NotFound();
+});
+
 app.MapPost("/git", async (GitInstruction ins) =>
 {
     var cwd = string.IsNullOrWhiteSpace(ins.Checkout) ? (checkouts.FirstOrDefault() ?? Environment.CurrentDirectory) : ins.Checkout;
@@ -68,11 +76,13 @@ app.MapPost("/git", async (GitInstruction ins) =>
     {
         var line = raw.Trim();
         if (line.Length == 0 || line.StartsWith('#')) continue;
+        var mayFail = line.StartsWith("- ");           // "- git push origin main": allowed to fail (no remote yet)
+        if (mayFail) line = line[2..].Trim();
         if (line.StartsWith("cd ", StringComparison.OrdinalIgnoreCase)) { var d = line[3..].Trim().Trim('"'); if (Directory.Exists(d)) cwd = d; else { log.AppendLine("no such folder: " + d); return Results.Json(new GitResult(false, log.ToString())); } continue; }
         if (!line.StartsWith("git ", StringComparison.OrdinalIgnoreCase)) { log.AppendLine("refused (only git lines run here): " + line); return Results.Json(new GitResult(false, log.ToString())); }
         var (code, output) = await RunAsync("git", line[4..], cwd, TimeSpan.FromMinutes(5));
         log.AppendLine("$ " + line); log.AppendLine(output.Trim());
-        if (code != 0) { log.AppendLine($"exit {code}"); return Results.Json(new GitResult(false, log.ToString())); }
+        if (code != 0) { log.AppendLine($"exit {code}" + (mayFail ? " · allowed" : "")); if (!mayFail) return Results.Json(new GitResult(false, log.ToString())); }
     }
     return Results.Json(new GitResult(true, log.ToString()));
 });
