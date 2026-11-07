@@ -105,6 +105,26 @@ public class OpsTests : IDisposable
     }
 
     [Fact]
+    public async Task ClaudeOpensTheNodeTheOwnerNamedInChat()
+    {
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Login screen", "wb", null, null, null), Actor.Owner);
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Form", "WB-1", null, null, null), Actor.Owner);
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Remember me", "WB-1", null, null, null), Actor.Owner);
+        await f.Ops().SessionStartedAsync(Hook("SessionStart", "s1"));
+        await f.Ops().HelloAsync("s1", @"D:\repo", null);
+        var (top, m1) = await f.Ops().OpenNodeFromChatAsync("s1", "WB-1");
+        Assert.True(top.IsOpen); Assert.Contains("wb/1-login-screen", m1);
+        var (form, _) = await f.Ops().OpenNodeFromChatAsync("s1", "WB-1.1");
+        Assert.Equal("WB-1.1", form.Id);
+        var (again, m3) = await f.Ops().OpenNodeFromChatAsync("s1", "WB-1.2");
+        Assert.Equal("WB-1.1", again.Id); Assert.Contains("Form is open at this level", m3);
+        using var db = f.Db();
+        Assert.Equal("WB-1.1", db.Sessions.Single().ItemId);
+        Assert.Contains("from your chat", db.Items.Single(i => i.Id == "WB-1").HistoryJson);
+        Assert.Empty(db.Cards);
+    }
+
+    [Fact]
     public async Task StepsGiveProgressAndDoneIsDataNotACard()
     {
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Login screen", "wb", null, null, null), Actor.Owner);

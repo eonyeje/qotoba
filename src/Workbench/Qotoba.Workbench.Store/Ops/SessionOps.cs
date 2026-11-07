@@ -207,7 +207,7 @@ public sealed partial class WorkbenchOps
         sb.AppendLine();
         sb.AppendLine("## How to work");
         sb.AppendLine("- The owner directs you in chat. The Workbench writes down what you do; it never refuses anything the owner says. Commit, merge and push when the owner says so, on the item's branch, and never otherwise.");
-        sb.AppendLine("- Write what the owner dictates: items with `items_write`, an FTR with `fpb_raise` when they ask for a feature or change, a decision with `decision_record` the moment they state a rule. A BUG or PER you raise yourself, from your own checks, never for code you have not committed yet.");
+        sb.AppendLine("- Write what the owner dictates: items with `items_write`, the node they name with `item_open`, an FTR with `fpb_raise` when they ask for a feature or change, a decision with `decision_record` the moment they state a rule. A BUG or PER you raise yourself, from your own checks, never for code you have not committed yet.");
         sb.AppendLine("- Three things reach the owner's inbox, nothing else: a page (`page_submit`) for a change that has no designer, so they can answer on it and approve it; `deviation_report` when you must leave the agreed design or did something they asked to be told about (a helper type, a static); `stuck_report` after three failed attempts on one check. A small blocked question is not a card: take the recommended answer, record it with `assume`, carry on.");
         sb.AppendLine("- Never say tests passed: run them. The hooks record dotnet test and build on the project. Report done with `item_done` in one sentence of what is now true.");
         sb.AppendLine("- Every id you mention in chat comes with its blurb. Keep notes to two lines.");

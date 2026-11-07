@@ -43,6 +43,12 @@ public static class WorkbenchTools
         catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
+    [McpServerTool(Name = "item_open"), Description("The owner said in chat which item to work on: open that node. If a sibling is already open, that one is opened instead and you are told. You keep the branch convention yourself (one branch per opened top item) and record it with branch_note.")]
+    public static async Task<string> ItemOpen(WorkbenchOps ops, string session, [Description("Item id, for example WB-1.2")] string item)
+    {
+        try { var (it, message) = await ops.OpenNodeFromChatAsync(session, item); return $"{it.Id} · {it.Title} · {message}"; } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
     [McpServerTool(Name = "item_get"), Description("An item as the owner sees it: title, goal, state, steps, note, decisions, open FPBs.")]
     public static async Task<string> ItemGet(WorkbenchOps ops, [Description("Item id, for example WB-2.1")] string item)
     {

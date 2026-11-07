@@ -1405,15 +1405,27 @@
     var h = '<div class="lpane"><div class="lhead"><h2>FPBs</h2><p class="muted">' + (all.length ? openN + ' open of ' + plural(all.length, 'FPB') + ', raised by Claude; attached to the item they came up in' : 'Features, bugs and performance problems Claude raises, attached to the item they came up in') + '</p></div>';
     h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Items</button><button class="on">FPBs</button></div></div>';
     if (all.length) h += fpbStatusTable(all);
-    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div></div>';
+    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div><div class="seg">' + [['tree', 'By project and item'], ['list', 'List']].map(function (v) { return '<button class="' + ((S.iss.view || 'tree') === v[0] ? 'on' : '') + '" data-act="iss-view" data-v="' + v[0] + '">' + v[1] + '</button>'; }).join('') + '</div></div>';
     if (q.attach) h += '<div class="notice soft"><p>Only issues on ' + chip(q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach) + ' · <a href="#/issues">show all</a></p></div>';
     if (!ids.length) return h + empty('No FPBs match', 'An FTR comes from what you ask for in chat; a BUG or PER from what Claude finds while checking. Nothing is typed here.') + '</div>';
-    var groups = {}, order = [];
-    ids.forEach(function (id) { var a = D.fpbs[id].attach; if (!groups[a]) { groups[a] = []; order.push(a); } groups[a].push(id); });
-    order.sort(function (a, b) { return (refProject(a) || '').localeCompare(refProject(b) || ''); });
-    order.forEach(function (a) {
-      var p = projOf(refProject(a));
-      h += '<p class="lgroup"><a href="' + hrefFor(a) + '">' + esc(chipInfo(a).title) + '</a>' + (parseRef(a).kind === 'item' ? ' <span class="muted">· ' + esc(p.name) + '</span>' : ' <span class="muted">· on the project, no item yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
+    if ((S.iss.view || 'tree') === 'list') {
+      ids.sort(function (a, b) { return a.localeCompare(b); });
+      return h + '<div class="slist">' + ids.map(function (id) { return issueRow(id, sel === id); }).join('') + '</div></div>';
+    }
+    // the tree: project, then the item each FPB came up in, in tree order; one project folds when there are several
+    var byProject = {};
+    ids.forEach(function (id) { var pid = D.fpbs[id].project; (byProject[pid] = byProject[pid] || []).push(id); });
+    var pids = D.projects.map(function (p) { return p.id; }).filter(function (pid) { return byProject[pid]; });
+    pids.forEach(function (pid) {
+      var p = projOf(pid), list = byProject[pid], open = list.filter(function (id) { return !D.fpbs[id].closed; }).length;
+      var groups = {}, order = [];
+      list.forEach(function (id) { var a = D.fpbs[id].attach; if (!groups[a]) { groups[a] = []; order.push(a); } groups[a].push(id); });
+      order.sort(function (a, b) { var x = parseRef(a), y = parseRef(b); if (x.kind !== y.kind) return x.kind === 'project' ? -1 : 1; return x.id.localeCompare(y.id, undefined, { numeric: true }); });
+      var body = order.map(function (a) {
+        var at = parseRef(a);
+        return '<p class="lgroup">' + (at.kind === 'item' ? '<a href="' + hrefFor(a) + '">' + esc(crumbText(at.id)) + '</a>' : '<span class="muted">on the project, no item yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
+      }).join('');
+      h += '<details class="fyk" open><summary><span>' + esc(p.name) + '</span><span class="muted">' + (open ? open + ' open of ' : 'all done, ') + plural(list.length, 'FPB') + '</span><span class="chev"></span></summary><div class="fyk-b">' + body + '</div></details>';
     });
     return h + '</div>';
   }
@@ -1421,6 +1433,7 @@
     var f = D.fpbs[id], t = f.takenOnBy || [], sv = severityOf(id);
     return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2"><span class="mono">' + id + '</span> · <span class="tone-' + (stateTone(f.state) || 'neutral') + '">' + esc(f.state) + '</span>' + (f.left ? ' · ' + esc(trunc(f.left, 60)) : '') + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + esc(itemTitle(t[0])) : '') + '</span></span></a>';
   }
+  function crumbText(itemId) { var parts = [], id = itemId, guard = 0; while (id && D.items[id] && guard++ < 8) { parts.unshift(itemTitle(id)); id = D.items[id].parent; } return parts.join(' › '); }
   function fpbStatusTable(ids) {
     var kinds = ['FTR', 'BUG', 'PER'], rows = kinds.map(function (k) {
       var mine = ids.filter(function (i) { return D.fpbs[i].kind === k; });
@@ -2212,6 +2225,7 @@
       '<button class="btn primary" data-act="additem-save" data-node="' + node + '">Add</button><button class="btn" data-act="close">Cancel</button>');
   }
 
+  try { if (S.iss && store('issview')) S.iss.view = store('issview'); } catch (e) { }
   function refreshMenu() { var m = document.querySelector('#layer .menu'); if (m && m.querySelector('[data-act="wkind"]')) m.innerHTML = filterMenu(); }
   document.addEventListener('click', function (ev) {
     var sm = ev.target.closest && ev.target.closest('summary'); if (!sm) return;
@@ -2302,6 +2316,7 @@
       case 'reply': var rb = document.getElementById('reply-' + dv.card); if (rb) { rb.hidden = false; var ri = rb.querySelector('input'); ri && ri.focus(); } return true;
       case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'page' ? 'changes' : cty === 'deviation' ? 'back' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
       case 'iss-kind': S.iss.kind = dv.k; render(true); return true;
+      case 'iss-view': S.iss.view = dv.v; store('issview', dv.v); render(true); return true;
       case 'edge': var eg = D.edges.filter(function (x) { return x.id === dv.edge; })[0]; openMenu(el, '<div class="mi-h">' + esc(chipInfo(eg.from).title) + ' ' + (eg.type === 'needs' ? 'needs' : eg.type) + ' ' + esc(chipInfo(eg.to).title) + '</div><p class="small muted" style="padding:0 12px 8px">' + esc(eg.reason) + '</p><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="confirmed">' + ic('run') + '<span>Confirm<span class="why">' + (eg.min ? '~' + fmtMin(eg.min) + ' of work waits behind it' : 'keeps the link') + '</span></span></button><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="removed">' + ic('close') + '<span>Remove<span class="why">Claude proposed it; nothing waits on it then</span></span></button>'); return true;
       case 'edge-set': S.edgeState[dv.edge] = dv.v; closeLayers(); WBAPI.edge(dv.edge, dv.v === 'confirmed'); return true;
       case 'choose-fix': var curFix = chosenFix(dv.fpb); WBAPI.report(dv.fpb, { chosenFix: curFix === +dv.i ? null : +dv.i }); return true;

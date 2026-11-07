@@ -108,6 +108,24 @@ public sealed partial class WorkbenchOps
         return (it, message);
     }
 
+    /// <summary>The owner said in chat which node to work on: the session opens it (and keeps the branch convention itself). Same rule as the tree: a sibling already open is the one that opens.</summary>
+    public async Task<(Item item, string message)> OpenNodeFromChatAsync(string sessionId, string itemId, CancellationToken ct = default)
+    {
+        var s = await RequireSessionAsync(sessionId, ct);
+        var it = await RequireItemAsync(itemId, ct);
+        var wasOpen = it.IsOpen;
+        var (opened, message) = await OpenNodeAsync(it, ct);
+        if (opened.Id == it.Id && !wasOpen) { var h = List<HistoryLine>(it.HistoryJson); h[^1] = h[^1] with { Text = $"Opened from your chat by session {Short(s.Id)}" }; it.HistoryJson = Json.Write(h); }
+        opened.HomeMachineId ??= s.MachineId;
+        s.ItemId = (await DeepestOpenAsync(await TopOfAsync(opened, ct), ct)).Id;
+        await LedgerAsync(s, "open", message);
+        Audit(Actor.Claude, "open", "item", opened.Id);
+        await SaveAsync("item", opened.Id, ct);
+        var p = await ProjectOfAsync(opened, ct);
+        var top = await TopOfAsync(opened, ct);
+        return (opened, message + (top.Branch is null ? $" · branch convention: {BranchNameFor(p, top)}; create or check it out yourself and record it with branch_note" : $" · on {top.Branch}"));
+    }
+
     /// <summary>Opens a node. When a sibling is already open, that sibling is the one that opens: the owner is taken to it, nothing is refused.</summary>
     private async Task<(Item item, string message)> OpenNodeAsync(Item it, CancellationToken ct)
     {
