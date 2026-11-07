@@ -1271,7 +1271,7 @@
   function vMore() {
     return '<div class="pane"><div class="lhead flush"><h2>More</h2></div><div class="slist">' +
       [['#/projects', 'Projects', 'Work left, lanes and critical paths'], ['#/machines', 'Machines', 'Hosts, checkouts and tokens'], ['#/settings', 'Settings', 'Budgets, notifications, theme']].map(function (r) { return '<a class="srow" href="' + r[0] + '"><span class="sb-main"><span class="st1">' + r[1] + '</span><span class="st2">' + r[2] + '</span></span></a>'; }).join('') +
-      '<button class="srow" data-act="drawer"><span class="sb-main"><span class="st1">Screens</span><span class="st2">Every screen and sample, for review</span></span></button></div></div>';
+      '</div></div>';
   }
 
   /* ================================================================ issues (FTR, BUG, PER): data helpers */
@@ -1955,7 +1955,7 @@
       '<span class="spacer"></span>' + (S.layout === 'desktop' ? projectSelect() : '') +
       '<button class="icon-btn search-btn" data-act="psearch" aria-label="Search">' + ic('search') + '</button>' +
       '<div class="seg review" role="group" aria-label="Layout">' + lay.map(function (l) { return '<button class="' + (S.layout === l[0] ? 'on' : '') + '" data-act="layout" data-v="' + l[0] + '" title="' + l[2] + ' layout"><span class="short">' + l[1] + '</span><span class="full">' + l[2] + '</span></button>'; }).join('') + '</div>' +
-      (S.layout === 'desktop' ? '<button class="icon-btn" data-act="drawer" aria-label="Screens (?)" title="Screens · press ?">' + ic('screens') + '</button>' : '<button class="icon-btn" data-act="moremenu" aria-label="Menu: project filter, more pages, screens">' + ic('dots') + '</button>') + '</div>';
+      (false ? '' : '<button class="icon-btn" data-act="moremenu" aria-label="Menu: project filter, more pages, screens">' + ic('dots') + '</button>') + '</div>';
     if (S.project !== 'all') h += '<div class="filter-bar">Showing <b>' + esc(projOf(S.project).name) + '</b> only <button class="btn text small" data-act="pfilter" data-p="all">Show all</button></div>';
     document.getElementById('hdr').innerHTML = h;
   }
@@ -1965,7 +1965,7 @@
     var moreOn = ['projects', 'machines', 'settings', 'more'].indexOf(section) >= 0;
     document.getElementById('nav').innerHTML = NAV_WIDE.map(function (x) { return '<a class="nv' + (section === x[0] ? ' on' : '') + '" href="' + x[2] + '" title="' + x[1] + '">' + ic(x[0]) + '<span>' + x[1] + '</span>' + (badge[x[0]] || '') + '</a>'; }).join('') +
       '<div class="nv-sep"></div><div class="nv-group">More</div>' + MORE.map(function (x) { return '<a class="nv' + (section === x[0] ? ' on' : '') + '" href="' + x[2] + '" title="' + x[1] + '">' + ic(x[0]) + '<span>' + x[1] + '</span></a>'; }).join('') +
-      '<div class="nv-sep"></div><button class="nv" style="border:0;background:none;cursor:pointer;width:auto" data-act="drawer" title="Screens">' + ic('screens') + '<span>Screens <span class="kbd">?</span></span></button>';
+      '';
     document.getElementById('bottom').innerHTML = NAV.map(function (x) { return '<a class="bn' + (section === x[0] || (x[0] === 'work' && section === 'issues') ? ' on' : '') + '" href="' + x[2] + '">' + ic(x[0]) + x[1] + (badge[x[0]] || '') + '</a>'; }).join('');
     if (moreOn) { /* more-entries are reached from the header on phone */ }
   }
@@ -1989,6 +1989,7 @@
     return h + '</div></aside>';
   }
   function toggleDrawer(force) {
+    return; // the Screens drawer was the prototype's review aid; it is not part of the Workbench
     var root = document.getElementById('drawer-root');
     var open = force != null ? force : !root.innerHTML;
     root.innerHTML = open ? drawerHtml() : '';
@@ -2199,7 +2200,7 @@
       case 'switch': el.classList.toggle('on'); el.setAttribute('aria-checked', el.classList.contains('on')); toast('Setting would be saved'); return true;
       case 'fscope': S.filesScope = dv.v; render(true); return true;
       case 'psearch': openSearchOverlay(); return true;
-      case 'moremenu': openMenu(el, '<div class="mi-h">Project</div><div class="menu-sec">' + projectSelect() + '</div><div class="mi-h">More</div>' + MORE.map(function (x) { return '<a class="mi" href="' + x[2] + '" data-act="close-after">' + ic(x[0]) + x[1] + '</a>'; }).join('') + '<button class="mi" data-act="drawer-from-menu">' + ic('screens') + 'Screens <span class="kbd">?</span></button>'); return true;
+      case 'moremenu': openMenu(el, '<div class="mi-h">Project</div><div class="menu-sec">' + projectSelect() + '</div><div class="mi-h">More</div>' + MORE.map(function (x) { return '<a class="mi" href="' + x[2] + '" data-act="close-after">' + ic(x[0]) + x[1] + '</a>'; }).join('') + ''); return true;
       case 'wfilter': openMenu(el, filterMenu()); return true;
       case 'go': location.hash = dv.href; return true;
       case 'reply': var rb = document.getElementById('reply-' + dv.card); if (rb) { rb.hidden = false; var ri = rb.querySelector('input'); ri && ri.focus(); } return true;
@@ -2272,7 +2273,6 @@
     if (ev.key === 'Enter' && typing && ev.target.getAttribute('data-act') === 'reply-input') { var sb = document.querySelector('#reply-' + ev.target.dataset.card + ' [data-act="send-reply"]'); if (sb) act(sb, ev); return; }
     if (ev.key === 'Enter' && typing) { var a = ev.target.getAttribute('data-act'); if (a === 'hsearch' || a === 'osearch' || a === 'search-page') { var ov = document.querySelector('.soverlay'); if (ov) ov.remove(); location.hash = '#/search?q=' + encodeURIComponent(ev.target.value.trim()); } }
     if (ev.key === 'Escape') { if (document.getElementById('drawer-root').innerHTML) toggleDrawer(false); else if (layer().innerHTML) closeLayers(); else { var ov2 = document.querySelector('.soverlay'); if (ov2) ov2.remove(); var dd = document.querySelector('#hsearch .sdrop'); if (dd) dd.remove(); } }
-    if (!typing && ev.key === '?') { ev.preventDefault(); toggleDrawer(); }
   });
   window.addEventListener('hashchange', function () {
     var h = location.hash;
