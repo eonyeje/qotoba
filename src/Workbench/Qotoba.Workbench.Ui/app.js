@@ -327,7 +327,7 @@
       '<pre><code>' + codeLines(f, a, shown, opt.focus) + '</code></pre>' +
       (more > 0 ? '<div class="more">' + more + ' more lines · <a href="' + hrefFor(ref) + '">show all</a></div>' : '') + '</div>';
   }
-  function homeMachineForFile(f) { var b = f.branch && D.branches[f.branch]; return b ? b.machine : 'desk-pc'; }
+  function homeMachineForFile(f) { var b = f.branch && D.branches[f.branch]; return b ? b.machine : ''; }
   function diffBlock(lines, opt) {
     opt = opt || {};
     return '<div class="code' + (opt.small ? ' small' : '') + '">' + (opt.head ? '<div class="code-h">' + opt.head + '</div>' : '') + '<pre><code>' + lines.map(function (l) {
@@ -565,7 +565,7 @@
     return h;
   }
   function foundTray(ids) {
-    var places = ['WB-2', 'WB-2.4', 'WB-3', 'WB-4', 'WB-5', 'WB-6'];
+    var places = keys(D.items).filter(function (k) { var x = D.items[k]; return x.isOpen || x.state !== 'done'; });
     return ids.map(function (f) {
       var x = D.found[f];
       return '<div class="found"><p><span class="kt">' + x.kind + '</span> <b>' + esc(x.title) + '</b></p><p class="small rich">' + rich(x.why) + '</p>' +
@@ -592,7 +592,7 @@
     if (!pl.approved) h += '<div class="actions"><button class="btn primary" data-act="plan-approve" data-card="' + id + '">Approve plan</button><button class="btn" data-act="plan-edit">' + (qs && qs.edit ? 'Done changing' : 'Change') + '</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
       drill('What each step needs and proves', plural(pl.steps.length, 'step'), '<div class="list">' + pl.steps.map(function (s, i) { return '<div class="li col"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(s.t) + '</span><span class="li-sub"><span class="muted">needs</span> ' + (s.needs.length ? s.needs.map(function (n) { return n.indexOf('settle:') === 0 ? '<span class="marker">settle ' + n.slice(8) + '</span>' : chip(n); }).join(' ') : 'nothing') + ' <span class="muted">· proof</span> ' + esc(s.proof) + '</span></div>'; }).join('') + '</div>'),
-      drill('Where it runs', (pl.branch ? esc(pl.branch) + ' on ' : '') + esc(pl.machine), (pl.approved ? '<p>Approved; ' + (pl.branch ? 'the branch ' + esc(pl.branch) + ' is checked out in ' + esc(pl.checkout || 'the checkout') : 'the item opened') + '.</p>' : '<p>Approving checks out ' + (pl.branch ? esc(pl.branch) : 'the branch') + ' in ' + esc(pl.checkout || 'your checkout') + '. Everything under the opened item shares it; each approved packet merges it into main.</p>') + '<div class="chips">' + chip('machine:' + pl.machine) + chip('ruling:R-02') + '</div>' + (pl.factorNote ? '<p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>' : '')),
+      drill('Where it runs', (pl.branch ? esc(pl.branch) + ' on ' : '') + esc(pl.machine), (pl.approved ? '<p>Approved; ' + (pl.branch ? 'the branch ' + esc(pl.branch) + ' is checked out in ' + esc(pl.checkout || 'the checkout') : 'the item opened') + '.</p>' : '<p>Approving checks out ' + (pl.branch ? esc(pl.branch) : 'the branch') + ' in ' + esc(pl.checkout || 'your checkout') + '. Everything under the opened item shares it; each approved packet merges it into main.</p>') + '<div class="chips">' + chip('machine:' + pl.machine) + '</div>' + (pl.factorNote ? '<p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>' : '')),
       drill('Submitted by', 'session ' + pl.session + ' · ' + esc(c.at), chips(['session:' + pl.session, 'machine:' + pl.machine]))
     ], 'Go deeper');
     return h + '</div>';
@@ -654,7 +654,7 @@
     var sibs = keys(D.items).filter(function (k) { var x = D.items[k]; return k !== id && x.parent === it.parent && x.project === it.project && x.isOpen; });
     if (!sibs.length) return { ok: true, why: 'Nothing is open at this level; opening it starts planning.', go: '#/item/' + id, open: true };
     var sib = sibs.join(' and ') + (sibs.length === 1 ? ' is' : ' are') + ' open at this level';
-    return { ok: false, why: sib + '. One open node per level (R-02).' };
+    return { ok: false, why: sib + '. One open node per level.' };
   }
   function nodeTitle(id) { if (id === 'root') return D.meta.programme + ' programme'; var p = projOf(id); return p ? p.name : itemTitle(id); }
   function matchesFilter(id) {
@@ -879,7 +879,6 @@
       return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv"><dt>Proof</dt><dd>' + chip(s.proof, { meta: true }) + '</dd>' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
     }).join('') + '</div>';
     if (D.fpbs[id]) h += '<p class="small" style="margin-top:16px"><a href="#/fpb/' + id + '/report">Back to the report</a></p>';
-    if (id === 'WB-2.1') h += '<div class="notice soft" style="margin-top:24px"><p><b>Beyond the plan:</b> 1 helper added, justified.</p><button class="btn text" data-act="beyond" data-pk="pk-runs" data-i="0">See why</button></div>';
     return h;
   }
   function tabChanges(id, openSec) {
@@ -1008,7 +1007,7 @@
     var m = D.machines[id];
     if (!m) return head(null) + '<div class="pane">' + empty('No such machine', 'Machines appear when a Host registers.') + '</div>';
     var h = head(['machine:' + id]) + '<div class="pane">' + dhead(m.kind === 'cloud' ? 'Cloud session' : 'Machine', 'info', '<span class="dot ' + (m.online ? 'online' : 'offline') + '"></span> ' + (m.online ? 'online' : 'offline'), esc(id), esc(m.os) + ' · Host ' + esc(m.host));
-    if (m.clockWarn) h += '<div class="notice"><p><b>Clock ' + esc(m.clock) + '.</b> Timestamps from this machine cannot order events against desk-pc.</p></div>';
+    if (m.clockWarn) h += '<div class="notice"><p><b>Clock ' + esc(m.clock) + '.</b> Timestamps from this machine cannot be ordered against the other machines.</p></div>';
     h += drills([
       drill('Homes', plural(m.homed.length, 'item'), chips(m.homed.map(function (i) { return 'item:' + i; }), { meta: true }), { open: true }),
       drill('Checkouts and worktrees', plural(m.checkouts.length, 'checkout'), checkoutsBody(id)),
@@ -1228,7 +1227,7 @@
     var h = head((br ? ['branch:' + c.branch] : []).concat(['commit:' + id])) + '<div class="pane">' + dhead('Commit · ' + esc(c.date), 'info', '<span class="mono">' + id + '</span>', esc(c.msg), c.files + ' files' + (c.plus || c.minus ? ' · +' + c.plus + ' −' + c.minus : '') + (br ? ' · local, merged only on your press' : ' · a tagged baseline'));
     if (c.proves) h += '<p>Proves ' + chip('comment:' + c.proves, { meta: true }) + '</p>';
     if (c.stales) h += '<p>Made ' + chip('comment:' + c.stales, { meta: true }) + ' stale</p>';
-    h += diffBlock(c.diff) + (c.session ? drills([drill('Who and where', 'session ' + c.session + (br ? ' · ' + esc(br.name) : ''), chips(['session:' + c.session].concat(br ? ['branch:' + c.branch] : []).concat(['ruling:R-05'])))]) : '');
+    h += diffBlock(c.diff) + (c.session ? drills([drill('Who and where', 'session ' + c.session + (br ? ' · ' + esc(br.name) : ''), chips(['session:' + c.session].concat(br ? ['branch:' + c.branch] : [])))]) : '');
     return h + '</div>';
   }
   function vBranch(id) {
@@ -2110,7 +2109,7 @@
   }
   function addItemSheet(node, pre) {
     pre = pre || {}; var kinds = ['FTR', 'BUG', 'PER', 'task'], kOn = kinds.indexOf(pre.kind || 'task'), impl = pre.implements || [];
-    openSheet('Add item', (pre.from ? '<p class="notice soft small">Prefilled from found item ' + chip(pre.from) + ', sorted as Task on its packet card. It enters the tree only when you add it here.</p>' : '') + '<p class="small">Only you add items; Claude never creates structure (' + chip('ruling:R-01', { nometa: true }) + ').</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="ai-kind">' + kinds.map(function (k, i) { return '<button class="' + (i === kOn ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
+    openSheet('Add item', (pre.from ? '<p class="notice soft small">Prefilled from found item ' + chip(pre.from) + ', sorted as Task on its packet card. It enters the tree only when you add it here.</p>' : '') + '<p class="small">Only you add items; Claude never creates structure.</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="ai-kind">' + kinds.map(function (k, i) { return '<button class="' + (i === kOn ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
       '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai-title" type="text" style="width:100%" placeholder="e.g. Runs page keeps its scroll position" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
       '<div class="sec"><div class="sec-h"><h3>Implements</h3></div><div class="impl-pick" id="ai-impl">' + fpbList().map(function (f) { return '<label class="tick-row"><input type="checkbox" data-f="' + f + '"' + (impl.indexOf(f) >= 0 ? ' checked' : '') + '><span><b>' + f + '</b> ' + esc(D.fpbs[f].title) + ((D.fpbs[f].takenOnBy || []).length ? ' <span class="small muted">· taken on by ' + D.fpbs[f].takenOnBy.join(', ') + '</span>' : '') + '</span></label>'; }).join('') + '</div><p class="tiny" style="margin-top:6px">Optional. A task may implement several reports, and a report may be split across tasks. Its plan draws from each report\'s When implementing lines.</p></div>' +
       '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select id="ai-place" style="width:100%" aria-label="Place">' + placeOptions(node) + '</select><p class="tiny" style="margin-top:6px">It arrives closed, as one line with a coarse size, until a plan opens it.</p></div>' +

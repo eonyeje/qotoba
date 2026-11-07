@@ -88,16 +88,16 @@ public sealed partial class WorkbenchOps
         await SaveAsync("session", s.Id, ct);
     }
 
-    /// <summary>PreToolUse: git only on a delivered press (R-05). Everything else passes.</summary>
+    /// <summary>PreToolUse: a session never merges or pushes to main; the Workbench does that when the owner approves a packet. Everything else passes.</summary>
     public async Task<HookReply> SessionPreToolAsync(HookEvent e, CancellationToken ct = default)
     {
         if (e.ToolName != "Bash" || e.ToolInput is null) return HookReply.Ok();
         var cmd = e.ToolInput.Value.TryGetProperty("command", out var c) ? c.GetString() ?? "" : "";
         var lower = cmd.ToLowerInvariant();
         if (lower.Contains("git push") && (lower.Contains(" main") || lower.Contains(" master")))
-            return HookReply.Deny("Pushing to main is done by the Workbench after a packet is approved (ruling R-05). Submit a packet instead.");
+            return HookReply.Deny("A session never pushes to main. The Workbench pushes when the owner approves a packet. Submit a packet instead.");
         if (lower.Contains("git merge") || lower.Contains("git rebase"))
-            return HookReply.Deny("Merging is done by the Host after the owner approves the packet (ruling R-05). Submit a packet instead.");
+            return HookReply.Deny("A session never merges. The Host merges when the owner approves the packet. Submit a packet instead.");
         if (lower.Contains("git push --force") || lower.Contains("git push -f"))
             return HookReply.Deny("Force pushes are never run by a session.");
         var s = await db.Sessions.FindAsync([e.SessionId], ct);
