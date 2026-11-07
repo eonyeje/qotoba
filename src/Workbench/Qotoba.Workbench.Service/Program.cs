@@ -56,7 +56,12 @@ app.UseWorkbenchTokens();
 var uiDir = UiDir(wo.UiDir, app.Environment.ContentRootPath);
 var ui = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uiDir);
 app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = ui });
-app.UseStaticFiles(new StaticFileOptions { FileProvider = ui, ServeUnknownFileTypes = true });
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = ui, ServeUnknownFileTypes = true,
+    // the page's script and styles change with every build; embedded browsers must revalidate on every load (cheap on localhost)
+    OnPrepareResponse = ctx => { ctx.Context.Response.Headers.CacheControl = "no-cache, must-revalidate"; ctx.Context.Response.Headers.Pragma = "no-cache"; }
+});
 app.MapHooks();
 app.MapWorkbenchApi();
 app.MapMcp("/mcp");

@@ -53,14 +53,17 @@ class WorkbenchPanel(private val project: Project, parent: Disposable) : JPanel(
         }
     }
 
-    fun load(route: String) { browser?.loadURL(WorkbenchSettings.instance().pageUrl(route)) }
+    /** The address carries the plugin's build stamp so a new plugin never shows a stale page from the embedded browser's cache. */
+    fun load(route: String) { browser?.loadURL(WorkbenchSettings.instance().pageUrl(route).replace("?embed=1", "?embed=1&v=" + BuildStamp)) }
+
+    private companion object { val BuildStamp: String = (WorkbenchPanel::class.java.getPackage()?.implementationVersion ?: System.currentTimeMillis().toString()).replace(" ", "") }
 
     private fun toolbar(): JComponent {
         val own = IconLoader.getIcon("/icons/workbench.svg", WorkbenchPanel::class.java)
         val group = DefaultActionGroup(
             action("Inbox", "The inbox is the only place you act", own) { load("#/inbox") },
             action("Back", "Go back", AllIcons.Actions.Back) { browser?.cefBrowser?.goBack() },
-            action("Reload", "Reload the page", AllIcons.Actions.Refresh) { browser?.cefBrowser?.reload() },
+            action("Reload", "Reload the page, bypassing the cache", AllIcons.Actions.Refresh) { browser?.cefBrowser?.reloadIgnoreCache() },
             action("Open in browser", "Open the same page in your browser", AllIcons.Ide.External_link_arrow) { BrowserUtil.browse(WorkbenchSettings.instance().pageUrl().replace("?embed=1&", "?").replace("?embed=1", "")) },
             action("Settings", "Service address and token", AllIcons.General.Settings) { ShowSettingsUtil.getInstance().showSettingsDialog(project, WorkbenchConfigurable::class.java) }
         )
