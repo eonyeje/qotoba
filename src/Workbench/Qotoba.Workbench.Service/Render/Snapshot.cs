@@ -297,7 +297,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         return new
         {
             os = m.Os, host = m.HostVersion, online = m.Online && m.LastSeen is { } ls && (Now - ls) < TimeSpan.FromMinutes(3), lastSeen = m.LastSeen is null ? "never" : fmt.Time(m.LastSeen.Value),
-            clock, clockWarn = Math.Abs(m.ClockSkewSec) >= 1.0, token = fmt.DayTime(m.Registered), kind = m.Kind.ToString().ToLowerInvariant(), ephemeral = m.Ephemeral,
+            clock, clockWarn = m.Id != reference.Id && Math.Abs(m.ClockSkewSec) >= 1.0, token = fmt.DayTime(m.Registered), kind = m.Kind.ToString().ToLowerInvariant(), ephemeral = m.Ephemeral,
             checkouts = Json.ReadList<Checkout>(m.CheckoutsJson).Select(c => new { path = c.Path, branch = c.Branch, item = c.ItemId, worktree = c.Worktree, note = c.Note }).ToList(),
             homed = items.Where(i => i.HomeMachineId == m.Id).Select(i => i.Id).ToList(),
             sessions = sessions.Where(s => s.MachineId == m.Id).Select(s => s.Id).ToList()

@@ -1,6 +1,8 @@
 package qotoba.workbench.rider
 
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
@@ -54,19 +56,20 @@ class WorkbenchPanel(private val project: Project, parent: Disposable) : JPanel(
     fun load(route: String) { browser?.loadURL(WorkbenchSettings.instance().pageUrl(route)) }
 
     private fun toolbar(): JComponent {
+        val own = IconLoader.getIcon("/icons/workbench.svg", WorkbenchPanel::class.java)
         val group = DefaultActionGroup(
-            action("Inbox", "The inbox is the only place you act") { load("#/inbox") },
-            action("Back", "Go back") { browser?.cefBrowser?.goBack() },
-            action("Reload", "Reload the page") { browser?.cefBrowser?.reload() },
-            action("Open in browser", "Open the same page in your browser") { BrowserUtil.browse(WorkbenchSettings.instance().pageUrl()) },
-            action("Settings", "Service address and token") { ShowSettingsUtil.getInstance().showSettingsDialog(project, WorkbenchConfigurable::class.java) }
+            action("Inbox", "The inbox is the only place you act", own) { load("#/inbox") },
+            action("Back", "Go back", AllIcons.Actions.Back) { browser?.cefBrowser?.goBack() },
+            action("Reload", "Reload the page", AllIcons.Actions.Refresh) { browser?.cefBrowser?.reload() },
+            action("Open in browser", "Open the same page in your browser", AllIcons.Ide.External_link_arrow) { BrowserUtil.browse(WorkbenchSettings.instance().pageUrl().replace("?embed=1&", "?").replace("?embed=1", "")) },
+            action("Settings", "Service address and token", AllIcons.General.Settings) { ShowSettingsUtil.getInstance().showSettingsDialog(project, WorkbenchConfigurable::class.java) }
         )
         val tb = ActionManager.getInstance().createActionToolbar("QotobaWorkbench", group, true)
         tb.targetComponent = this
         return tb.component
     }
 
-    private fun action(text: String, description: String, run: () -> Unit) = object : AnAction(text, description, null) {
+    private fun action(text: String, description: String, icon: javax.swing.Icon, run: () -> Unit) = object : AnAction(text, description, icon) {
         override fun actionPerformed(e: AnActionEvent) = run()
     }
 

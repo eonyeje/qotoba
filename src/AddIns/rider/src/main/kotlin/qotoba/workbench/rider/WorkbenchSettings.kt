@@ -20,7 +20,7 @@ class WorkbenchSettings : PersistentStateComponent<WorkbenchSettings.State> {
         var serviceUrl: String = "http://localhost:5290"
         var tokenOverride: String = ""
         var tokenPath: String = ""
-        var layout: String = "rider"
+        var layout: String = "auto"
     }
 
     private var state = State()
@@ -29,7 +29,7 @@ class WorkbenchSettings : PersistentStateComponent<WorkbenchSettings.State> {
     override fun loadState(state: State) { this.state = state }
 
     val serviceUrl: String get() = state.serviceUrl.trimEnd('/')
-    val layout: String get() = state.layout.ifBlank { "rider" }
+    val layout: String get() = state.layout.ifBlank { "auto" }
 
     fun resolveToken(): String? {
         state.tokenOverride.trim().takeIf { it.isNotEmpty() }?.let { return it }
@@ -39,11 +39,12 @@ class WorkbenchSettings : PersistentStateComponent<WorkbenchSettings.State> {
         return if (f.isFile) f.readText().trim().takeIf { it.isNotEmpty() } else null
     }
 
-    /** The page address with the token once and the layout the pane wants; the page keeps both. */
+    /** The page address: embedded (fills the pane, layout follows its width), a fixed layout only if chosen, the token once. */
     fun pageUrl(route: String = "#/inbox"): String {
         val token = resolveToken()
         val q = buildString {
-            append("?layout=").append(layout)
+            append("?embed=1")
+            if (layout != "auto") append("&layout=").append(layout)
             if (token != null) append("&token=").append(token)
         }
         return "$serviceUrl/$q$route"

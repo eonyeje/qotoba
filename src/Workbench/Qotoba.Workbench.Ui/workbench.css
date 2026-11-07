@@ -43,6 +43,9 @@ code { font-family: var(--mono); font-size: 0.86em; background: none; padding: 0
 html[data-layout="phone"] #shell { width: min(390px, 100%); border-inline: 1px solid var(--rule); box-shadow: var(--shadow); }
 html[data-layout="rider"] #shell { width: min(460px, 100%); border-inline: 1px solid var(--rule); box-shadow: var(--shadow); }
 html[data-layout="desktop"] #shell { min-width: 1200px; }
+/* embedded in an IDE pane: the shell fills whatever width the pane has; the layout follows the width, not a review frame */
+html[data-embed] #shell, html[data-embed][data-layout] #shell { width: 100%; min-width: 0; border-inline: 0; box-shadow: none; }
+html[data-embed] .hdr .seg.review { display: none; }
 .wb-body { flex: 1; min-height: 0; display: flex; }
 #nav { display: none; }
 #list, #detail { padding: 0; overflow-y: auto; overflow-x: hidden; min-width: 0; overscroll-behavior: contain; }

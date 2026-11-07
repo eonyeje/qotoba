@@ -79,11 +79,27 @@
     }
   };
 
-  // an embedding host (the Rider pane) names the layout it wants once; the page remembers it like a user choice
+  // an embedding host (the Rider pane) says so with ?embed=1: the shell fills the pane and the layout follows its width,
+  // unless the host names a fixed layout with ?layout=phone|rider|desktop
+  var embedded = false, fixedLayout = null;
   try {
     var qp = new URLSearchParams(location.search), lay = qp.get('layout');
-    if (lay && /^(phone|rider|desktop)$/.test(lay)) localStorage.setItem('qwb.layout', lay);
+    embedded = qp.get('embed') === '1';
+    if (lay && /^(phone|rider|desktop)$/.test(lay)) { fixedLayout = lay; localStorage.setItem('qwb.layout', lay); }
+    if (embedded) document.documentElement.setAttribute('data-embed', '1');
   } catch (e) { }
+  function layoutForWidth(w) { return w < 600 ? 'phone' : w < 1000 ? 'rider' : 'desktop'; }
+  function applyAutoLayout(first) {
+    if (!embedded || fixedLayout) return;
+    var want = layoutForWidth(window.innerWidth), have = null;
+    try { have = localStorage.getItem('qwb.layout'); } catch (e) { }
+    if (want === have) return;
+    try { localStorage.setItem('qwb.layout', want); } catch (e) { }
+    if (!first && window.WB_RERENDER) window.WB_RERENDER();
+  }
+  applyAutoLayout(true);
+  var resizeTimer = null;
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { applyAutoLayout(false); }, 200); });
 
   refresh();
   listen();

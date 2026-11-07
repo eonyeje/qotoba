@@ -26,8 +26,8 @@ class WorkbenchConfigurable : BoundConfigurable("Qotoba Workbench") {
                     .comment("Only if the token file is somewhere else.")
             }
             row("Layout") {
-                comboBox(listOf("rider", "phone", "desktop")).bindItem({ s.layout }, { s.layout = it ?: "rider" })
-                    .comment("The pane is designed for the Rider width. Phone fits a narrow pane; desktop needs a wide one.")
+                comboBox(listOf("auto", "rider", "phone", "desktop")).bindItem({ s.layout }, { s.layout = it ?: "auto" })
+                    .comment("Auto follows the pane's width: phone when narrow, the Rider rail in the middle, list and detail side by side when wide.")
             }
             row {
                 comment("Changes apply when the Workbench pane is next opened or reloaded.")
