@@ -28,13 +28,21 @@ The service prints an address with the token (`http://localhost:5290/?token=...`
 dotnet run --project src/Workbench/Qotoba.Workbench.Host -- serve --checkout D:\Development\repos\Qotoba
 ```
 
-Claude Code in the Qotoba repository is already configured: `.mcp.json` (the MCP server) and `.claude/settings.json` (http hooks). Both read the token from the `QOTOBA_WB_TOKEN` environment variable, so set it once:
+Claude Code reaches the Workbench in two ways. The MCP server is in the repository's `.mcp.json`, which reads the token from the `QOTOBA_WB_TOKEN` environment variable, so set it once (then restart Rider or the terminal that starts `claude`):
 
 ```bash
 setx QOTOBA_WB_TOKEN <the token from %USERPROFILE%\.qotoba-workbench\token>
 ```
 
-Then start `claude` in the repository. The session appears on **Now** within a second, and its brief tells it to call `session_hello`.
+The hooks are one script, `hooks/qotoba-hook.mjs`, registered at user level because Claude Code reads a project's `.claude/settings.json` only from the folder a session starts in, and Rider starts sessions in a solution folder such as `src/Workbench`. Also, SessionStart does not run http hooks at all, so the brief has to come from a command hook. Register it once per machine:
+
+```bash
+pwsh src/Workbench/install-hooks.ps1
+```
+
+The script only talks to the service when the session's folder is inside a checkout whose `.mcp.json` names `qotoba-workbench`; elsewhere it exits silently. It reads the token from the environment variable or from `%USERPROFILE%\.qotoba-workbench\token`.
+
+Then start `claude` anywhere in the repository. The session appears on **Now** within a second, and its brief (delivered by the SessionStart hook) gives it its session id and tells it to call `session_hello`.
 
 ## The loop
 

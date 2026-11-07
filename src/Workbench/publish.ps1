@@ -18,6 +18,11 @@ dotnet publish (Join-Path $root 'Qotoba.Workbench.Service') -c Release -o $svc -
 Write-Host "publishing host -> $host_"
 dotnet publish (Join-Path $root 'Qotoba.Workbench.Host') -c Release -o $host_ --nologo -v q
 
+Write-Host "refreshing the Claude Code hook"
+$hooks = Join-Path $out 'hooks'
+New-Item -ItemType Directory -Force -Path $hooks | Out-Null
+Copy-Item (Join-Path $root 'hooks\qotoba-hook.mjs') (Join-Path $hooks 'qotoba-hook.mjs') -Force
+
 Write-Host "starting tasks"
 foreach ($t in 'Qotoba Workbench Service', 'Qotoba Workbench Host') {
     if (Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) { Start-ScheduledTask -TaskName $t }
