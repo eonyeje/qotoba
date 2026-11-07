@@ -1,0 +1,10 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Qotoba.Workbench.Model\Qotoba.Workbench.Model.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Store\Qotoba.Workbench.Store.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Contracts\Qotoba.Workbench.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+</Project>

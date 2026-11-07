@@ -17,6 +17,9 @@ td a { white-space: nowrap; }
   <ol>
     <li><a class="p" href="#open"><i style="background:var(--wb)"></i>Open it</a></li>
     <li><a class="p" href="#approach"><i style="background:var(--wb)"></i>Design approach</a></li>
+    <li><a class="p" href="#content"><i style="background:var(--wb)"></i>Content rules</a></li>
+    <li><a class="p" href="#act"><i style="background:var(--wb)"></i>One place to act</a></li>
+    <li><a class="p" href="#controls"><i style="background:var(--wb)"></i>Every control, classed</a></li>
     <li><a class="p" href="#issues"><i style="background:var(--wb)"></i>Issues and reports</a></li>
     <li><a class="p" href="#screens"><i style="background:var(--wb)"></i>Screens</a></li>
     <li><a class="p" href="#scenarios"><i style="background:var(--wb)"></i>Sample scenarios</a></li>
@@ -32,7 +35,7 @@ td a { white-space: nowrap; }
 <header class="hero">
   <div class="eyebrow">Prototype · Workbench · 6 November 2026</div>
   <h1>Workbench prototype guide</h1>
-  <p class="lede">A clickable HTML prototype of the Qotoba Workbench: sixteen screens and ten page templates, three layouts, light and dark, filled with one consistent snapshot of the programme at 05:12 on Friday 6 November 2026. Revised the same day: every screen now leads with the one thing to decide, and everything else waits one tap away. Revised again: features, bugs and performance problems are now issues kept apart from tasks, each with its own report page. Use this page to review the prototype against the brief.</p>
+  <p class="lede">A clickable HTML prototype of the Qotoba Workbench: sixteen screens and ten page templates, three layouts, light and dark, filled with one consistent snapshot of the programme at 05:12 on Friday 6 November 2026. Revised the same day: every screen now leads with the one thing to decide, and everything else waits one tap away. Revised again: features, bugs and performance problems are now issues kept apart from tasks, each with its own report page. Round 1 changes content only (wording, missing facts, spacing and samples); the flow, panes, tabs and navigation are as approved. Round 2 makes the inbox the only place you act: reports, task pages, sessions and Rulings show decisions as information, and every decision reaches you as a card that cites its task and step. Use this page to review the prototype against the brief.</p>
   <div class="meta"><span>HTML, CSS and JavaScript only</span><span>no build, no network</span><span>opens from the file system</span></div>
 </header>
 
@@ -41,7 +44,7 @@ td a { white-space: nowrap; }
 <div class="stats">
   <div><b>16</b><span>screens from the brief</span></div>
   <div><b>10</b><span>info page templates</span></div>
-  <div><b>285</b><span>routes walked in each layout with no script errors or sideways overflow</span></div>
+  <div><b>140</b><span>routes scanned in each layout; every control classed, no inbox action outside the inbox</span></div>
   <div><b>700+</b><span>controls clicked per layout; every chip's Open landed on a real screen</span></div>
 </div>
 
@@ -58,35 +61,156 @@ td a { white-space: nowrap; }
 <li><b>Space.</b> Wider margins, a reading column of about 780 px on desktop, a one-row header, and the project filter as a single menu.</li>
 </ul>
 
+<h2 id="content">Content rules</h2>
+<p>Round 1 left every route, pane, tab bar, breadcrumb and expansion as approved and changed only what the screens say and how much room it gets. These are the rules the content now follows.</p>
+<ul>
+<li><b>Why a card reached you.</b> Every pushed card has one line under its headline naming the rule that pushed it, in plain words: “Blocking question on step 3”, “All checks passed, ready to merge”, “Failed three times on the same step”, “Plan needs your approval”. It is the only place the mechanism is explained.</li>
+<li><b>What answering unblocks.</b> Every inbox row has its own line: “Unblocks Run page with output · about 2 h 10 min of session time”.</li>
+<li><b>Exceptions, not totals.</b> Glance lines and section summaries name what is unusual (“1 check not passing”, “1 claim without a run”, “3 files new to you”). When nothing is, they say “Nothing unusual” in muted text.</li>
+<li><b>Required actions in the inbox only.</b> Anything you must do sits on a card. The plan card's “What I need from you” holds its settle pass (“3 defaults to confirm” with Accept all). Reports, task pages and sessions have no such strip; see <a href="#act">One place to act</a>.</li>
+<li><b>Options you can weigh.</b> On a Question Card, and on a report's Decision lines, the recommended option comes first and says so; every option has a second line with its reason and, on the same line, its own cost to change.</li>
+<li><b>Assumptions to review, in full.</b> On the packet card the ones still to review are listed with room around them; the reviewed ones collapse into one muted line, “2 reviewed”. The button says how many it covers: “All 2 fine”. Elsewhere the same list is read only.</li>
+<li><b>Numbers with units and a reference.</b> “7 h 23 min left of 11 h 25 min forecast”, “0.6 s, was 4.8 s”, “factor 1.3”, “waiting 1 h 14 min”, “cited in 3 places”. No bare numbers.</li>
+<li><b>Nothing cut off.</b> Tabs, breadcrumb segments, section titles and chip titles wrap onto a second line instead of ending in “…”. Shortened summaries end at a whole word.</li>
+<li><b>Empty sections are not drawn.</b> A section with nothing in it does not appear as an empty row.</li>
+<li><b>Where a thing came from, first.</b> A chip's popover opens with its origin line in normal text (“Answered on a question card, 5 Nov”), then the thing itself.</li>
+<li><b>Author labels you can read.</b> You, Claude and machine labels on report sections are larger, keep their colours, and are readable at phone width.</li>
+<li><b>Room to breathe.</b> Section rows, option rows, glance lines and list rows have more vertical space, and lines that were packed together now sit apart. Pages got longer; nothing got denser.</li>
+<li><b>One name for the last group.</b> “About this item” on every kind of page, issues included.</li>
+</ul>
+<p>Samples for this round sit in the Screens drawer under “Samples · round 1”:</p>
+<div class="tw"><table>
+<thead><tr><th>Sample</th><th>Open</th><th>What it shows</th></tr></thead>
+<tbody>
+<tr><td>Nothing needs you</td><td><a href="index.html#/inbox?sample=quiet">#/inbox?sample=quiet</a></td><td>The inbox's empty state: “Nothing needs you”, then one line per running session saying what it is doing and for how long. The header meter reads “0 waiting · nothing to clear”.</td></tr>
+<tr><td>A healthy task</td><td><a href="index.html#/item/WB-1">WB-1</a></td><td>Every summary says “Nothing unusual”; the headline reads “done in 3 h 10 min against an estimate of 2 h 30 min”.</td></tr>
+<tr><td>A bug with only a symptom</td><td><a href="index.html#/fpb/BUG-1">BUG-1</a></td><td>The report template with a symptom, When implementing (one decision asked on a card, one proof scheduled) and About this item, where severity reads as Claude's proposal.</td></tr>
+<tr><td>A session waiting on a question</td><td><a href="index.html#/now">#/now</a></td><td>Run page with output quotes the two questions it waits on; each opens its Question Card in its own pane.</td></tr>
+<tr><td>A ruling cited in three places</td><td><a href="index.html#/ruling/R-04">R-04</a></td><td>“answered on a question card, 5 Nov · cited in 3 places” in the list; its popover opens with that origin.</td></tr>
+</tbody></table></div>
+
+<h2 id="act">One place to act</h2>
+<p>Round 2 removes every decision that lived outside the inbox and changes the data so that none can arise again. Round 0's panes, tabs, breadcrumbs and folds are unchanged, and round 1's spacing still holds.</p>
+<ul>
+<li><b>Reports are information.</b> No report has a “What I need from you” strip, and nothing on a report confirms, chooses, sets or ticks. Severity, dependencies, the recommended fix and a PER target show as Claude's proposal with the Claude author label. You can change them through <b>Edit</b> at the top of the report, the same kind of control as Rename on a task: nothing waits on it.</li>
+<li><b>When implementing.</b> Every report carries this section, written by Claude and kept current. Each line is a Decision, Proof, Dependency or Precondition and shows one of six statuses: <i>No task has taken this on</i>, <i>Scheduled</i>, <i>Asked</i>, <i>Settled</i>, <i>Proved</i> or <i>Dropped</i>. Scheduled, Asked, Settled and Proved lines carry a chip to the task, card, ruling or run that moved them. It is the only source a task's decisions are drawn from.</li>
+<li><b>Report tabs.</b> Plan and Changes show the task that took the report on, with chips to it and its plan card, or say no task has. Decisions shows the When implementing lines by kind, read only. A task's own Decisions tab opens with Decided: each decision made for it, how (settle pass or Question Card), when, and chips to the card and the report it came from.</li>
+<li><b>Lifecycle.</b> “About this item” opens with Reported → Taken on → In progress → Done → Verified. Task events move it; you never do. Under the headline the report says “Taken on by” with the task chips, or “No task yet”.</li>
+<li><b>How a report gets a task.</b> Add item in the tree has a new field, <b>Implements</b>, with a tick per report. A task may implement several reports, and a report may be split across tasks. The task page shows “Implements” with the report chips.</li>
+<li><b>How a decision reaches you.</b> The task's plan card draws the report's lines: a low-cost Decision and a Dependency become settle-pass defaults that cite the report (“Which fix? from BUG-2”), a high-cost Decision becomes a Question Card when the session reaches its step, and a Proof becomes a plan step. Approving the plan settles the defaults; the run proves the line.</li>
+<li><b>Assumptions and found items.</b> Reviewed and sorted only on the packet card (“All 2 fine”, Flip, and Task · Later · Drop per found item). Task Decisions tabs and session pages show the same lists read only, with each item's state and a chip to the packet card. Task on a found item opens Add item, prefilled; the item enters the tree only when you add it.</li>
+<li><b>Rulings proposed from chat.</b> One Record card in the inbox, “4 rulings proposed from chat”, with the tick boxes and Record ticked. Rulings › Proposed from chat shows them read only with a chip to the card.</li>
+<li><b>Questions not asked.</b> There is no deferred state outside the inbox. FTR-2's two class-construct questions are now Decision lines with “No task has taken this on”. Snoozed cards stay in the inbox's own deferred band.</li>
+<li><b>The inbox.</b> Still three kinds: Question, Action (Approve, Plan, Stuck and the new Record card) and Info. Every row carries tags for its task, its step and where it came from; on the card the same line is chips. “Why you are seeing this” names the task and step. Only Inbox shows a count in the navigation; Now and Issues never show a dot.</li>
+</ul>
+<p>Samples sit in the Screens drawer under “Samples · round 2”. The BUG-2 chain can be followed by chips alone, in both directions:</p>
+<div class="tw"><table>
+<thead><tr><th>Step</th><th>Open</th><th>What it shows, and the chip that goes on</th></tr></thead>
+<tbody>
+<tr><td>1 · The report</td><td><a href="index.html#/fpb/BUG-2">BUG-2</a></td><td>Headline “Fix 2 settled”, Taken on by LNG-1.1. When implementing: 4 settled, 3 proved, 1 dropped. The “Which fix” line chips the plan card; the discard line chips ruling R-13 and the Question Card.</td></tr>
+<tr><td>2 · The plan card</td><td><a href="index.html#/card/pl-lng11">pl-lng11</a></td><td>Approved 5 Nov 01:05. Its settle pass lists three defaults, each “from BUG-2” with a chip back to the report; origin chips name the task, “plan, before step 1” and session e5c1.</td></tr>
+<tr><td>3 · The Question Card</td><td><a href="index.html#/card/q-lng11">q-lng11</a></td><td>“Blocking decision from BUG-2, step 2 of Keep comments when string recovery skips a line.” Answered 5 Nov 01:52; it became R-13.</td></tr>
+<tr><td>4 · The packet</td><td><a href="index.html#/card/pk-lng11">pk-lng11</a></td><td>Approved and merged as c7d21b4; its checks chip run 1022.</td></tr>
+<tr><td>5 · The run</td><td><a href="index.html#/run/1022">run 1022</a></td><td>1,204 of 1,204 files print back. The report's acceptance and proof lines read “Proved by run 1022”.</td></tr>
+<tr><td>6 · Back on the task</td><td><a href="index.html#/item/LNG-1.1/decisions">LNG-1.1 Decisions</a></td><td>Decided: the four decisions, three in the plan and one on the Question Card, each with chips to its card and to BUG-2.</td></tr>
+<tr><td>A spike under way</td><td><a href="index.html#/fpb/FTR-2">FTR-2</a> · <a href="index.html#/item/LNG-5.1">LNG-5.1</a></td><td>Taken on by the spike, paused after 2 of 6 steps; two decisions scheduled for steps 4 and 5.</td></tr>
+<tr><td>At rest</td><td><a href="index.html#/fpb/FTR-1">FTR-1</a></td><td>Every line reads “No task has taken this on”; the lifecycle stops at Reported.</td></tr>
+<tr><td>Taken on and verified</td><td><a href="index.html#/fpb/PER-1">PER-1</a></td><td>Taken on by WB-2.5; the 50 ms target settled in plan pl-25; the comparison proved by run 1061 (38 ms).</td></tr>
+<tr><td>Rulings from chat</td><td><a href="index.html#/card/rp-chat">rp-chat</a> · <a href="index.html#/rulings/proposed">read only</a></td><td>The Record card with tick and record; the Rulings screen points to it.</td></tr>
+<tr><td>4 assumptions, 3 found items</td><td><a href="index.html#/card/pk-runs">pk-runs</a> · <a href="index.html#/item/WB-2.1/decisions">WB-2.1 Decisions</a></td><td>Acted on in the packet; the task page shows the same, read only, with a chip to the packet.</td></tr>
+</tbody></table></div>
+
+<h2 id="controls">Every control, classed</h2>
+<p>A script walks every route in the Screens drawer plus every card, report, task and session (140 routes) in each layout, opens every fold and the sheets and menus listed, and classes each button, tick box, menu item and tappable row as one of three. <b>Inbox action</b>: answers a card; allowed only on the card. <b>Owner structure</b>: something you start on your own structure with nothing waiting on it. <b>Navigation</b>: opens a pane, a popover, a filter or a search. It found no unclassed control, no inbox action outside the inbox, no strip or confirm, choose, set, tick or All fine control on a report, a When implementing section on every report with every line in one of the six statuses, origin on every card, and no nav dot except Inbox. Phone layout shown; Rider and Desktop agree.</p>
+<div class="tw"><table>
+<thead><tr><th>Screen</th><th>Controls</th><th>Class</th></tr></thead>
+<tbody>
+<tr><td>Inbox list</td><td>Clear all</td><td><b>Inbox action</b></td></tr>
+<tr><td>Inbox list</td><td>Sort · Show deferred</td><td>Owner structure</td></tr>
+<tr><td>Inbox list</td><td>For you to know (fold) · Section rows and folds · Close · Chips (open a popover) · Open · Copy link · Open in Rider · Links and rows</td><td>Navigation</td></tr>
+<tr><td>Question card</td><td>Option (radio) · Pick · Use recommended · Write your own · Talk · Defer · Your message · Send</td><td><b>Inbox action</b></td></tr>
+<tr><td>Question card</td><td>Back · Chips (open a popover) · Section rows and folds · Open in Rider · Links and rows · Close · Brief · 4 rulings proposed from chat · Open chat in claude.ai</td><td>Navigation</td></tr>
+<tr><td>Plan card (Action)</td><td>Accept all · Settle-pass choice · Remove step · Approve plan · Change · Write your own · Talk · Your message · Send · Done changing</td><td><b>Inbox action</b></td></tr>
+<tr><td>Plan card (Action)</td><td>Back · Chips (open a popover) · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Packet card (Action)</td><td>Approve &amp; merge · Ask for changes · Your message · Send · All N fine · Flip · Task · Later · Drop · See the code</td><td><b>Inbox action</b></td></tr>
+<tr><td>Packet card (Action)</td><td>Back · Chips (open a popover) · Worth a glance links · Links and rows · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Stuck card (Action)</td><td>Reassign · Retry once more · Drop the step · Write your own · Talk · Your message · Send</td><td><b>Inbox action</b></td></tr>
+<tr><td>Stuck card (Action)</td><td>Back · Chips (open a popover) · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Rulings proposed card (Action)</td><td>Tick box per proposed ruling · Record ticked · Discard · Write your own · Your message · Send</td><td><b>Inbox action</b></td></tr>
+<tr><td>Rulings proposed card (Action)</td><td>Back · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Info card</td><td>Dismiss · Write a note · Your message · Send · Make a ruling</td><td><b>Inbox action</b></td></tr>
+<tr><td>Info card</td><td>Back · Chips (open a popover) · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Work tree</td><td>Add item · Row menu (⋯) · Open this node · Kind · Title · Implements (one tick per report) · Place · Coarse size · Add · Cancel · Move… · Rename…</td><td>Owner structure</td></tr>
+<tr><td>Work tree</td><td>Tasks | Issues · Outline | Columns · Filter · Expand or collapse · Tree rows · Issue count on a tree row · Links and rows · Section rows and folds · Chips (open a popover) · Close · Open item page · Show summary</td><td>Navigation</td></tr>
+<tr><td>Add item sheet</td><td>Kind · Title · Implements (one tick per report) · Place · Coarse size · Add · Cancel</td><td>Owner structure</td></tr>
+<tr><td>Add item sheet</td><td>Close · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Add item sheet, prefilled from a found item</td><td>Kind · Title · Implements (one tick per report) · Place · Coarse size · Add · Cancel</td><td>Owner structure</td></tr>
+<tr><td>Add item sheet, prefilled from a found item</td><td>Close · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Task page</td><td>Add an issue to this task · Open this node · Add item</td><td>Owner structure</td></tr>
+<tr><td>Task page</td><td>Back · Chips (open a popover) · Links and rows · Section rows and folds · Open in Rider</td><td>Navigation</td></tr>
+<tr><td>Issues list</td><td>Tasks | Issues · Kind filter (All, FTR, BUG, PER) · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Report page (FTR, BUG, PER)</td><td>Edit this report</td><td>Owner structure</td></tr>
+<tr><td>Report page (FTR, BUG, PER)</td><td>Back · Section rows and folds · Chips (open a popover) · Open in Rider · Links and rows · Attachment thumbnails</td><td>Navigation</td></tr>
+<tr><td>Report · Edit menu</td><td>Rename… · Change severity… · Change recommended fix… · Edit dependencies…</td><td>Owner structure</td></tr>
+<tr><td>Report · Edit menu</td><td>Close</td><td>Navigation</td></tr>
+<tr><td>Now</td><td>Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Session</td><td>Message · Stop · Resume</td><td>Owner structure</td></tr>
+<tr><td>Session</td><td>Back · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Files</td><td>Scope (All | One item)</td><td>Navigation</td></tr>
+<tr><td>File</td><td>Back · Section rows and folds · Chips (open a popover) · Open in Rider · Links and rows</td><td>Navigation</td></tr>
+<tr><td>Comment</td><td>Back · Chips (open a popover) · Section rows and folds · Open in Rider · Links and rows</td><td>Navigation</td></tr>
+<tr><td>Rulings</td><td>Search rulings</td><td>Navigation</td></tr>
+<tr><td>Rulings · proposed from chat</td><td>Back · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Ruling</td><td>Back · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Projects</td><td>Project card (filters the app to it)</td><td>Owner structure</td></tr>
+<tr><td>Projects</td><td>Decisions waiting (opens the filtered inbox) · Links and rows</td><td>Navigation</td></tr>
+<tr><td>Project</td><td>Project card (filters the app to it) · Add item</td><td>Owner structure</td></tr>
+<tr><td>Project</td><td>Back · Decisions waiting (opens the filtered inbox) · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Machines</td><td>Revoke token</td><td>Owner structure</td></tr>
+<tr><td>Machines</td><td>Section rows and folds · Chips (open a popover) · Links and rows</td><td>Navigation</td></tr>
+<tr><td>Machine</td><td>Revoke token</td><td>Owner structure</td></tr>
+<tr><td>Machine</td><td>Back · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Settings</td><td>Budgets · Notification switches · Revoke · Theme</td><td>Owner structure</td></tr>
+<tr><td>Settings</td><td>Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Search</td><td>Search everything · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Run</td><td>Back · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Commit</td><td>Back · Chips (open a popover) · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Branch</td><td>Back · Section rows and folds · Chips (open a popover)</td><td>Navigation</td></tr>
+<tr><td>Type</td><td>Back · Chips (open a popover) · Open in Rider · Links and rows · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>Diff</td><td>Back · Section rows and folds · Mark seen (records that you read the file) · Links and rows</td><td>Navigation</td></tr>
+<tr><td>CLAUDE.md</td><td>Back · Chips (open a popover) · Open in Rider · Links and rows · Section rows and folds</td><td>Navigation</td></tr>
+<tr><td>More</td><td>Screens</td><td>Navigation</td></tr>
+</tbody></table></div>
+
 <h2 id="issues">Issues and reports</h2>
 <p>Tasks and issues are two separate lists. A <b>task</b> is part of a project's work breakdown, the tree under Work. An <b>issue</b> is a feature, bug or performance problem (FTR, BUG, PER) that comes up while a task is being built. It is attached to that task, or to a project when no task fits, but it is its own record with its own report, state, time and dependencies.</p>
 <ul>
-<li><b>Where issues show.</b> The Issues screen lists every issue grouped by the task it hangs off, with filters for kind and “needs me”. Work has a Tasks | Issues switch. Each task has an Issues tab, and a tree row carries a small issue count. Desktop and Rider also show Issues in the navigation; on phone, use the switch on Work.</li>
-<li><b>Dependencies.</b> An issue can need another issue or a task, and a task can need an issue. Each edge says why, whether it is hard or soft, who declared it and whether you confirmed it. Blocks are worked out from Needs, never typed. An edge Claude proposed waits for you, and the “unblocks” weight counts only confirmed edges.</li>
-<li><b>The report.</b> It opens like a task page: kind and state, the title, one sentence (your goal or the symptom), “What I need from you” when something waits, the tabs, and one headline such as “Fix 2 chosen” or “0.6 s”. Every section below is a closed one-line row in a fixed order, marked you, Claude or machine; open only what you want, and the page remembers per kind. Inside a section, code, stacks, attachments and a fix's approach sit behind a second fold. Severity, dependencies, time and origin are closed rows under “About this issue”.</li>
-<li><b>“What I need from you”.</b> Every report has one strip at the top for each thing waiting on you: answer, confirm or remove an edge, review assumptions, set a target, choose a fix, confirm a severity. When nothing waits, the strip is not shown.</li>
+<li><b>Where issues show.</b> The Issues screen lists every issue grouped by the task it hangs off, with a kind filter and, on each row, the task that has taken it on or “no task yet”. Work has a Tasks | Issues switch. Each task has an Issues tab, and a tree row carries a small issue count. Desktop and Rider also show Issues in the navigation; on phone, use the switch on Work.</li>
+<li><b>Dependencies.</b> An issue can need another issue or a task, and a task can need an issue. Each edge says why, whether it is hard or soft, and who declared it. Blocks are worked out from Needs, never typed. An edge Claude proposed stays a proposal until a plan confirms it in its settle pass; nothing waits on you. Report links carry no minutes: the “unblocks” weight belongs to cards.</li>
+<li><b>The report.</b> It opens like a task page: kind and state, the title, one sentence (your goal or the symptom), the tabs, one headline such as “Fix 2 settled” or “0.6 s”, and “Taken on by” with task chips or “No task yet”. Every section below is a closed one-line row in a fixed order, marked you, Claude or machine; open only what you want, and the page remembers per kind. Inside a section, code, stacks, attachments and a fix's approach sit behind a second fold. Lifecycle, severity, dependencies, time and origin are closed rows under “About this item”.</li>
+<li><b>When implementing.</b> The first section on every report: what a task will have to settle, each line with its status and the chip that moved it. See <a href="#act">One place to act</a>.</li>
 </ul>
-<p><a href="reports.html">reports.html</a> shows the pattern on its own: the three section orders side by side, the three authors, every chip kind and the strip. The six samples are listed below and in the Screens drawer under “Issues · reports”.</p>
+<p><a href="reports.html">reports.html</a> shows the pattern on its own: the three section orders side by side, the three authors, every chip kind and the When implementing section. The six samples are listed below and in the Screens drawer under “Issues · reports”.</p>
 <div class="tw"><table>
 <thead><tr><th>Sample</th><th>Attached to</th><th>What to look for</th></tr></thead>
 <tbody>
-<tr><td><a href="index.html#/fpb/FTR-1">FTR · Lazy card verbs on the library page</a></td><td>Dope (no task)</td><td>Simple: goal, two acceptance lines, one dependency Claude proposed that is waiting for you.</td></tr>
-<tr><td><a href="index.html#/fpb/FTR-2">FTR · class construct in QDL</a></td><td>Language › Core constructs</td><td>Complex: proposed syntax in a dashed panel, three design options, parity table, risks, a seven-step plan, two open questions, history with diffs, a task that needs this issue.</td></tr>
-<tr><td><a href="index.html#/fpb/BUG-1">BUG · Hook events arrive out of order…</a></td><td>Workbench › Order hook events across machines</td><td>Simple: symptom only, promoted from a found tray, severity proposed by Claude.</td></tr>
-<tr><td><a href="index.html#/fpb/BUG-2">BUG · Recovery drops the trailing comment…</a></td><td>Language › Parser and printer</td><td>Complex: seven repro steps, stack, cause with pulled code, three fixes to choose from, a duplicate in the old register, and a section with no template shown as a generic fold.</td></tr>
-<tr><td><a href="index.html#/fpb/PER-1">PER · Tree query takes 400 ms on 40 nodes</a></td><td>Workbench › Tree with the one-open rule</td><td>Simple: one measurement and a target to set.</td></tr>
+<tr><td><a href="index.html#/fpb/FTR-1">FTR · Lazy card verbs on the library page</a></td><td>Dope (no task)</td><td>At rest: goal, two acceptance lines, one dependency Claude proposed; every When implementing line reads “No task has taken this on”.</td></tr>
+<tr><td><a href="index.html#/fpb/FTR-2">FTR · class construct in QDL</a></td><td>Language › Core constructs</td><td>Complex: proposed syntax in a dashed panel, three design options, parity table, risks, taken on by the spike task LNG-5.1, paused after 2 of 6 steps; its plan, runs and session belong to the task, and the two questions not asked are scheduled Decision lines.</td></tr>
+<tr><td><a href="index.html#/fpb/BUG-1">BUG · Hook events arrive out of order…</a></td><td>Workbench › Order hook events across machines</td><td>Simple: symptom only, promoted from a found tray, severity proposed by Claude, taken on by WB-2.3 with one decision asked.</td></tr>
+<tr><td><a href="index.html#/fpb/BUG-2">BUG · Recovery drops the trailing comment…</a></td><td>Language › Parser and printer</td><td>Complex: seven repro steps, stack, cause with pulled code, three fixes with Fix 2 settled in a plan, a duplicate in the old register, a section with no template shown as a generic fold, and the full chain through LNG-1.1.</td></tr>
+<tr><td><a href="index.html#/fpb/PER-1">PER · Tree query takes 400 ms on 40 nodes</a></td><td>Workbench › Tree with the one-open rule</td><td>Simple: 400 ms to 38 ms; taken on by WB-2.5, target settled in its plan, comparison proved by run 1061.</td></tr>
 <tr><td><a href="index.html#/fpb/PER-2">PER · Library opens in 0.6 s instead of 4.8 s</a></td><td>Dope (no task)</td><td>Complex: comparison, series chart against the 1 s target, profile, resources, cause, fixes, and the guard that keeps it there.</td></tr>
 </tbody></table></div>
-<p>Choosing a fix, confirming or removing an edge, setting a target and confirming a severity all change the page at once: the strip loses its row, the headline and the unblock weight move.</p>
+<p>Nothing on a report waits on you. Edit (rename, severity, recommended fix, target, dependencies) raises a toast and changes nothing in the prototype.</p>
 
 <h2 id="screens">Screens</h2>
 <div class="tw"><table>
 <thead><tr><th>#</th><th>Screen</th><th>Sample to open</th><th>What to look for</th></tr></thead>
 <tbody>
-<tr><td>1</td><td>Inbox</td><td><a href="index.html#/inbox">#/inbox</a></td><td>Needs you (7 cards by unblock weight) and For you to know (6 info rows), project filter, sort, show deferred, Clear all.</td></tr>
-<tr><td>2</td><td>Question Card</td><td><a href="index.html#/card/q-design">q-design</a> · <a href="index.html#/card/q-comment">q-comment</a> · <a href="index.html#/card/q-unseen">q-unseen</a></td><td>Design choice with three options; a + comment the session could not do; an unseen file with the diff offered before the question. Budget “questions 2/2”. Every question card has “Write your own” for an answer in your own words.</td></tr>
-<tr><td>3</td><td>Packet</td><td><a href="index.html#/card/pk-runs">pk-runs</a> · <a href="index.html#/card/pk-hello">pk-hello</a> · <a href="index.html#/card/pk-dope">pk-dope</a></td><td>Waiting, approved and Dope preview. “Ask for changes” opens a free-text box with no picker (<a href="index.html#/card/pk-runs?changes=1">open it</a>). Checks, changed files with seen markers, assumptions batch, found tray, comments handled, plan ticks, “1 helper added, justified”, the exact git instruction.</td></tr>
-<tr><td>4</td><td>Plan approval</td><td><a href="index.html#/card/pl-24">pl-24</a> · <a href="index.html#/card/pl-24?edit=1">Change mode</a></td><td>Six steps with estimate, needs and proof; total and lane factor; settle pass with “Accept all recommended”; drag handles and remove icons.</td></tr>
+<tr><td>1</td><td>Inbox</td><td><a href="index.html#/inbox">#/inbox</a></td><td>Needs you (7 cards by unblock weight, the Record card among them) and For you to know (6 info rows), project filter, sort, show deferred, Clear all. Each row carries tags for its task, step and origin.</td></tr>
+<tr><td>2</td><td>Question Card</td><td><a href="index.html#/card/q-design">q-design</a> · <a href="index.html#/card/q-comment">q-comment</a> · <a href="index.html#/card/q-unseen">q-unseen</a></td><td>Design choice with three options; a + comment the session could not do; an unseen file with the diff offered before the question. Budget “questions 2/2”. Every question card has “Write your own” for an answer in your own words. <a href="index.html#/card/q-lng11">q-lng11</a> is answered: a record, reached by chips.</td></tr>
+<tr><td>3</td><td>Packet</td><td><a href="index.html#/card/pk-runs">pk-runs</a> · <a href="index.html#/card/pk-hello">pk-hello</a> · <a href="index.html#/card/pk-dope">pk-dope</a></td><td>Waiting, approved (also <a href="index.html#/card/pk-lng11">pk-lng11</a>, <a href="index.html#/card/pk-25">pk-25</a>) and Dope preview, which is not in the inbox while Dope is closed. “Ask for changes” opens a free-text box with no picker (<a href="index.html#/card/pk-runs?changes=1">open it</a>). Checks, changed files with seen markers, assumptions batch, found tray, comments handled, plan ticks, “1 helper added, justified”, the exact git instruction.</td></tr>
+<tr><td>4</td><td>Plan approval</td><td><a href="index.html#/card/pl-24">pl-24</a> · <a href="index.html#/card/pl-24?edit=1">Change mode</a></td><td>Six steps with estimate, needs and proof; total and lane factor; settle pass with “Accept all recommended”; drag handles and remove icons. <a href="index.html#/card/pl-lng11">pl-lng11</a> is approved, its defaults cited “from BUG-2”.</td></tr>
 <tr><td>5</td><td>Stuck</td><td><a href="index.html#/card/st-23">st-23</a></td><td>Failing check, first six lines, three attempts with run chips, the session's diagnosis, Reassign picker.</td></tr>
 <tr><td>6</td><td>Info Card</td><td><a href="index.html#/card/i4">i4</a> (with Make a ruling) · <a href="index.html#/card/i1">i1</a></td><td>One fact, one chip, origin, Dismiss.</td></tr>
 <tr><td>7</td><td>Work</td><td><a href="index.html#/work">Outline</a> · <a href="index.html#/work/WB-2?view=columns">Columns</a></td><td>Open path highlighted, coarse siblings, lanes A–C, filters, row actions (⋯, right click or long press), node summary with critical path. Issue counts on tree rows, and a Tasks | Issues switch.</td></tr>
@@ -94,35 +218,36 @@ td a { white-space: nowrap; }
 <tr><td>9</td><td>Info page templates</td><td>see the drawer, “9 · Info page templates”</td><td>Task, FTR, BUG, PER, Packet, Ruling, Comment, Session, Run and Project pages. The FTR, BUG and PER templates are now the issue reports.</td></tr>
 <tr><td>10</td><td>Now</td><td><a href="index.html#/now">#/now</a></td><td>Seven sessions (one working, two waiting, four ended) and three machines. Session 7f3a links to its inbox cards and back.</td></tr>
 <tr><td>11</td><td>Files</td><td><a href="index.html#/files">#/files</a> · <a href="index.html#/file/runrecord">RunRecord.cs</a></td><td>Counts open, handled and stale; the stale comment's tooltip; a handled comment whose proof chip opens a six-line diff.</td></tr>
-<tr><td>12</td><td>Rulings</td><td><a href="index.html#/rulings">#/rulings</a> · <a href="index.html#/rulings/proposed">Proposed from chat</a></td><td>Fifteen rulings with cited-by counts; four proposals with tick boxes and Record ticked.</td></tr>
+<tr><td>12</td><td>Rulings</td><td><a href="index.html#/rulings">#/rulings</a> · <a href="index.html#/rulings/proposed">Proposed from chat</a></td><td>Fifteen rulings with cited-by counts; four proposals shown read only, with a chip to their Record card.</td></tr>
 <tr><td>13</td><td>Projects overview</td><td><a href="index.html#/projects">#/projects</a></td><td>Measured and coarse bar, kinds, blocked on you, next decision, critical path, burn-down sparkline. A tap filters the whole app.</td></tr>
 <tr><td>14</td><td>Machines</td><td><a href="index.html#/machines">#/machines</a></td><td>Checkouts and worktrees per item, token dates, Revoke, “Install Host” fold.</td></tr>
 <tr><td>15</td><td>Settings</td><td><a href="index.html#/settings">#/settings</a></td><td>Budgets 2, 5, 7, 2; decision time 48 s; notifications; tokens per client; addresses; theme.</td></tr>
 <tr><td>16</td><td>Search</td><td><a href="index.html#/search?q=finding">“finding”</a></td><td>Grouped results: rulings, tasks, issues, questions, files, comments. Typing in the header shows the same groups as a dropdown.</td></tr>
-<tr><td>17</td><td>Issues</td><td><a href="index.html#/issues">#/issues</a> · <a href="index.html#/issues?attach=item:LNG-1">one task</a></td><td>Seven issues grouped by task, kind filter, “needs me” (5), Add issue.</td></tr>
-<tr><td>18</td><td>Issue report</td><td><a href="index.html#/fpb/BUG-2">BUG-2</a> · <a href="reports.html">the pattern</a></td><td>Strip, breadcrumb, title, What I need from you, time, source, dependencies, tabs, then the sections in order.</td></tr>
+<tr><td>17</td><td>Issues</td><td><a href="index.html#/issues">#/issues</a> · <a href="index.html#/issues?attach=item:LNG-1">one task</a></td><td>Seven issues grouped by task, kind filter, taken on by a task or no task yet.</td></tr>
+<tr><td>19</td><td>Record card</td><td><a href="index.html#/card/rp-chat">rp-chat</a></td><td>Four rulings proposed in the design chat, tick and Record ticked. An Action card.</td></tr>
+<tr><td>18</td><td>Issue report</td><td><a href="index.html#/fpb/BUG-2">BUG-2</a> · <a href="reports.html">the pattern</a></td><td>Breadcrumb, title, Edit, tabs, headline, Taken on by, When implementing, the sections in order, then About this item with the lifecycle. The Plan and Changes tabs show the task that took it on; Decisions shows the When implementing lines by kind, read only.</td></tr>
 </tbody></table></div>
 
 <h2 id="scenarios">Sample scenarios</h2>
 <p>All data lives in <code>data.js</code>. The snapshot tells one story so that the numbers agree from screen to screen.</p>
 <div class="cards">
-  <article style="--pc:var(--wb)"><h3>Workbench is open</h3><p>Six slices. WB-1 Hello card is done and merged. WB-2 Task card with real runs is building through four children: WB-2.1 in review with a packet, WB-2.2 run page in lane A, WB-2.3 hook ordering in lane B (with a BUG attached), WB-2.4 check chips with a plan proposed for lane C. WB-3 is planned; WB-4 to WB-6 are coarse.</p><span class="where">lanes A ×1.3 · B ×1.1 · C ×1.2</span></article>
+  <article style="--pc:var(--wb)"><h3>Workbench is open</h3><p>Six slices. WB-1 Hello card is done and merged. WB-2 Task card with real runs is building through four children: WB-2.1 in review with a packet, WB-2.2 run page in lane A, WB-2.3 hook ordering in lane B (with a BUG attached), WB-2.4 check chips with a plan proposed for lane C. WB-3 is planned; WB-4 to WB-6 are coarse.</p><span class="where">lane factors A 1.3 · B 1.1 · C 1.2</span></article>
   <article style="--pc:var(--warn)"><h3>Clock skew</h3><p>Laptop's clock runs 1.8 s behind desk-pc. It is why WB-2.3 is stuck after three runs, why the + comment asks for a sequence number the Host does not send, and why the question proposes Host 0.5.</p><span class="where">st-23 · q-comment · run 1056</span></article>
-  <article style="--pc:var(--apps)"><h3>Dope from the seed</h3><p>Dope is closed. Its two issues hang off the project with no task: a PER (4.8 s to 0.6 s, inside the 1 s target) and an FTR (lazy card verbs, 130 MB less per visit) that Claude thinks needs the PER first, plus a packet preview.</p><span class="where">PER-2 · FTR-1 · pk-dope</span></article>
-  <article style="--pc:var(--lang)"><h3>Everything else coarse</h3><p>Add-ins, Language, Framework, KraveSoccer, Entrepreneur and KraveFlow are one line each with a coarse size. Language shows its tasks as a preview only when expanded; two of them carry issues (the class construct, the parser bug, the round-trip check).</p><span class="where">about 67 weeks, 2 measured</span></article>
+  <article style="--pc:var(--apps)"><h3>Dope from the seed</h3><p>Dope is closed. Its two issues hang off the project with no task: a PER (4.8 s to 0.6 s, inside the 1 s target) and an FTR (lazy card verbs, 130 MB less per visit) that Claude thinks needs the PER first, plus a packet preview that waits, out of the inbox, until Dope opens.</p><span class="where">PER-2 · FTR-1 · pk-dope</span></article>
+  <article style="--pc:var(--lang)"><h3>Everything else coarse</h3><p>Add-ins, Language, Framework, KraveSoccer, Entrepreneur and KraveFlow are one line each with a coarse size. Language shows its tasks as a preview only when expanded; two of them carry issues (the class construct, the parser bug, the round-trip check). Two tasks were added by you while Language is closed: LNG-1.1 implements the parser bug and is done; LNG-5.1, the class construct spike, implements FTR-2 and is paused after step 2.</p><span class="where">about 67 weeks, 2 measured</span></article>
 </div>
 <div class="tw"><table>
 <thead><tr><th>Sample set</th><th class="num">Count</th><th>Where</th></tr></thead>
 <tbody>
 <tr><td>Projects</td><td class="num">8</td><td>Workbench open, the rest coarse</td></tr>
-<tr><td>Question cards · packets · plans · stuck · info</td><td class="num">3 · 3 · 1 · 1 · 6</td><td>Inbox; packets are pk-runs (waiting), pk-hello (approved), pk-dope (preview); two more question cards are deferred with Language</td></tr>
-<tr><td>Assumptions across three sessions</td><td class="num">15</td><td>8 from 7f3a, 6 from c21e, 1 from e5c1 on BUG-2</td></tr>
-<tr><td>Found items (3 BUG, 1 PER, 1 FTR)</td><td class="num">5</td><td>Trays of WB-2.1, WB-2.2 and WB-2.3; two promoted to issues (BUG-1, PER-1)</td></tr>
-<tr><td>Issues · dependency edges · old register IDs</td><td class="num">7 · 8 · 5</td><td>3 FTR, 2 BUG, 2 PER; 5 need you</td></tr>
+<tr><td>Question · packet · plan · stuck · record · info cards</td><td class="num">4 · 5 · 4 · 1 · 1 · 6</td><td>7 wait in the inbox; the answered question, three approved packets and three approved plans are records reached by chips; pk-dope is a preview</td></tr>
+<tr><td>Assumptions across two sessions</td><td class="num">12</td><td>8 from 7f3a (until its packet arrives), 4 from c21e on the pk-runs packet</td></tr>
+<tr><td>Found items (3 BUG, 1 PER, 2 FTR)</td><td class="num">6</td><td>3 on the pk-runs packet, 1 in WB-2.2's tray; two promoted to issues (BUG-1, PER-1)</td></tr>
+<tr><td>Issues · dependency edges · old register IDs</td><td class="num">7 · 8 · 5</td><td>3 FTR, 2 BUG, 2 PER; 4 taken on by a task, none need you</td></tr>
 <tr><td>Rulings · proposed from chat</td><td class="num">15 · 4</td><td>10 Workbench, 3 Language, 2 Dope</td></tr>
 <tr><td>+ comments in 3 files</td><td class="num">9</td><td>5 open, 3 handled with proof, 1 stale</td></tr>
-<tr><td>Sessions · machines</td><td class="num">7 · 3</td><td>desk-pc, laptop, cloud-1</td></tr>
-<tr><td>Runs</td><td class="num">28</td><td>build, tests, specimens, round-trip, smoke hello-card, tree-query-timing, the Dope seed runs, and the runs behind the Language issues</td></tr>
+<tr><td>Sessions · machines</td><td class="num">8 · 3</td><td>desk-pc, laptop, cloud-1</td></tr>
+<tr><td>Runs</td><td class="num">30</td><td>build, tests, specimens, round-trip, smoke hello-card, tree-query-timing, the Dope seed runs, and the runs behind the Language issues</td></tr>
 </tbody></table></div>
 
 <h2 id="clickable">What is clickable</h2>
@@ -132,8 +257,8 @@ td a { white-space: nowrap; }
 <li><b>Review controls</b>: layout switcher, project filter (applies everywhere), inbox sort and deferred toggle, Work filters and Outline/Columns, Files scope, rulings search.</li>
 <li><b>Buttons that would change data</b> raise a toast and change nothing, for example “Instruction sent to the Host on laptop for session c21e”. Folds, plan Change mode, settle choices, flips and tick boxes respond on screen.</li>
 <li><b>Replies</b>: every card's reply box takes your own text; Send or Enter raises a toast naming the session and machine that would receive it.</li>
-<li><b>Issue reports</b>: choose a fix, confirm or remove an edge, set a target, confirm a severity. Each updates the strip and the unblock weight on screen.</li>
-<li><b>Overlays</b>: Talk (the chat brief, shown disabled), Add item, Move, Rename, Message, Reassign, Make a ruling, beyond-plan justification.</li>
+<li><b>Issue reports</b>: Edit opens rename, severity, recommended fix, target and dependencies as sheets that raise a toast. Nothing on a report needs you.</li>
+<li><b>Overlays</b>: Talk (the chat brief, shown disabled), Add item (with Implements, and prefilled from a found item), Move, Rename, report Edit, Message, Reassign, Make a ruling, beyond-plan justification.</li>
 </ul>
 
 <h2 id="rules">The rules, and where to see them</h2>
@@ -141,18 +266,18 @@ td a { white-space: nowrap; }
 <thead><tr><th>Rule</th><th>Where it shows</th></tr></thead>
 <tbody>
 <tr><td><span class="rule-n">1</span> Claude never creates projects or items; capped slots</td><td>Budget pips “questions 2/2 · next one refused until answered” on WB-2.2; “found 2/5” on sessions; plan “6/7 steps”; notes “2 lines max”; Add item says owner only; Settings › Budgets.</td></tr>
-<tr><td><span class="rule-n">2</span> Only three things are pushed</td><td>The inbox holds only Question, Action (Approve, Plan, Stuck) and Info cards. Assumptions, found items and comments live on the item.</td></tr>
+<tr><td><span class="rule-n">2</span> Only three things are pushed</td><td>The inbox holds only Question, Action (Approve, Plan, Stuck, Record) and Info cards, and it is the only place you act. Assumptions and found items are acted on in the packet card; elsewhere they are read only.</td></tr>
 <tr><td><span class="rule-n">3</span> Every identifier is a chip</td><td>Sixteen chip kinds, issues and old register IDs among them, plus project, card, lane and not-yet-written. Each chip shows an icon and a plain title; the ID, state and origin are one tap away in its popover.</td></tr>
 <tr><td><span class="rule-n">4</span> Code is pulled, never pasted</td><td>Code blocks are sliced from file lines in data.js, capped near 12, with Open in Rider and Diff since master. Dashed chips for code not yet written; red UNVERIFIED on claims without a run.</td></tr>
 <tr><td><span class="rule-n">5</span> Seen-state</td><td>“new to you · N lines” on RunRecord.cs, HookEventQueue.cs and RunDurationFormatter.cs; q-unseen offers the diff before the question.</td></tr>
 <tr><td><span class="rule-n">6</span> The tree and the one-open rule</td><td>Work: open path highlighted, siblings one line with a coarse size, lanes A–C. “Open this node” is enabled only for WB-2.4 (through its plan); elsewhere it is disabled with the reason.</td></tr>
 <tr><td><span class="rule-n">7</span> Time</td><td>Estimates in Claude-minutes, actuals from hooks, lane factors, “about 9 weeks, 2 measured”, queue “7 items · about 6 min” from 48 s per decision.</td></tr>
 <tr><td><span class="rule-n">8</span> + comments</td><td>Files view, Comments tab, packets. Handled notes in <code>//+=</code> form, one stale comment, one that became Q-09. Read only throughout.</td></tr>
-<tr><td><span class="rule-n">9</span> Design talk in chat</td><td>Talk shows the brief but cannot write; Rulings › Proposed from chat is the only way back.</td></tr>
+<tr><td><span class="rule-n">9</span> Design talk in chat</td><td>Talk shows the brief but cannot write; the Record card “4 rulings proposed from chat” is the only way back.</td></tr>
 </tbody></table></div>
 
 <h2 id="counts">Counts that must agree</h2>
-<p>Counts are worked out from the data, not typed into screens: the header meter, the Inbox badge, the Needs you band and Settings all count the same 7 cards; deferred cards are left out. Issue counts on tree rows, the Issues tab and the Issues screen come from the same attach field, and an issue's “needs me” comes from the same list as its strip. An item's “questions n/2” is counted from its open questions, so WB-2.2 shows 2/2 on its cards, its summary and its Questions tab. Comment counts (5 open, 3 handled, 1 stale) are the same in Files, the Comments tab and WB-2's summary. Back-link totals (“cited by”) are worked out by scanning every record for chips.</p>
+<p>Counts are worked out from the data, not typed into screens: the header meter, the Inbox badge, the Needs you band and Settings all count the same 7 cards; deferred cards are left out. Issue counts on tree rows, the Issues tab and the Issues screen come from the same attach field, and an issue's “taken on by” comes from the tasks' Implements field. An item's “questions n/2” is counted from its open questions, so WB-2.2 shows 2/2 on its cards, its summary and its Questions tab. Comment counts (5 open, 3 handled, 1 stale) are the same in Files, the Comments tab and WB-2's summary. Back-link totals (“cited by”) are worked out by scanning every record for chips.</p>
 
 <h2 id="files">Files</h2>
 <div class="tw"><table>
@@ -170,7 +295,7 @@ td a { white-space: nowrap; }
 <li>Fonts fall back to Segoe UI and Consolas because the prototype makes no network calls; the documentation pages load the web fonts.</li>
 <li>Desktop mode keeps the shell at least 1200 px wide, so a narrower browser scrolls sideways in that mode only.</li>
 <li>Drag handles in plan Change mode are visual; reordering does not move steps.</li>
-<li>Layout, theme and fold choices are remembered in this browser only. Choices made on issue reports (fix, edges, target, severity) last until the page is reloaded.</li>
+<li>Layout, theme and fold choices are remembered in this browser only. Report edits raise a toast and change nothing.</li>
 </ul>
 
 <footer>Qotoba documentation · Workbench prototype · data snapshot Fri 6 Nov 2026, 05:12 Lagos.</footer>

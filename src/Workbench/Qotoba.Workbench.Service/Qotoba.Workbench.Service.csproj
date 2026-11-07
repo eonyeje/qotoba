@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>qotoba-workbench-service</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Qotoba.Workbench.Model\Qotoba.Workbench.Model.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Store\Qotoba.Workbench.Store.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Contracts\Qotoba.Workbench.Contracts.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Mcp\Qotoba.Workbench.Mcp.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\Qotoba.Workbench.Ui\**" LinkBase="wwwroot" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

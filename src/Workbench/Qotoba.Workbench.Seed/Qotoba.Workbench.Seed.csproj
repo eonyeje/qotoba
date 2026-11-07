@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Qotoba.Workbench.Model\Qotoba.Workbench.Model.csproj" />
+    <ProjectReference Include="..\Qotoba.Workbench.Store\Qotoba.Workbench.Store.csproj" />
+  </ItemGroup>
+</Project>

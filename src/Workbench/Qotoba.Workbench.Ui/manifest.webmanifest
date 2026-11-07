@@ -1,0 +1,9 @@
+{
+  "name": "Qotoba Workbench",
+  "short_name": "Workbench",
+  "start_url": "./#/inbox",
+  "display": "standalone",
+  "background_color": "#111318",
+  "theme_color": "#111318",
+  "icons": []
+}

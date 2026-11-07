@@ -820,3 +820,203 @@ html:not([data-layout="desktop"]) .fx .fx-m { grid-column: 2; }
 
 .fold-reset { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 20px; }
 .fold-reset .btn { margin-left: -10px; }
+
+/* ================================================================ round 1 (redo) · content, readability, spacing */
+
+/* 1.1 why a card reached you: one line under the headline, with room */
+.why { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: -12px 0 28px; font-size: 14.5px; }
+.why-k { font-family: var(--display); font-size: 12.5px; font-weight: 700; color: var(--ink3); letter-spacing: .01em; }
+.why-t { color: var(--ink); }
+
+/* 1.2 inbox rows: what answering unblocks, on its own line */
+.qcard { padding: 18px 20px 18px 22px; }
+.qcard .qh { margin: 10px 0 10px; }
+.qcard .qu { display: block; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+.qlist { gap: 14px; }
+
+/* 1.3 the inbox when nothing needs you */
+.quiet { padding: 28px 4px 36px; }
+.quiet-h { font-family: var(--display); font-size: 20px; font-weight: 800; margin-bottom: 18px; }
+.quiet-sub { font-size: 13.5px; color: var(--ink3); margin-bottom: 10px; }
+.quiet-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+.quiet-list li { margin: 0; border-bottom: 1px solid var(--line); }
+.quiet-list a { display: block; padding: 14px 2px; color: var(--ink); }
+.quiet-list a:hover { text-decoration: none; color: var(--accent); }
+.ql-t { display: block; font-weight: 600; }
+.ql-s { display: block; margin-top: 4px; font-size: 13.5px; color: var(--ink3); }
+
+/* 1.4 Now: what a waiting session waits on, a link to that card */
+.sgroup { display: flex; flex-direction: column; }
+.swait { display: block; margin: -4px -12px 6px; padding: 8px 12px 12px 42px; border-radius: 10px; color: var(--ink); }
+.swait:hover { text-decoration: none; background: var(--surface); }
+.swait.sel { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+.sw-k { display: block; font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--warn); margin-bottom: 3px; }
+.sw-q { display: block; font-size: 14.5px; line-height: 1.45; color: var(--accent); }
+.st2 { margin-top: 4px; line-height: 1.5; }
+
+/* 1.5 stuck: the first line of the last failure */
+.glance-line { display: flex; flex-direction: column; gap: 6px; margin: -8px 0 28px; }
+.gl-k { font-family: var(--display); font-size: 12.5px; font-weight: 700; color: var(--ink3); }
+.glance-line code { font-family: var(--mono); font-size: 13.5px; color: var(--bad); white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* 1.6 a required action without a link row: count, words and the button */
+.need-row.static { grid-template-columns: 74px minmax(0, 1fr) auto; cursor: default; padding: 10px 12px; }
+.need-row.static:hover { background: transparent; }
+.need-more { margin: 4px 12px 10px; }
+.need-more .settle { margin-top: 14px; }
+html[data-layout="phone"] .need-row.static { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+html[data-layout="phone"] .need-row.static .btn { justify-self: start; }
+
+/* 1.7 decisions waiting is a link */
+.plink { text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+
+/* 2.1 a glance with nothing unusual */
+.nu { color: var(--ink3); }
+
+/* 2.2 options: recommended first and labelled; reason and cost each on their own line */
+.choices { gap: 14px; }
+.choice { padding: 18px 20px; }
+.choice .cb { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.choice .recmark { margin: 0 0 8px; }
+.choice .ct { line-height: 1.45; }
+.choice .cr { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--ink2); }
+.choice .cc { display: block; margin-top: 8px; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+
+/* 2.3 assumptions: the ones to review with air around them, the reviewed ones as one muted line */
+.as-group { margin-bottom: 20px; }
+.as-group .group-h { padding-bottom: 10px; }
+.as-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.as-item .as-t { flex: 1; min-width: 0; margin: 0; line-height: 1.55; }
+.as-done { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.as-done > summary { color: var(--ink3); }
+.as-done .as-t { margin: 10px 0 0; line-height: 1.55; }
+
+/* 2.4 author labels readable at phone width, colour kept */
+.au-w { font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; margin-left: 10px; }
+.au-w-me { color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+.au-w-claude { color: var(--cl); background: color-mix(in srgb, var(--cl) 12%, transparent); }
+.au-w-machine { color: var(--ink2); background: var(--sunk); font-size: 12px; }
+.au { font-size: 12.5px; padding: 2px 9px; }
+.au-mc { font-size: 12px; }
+
+/* 2.5 a number's reference sits beside it */
+.bignum-ref { display: inline-block; font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--ink3); font-family: var(--body, inherit); }
+html:not([data-layout="desktop"]) .bignum-ref { display: block; margin-top: 4px; }
+
+/* 2.6 nothing is cut off: labels wrap instead of ending in "…" */
+.crumbs { white-space: normal; flex-wrap: wrap; overflow: visible; row-gap: 2px; }
+.crumb { overflow: visible; text-overflow: clip; }
+.tabs { flex-wrap: wrap; overflow: visible; row-gap: 0; }
+.ds, .st1, .tr .ttl, .ci .t, .chip .t, .qcard .qm, .rs-s { white-space: normal; overflow: visible; text-overflow: clip; }
+.qcard .qh { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.chip { white-space: normal; height: auto; padding-top: 3px; padding-bottom: 3px; }
+.dl { overflow-wrap: anywhere; }
+details.drill > summary .ds { line-height: 1.45; }
+
+/* 2.9 popovers: where it came from is the first line, in normal text */
+.pop-origin { font-size: 14px; line-height: 1.5; color: var(--ink); margin: 2px 0 12px; }
+.pop-origin .chip { vertical-align: middle; }
+
+/* 2.10 spacing: section rows, option rows and glance lines breathe; groups have visible gaps */
+details.drill > summary { padding: 12px 2px; }
+.deeper-h { margin: 36px 0 10px; }
+.status { margin-bottom: 32px; }
+.dsub { line-height: 1.55; }
+.verdict { margin: 0 0 28px; }
+.verdict .glance { margin-top: 12px; line-height: 1.6; }
+.li { padding: 12px 0; }
+.li-sub { margin-top: 4px; }
+.fyk-row { padding: 13px 2px; }
+.need { margin: 28px 0; }
+.need-row { min-height: 50px; }
+.srow { padding: 16px 12px; }
+
+.chip .t { overflow-wrap: anywhere; }
+.as-item.flipped .as-t { text-decoration: line-through; color: var(--ink3); }
+
+/* ================================================================ round 2 · the inbox is the only place the owner acts */
+
+/* where a card came from: the task, the step, the origin; under the why line, with the same room */
+.why + .origin { margin-top: -18px; }
+.origin { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: -12px 0 28px; font-size: 14.5px; }
+.o-body { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.o-step { color: var(--ink); }
+.o-dot { color: var(--ink3); }
+.o-text { color: var(--ink2); }
+
+/* inbox rows: origin tags under the unblocks line */
+.qcard .qo { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.otag { display: inline-block; font-size: 12.5px; line-height: 1.4; padding: 2px 9px; border-radius: 999px; color: var(--ink2); background: var(--sunk); overflow-wrap: anywhere; }
+
+/* an answered question, an approved plan: a record, not a request */
+.answered { margin: 0 0 28px; padding: 16px 18px; border-radius: 12px; background: var(--sunk); }
+.answered p { margin: 0; line-height: 1.55; }
+.answered p + p { margin-top: 8px; }
+.answered .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.choice input[disabled] + .cb { opacity: .85; }
+.sq.done { padding: 12px 0; border-top: 1px solid var(--line); }
+.sq.done p { margin: 0; line-height: 1.55; }
+.sq.done p + p { margin-top: 6px; }
+.sq .chip { vertical-align: middle; }
+.plan-list.locked li { grid-template-columns: 28px minmax(0, 1fr) auto; }
+
+/* read-only trays: state and a chip to the packet card */
+.ro-note { margin: 8px 0 4px; line-height: 1.55; color: var(--ink2); }
+.ro-note .chip { vertical-align: middle; }
+.found + .found { margin-top: 18px; }
+.ro-list li { padding: 10px 0; line-height: 1.55; }
+
+/* report: taken on by, lifecycle, the Edit control */
+.taken { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -16px 0 28px; font-size: 14.5px; line-height: 1.55; }
+.dhead .edit-btn, .edit-btn { margin-left: 6px; }
+.life { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.life li { position: relative; padding: 8px 0 8px 26px; color: var(--ink3); line-height: 1.5; }
+.life li::before { content: ""; position: absolute; left: 4px; top: 14px; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--rule); background: transparent; }
+.life li::after { content: ""; position: absolute; left: 8px; top: 26px; bottom: -6px; width: 2px; background: var(--line); }
+.life li:last-child::after { display: none; }
+.life li.past { color: var(--ink2); }
+.life li.past::before { background: var(--good); box-shadow: none; }
+.life li.now { color: var(--ink); font-weight: 700; }
+.life li.now::before { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.life .chip { vertical-align: middle; font-weight: 400; }
+
+/* When implementing: one line per thing a task will settle; kind, text, Claude's recommendation, status */
+.impl-note { margin: 0 0 6px; line-height: 1.55; }
+.impl { list-style: none; margin: 0; padding: 0; }
+.impl-l { padding: 18px 0 18px 14px; border-top: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--rule); }
+.impl-l:first-child { border-top: 0; }
+.impl-l.s-settled, .impl-l.s-proved { box-shadow: inset 3px 0 0 var(--good); }
+.impl-l.s-asked, .impl-l.s-scheduled { box-shadow: inset 3px 0 0 var(--accent); }
+.impl-l.s-dropped { box-shadow: inset 3px 0 0 var(--ink3); }
+.impl-k { display: inline-block; font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--ink3); letter-spacing: .02em; margin-bottom: 4px; }
+.impl-t { margin: 0; font-weight: 600; line-height: 1.5; }
+.impl-r { margin: 8px 0 0; font-size: 14px; line-height: 1.55; }
+.impl-w { margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: var(--ink2); }
+.impl-s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 10px 0 0; font-size: 14px; line-height: 1.5; }
+.st-open { color: var(--ink3); }
+.st-sched, .st-asked { color: var(--accent); font-weight: 600; }
+.st-done { color: var(--good); font-weight: 600; }
+.st-drop { color: var(--ink3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+.marker.rec { color: var(--cl); background: color-mix(in srgb, var(--cl) 12%, transparent); }
+
+.au-w { display: inline-block; white-space: nowrap; }
+
+/* a decision's options: name, then reason and cost to change on one line */
+.iopts { list-style: none; margin: 10px 0 0; padding: 0; }
+.io { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px dashed var(--line); }
+.io:first-child { border-top: 0; padding-top: 4px; }
+.io-t { font-size: 14.5px; line-height: 1.5; color: var(--ink); }
+.io-t .recmark { margin-right: 8px; vertical-align: 1px; }
+.io-r { font-size: 14px; line-height: 1.55; color: var(--ink2); }
+.io-c, .cc-i { color: var(--ink); }
+.choice .cr .cc-i { color: var(--ink); }
+.dec-how { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13.5px; color: var(--ink2); }
+
+/* Add item: Implements */
+.impl-pick { border-top: 1px solid var(--line); }
+.impl-pick .tick-row { padding: 12px 2px; font-size: 14.5px; }
+.seg.col { flex-direction: column; align-items: stretch; }
+.seg.col button { text-align: left; white-space: normal; }
+
+/* list rows with a second line use the full width of their section */
+.list > .li.col { align-self: stretch; width: 100%; }

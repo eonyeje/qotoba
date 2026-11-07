@@ -2032,3 +2032,444 @@ WB.nyw.ClassDecl = { title: "ClassDecl", where: "src/Qotoba.Language/Syntax/Clas
 WB.nyw.ClassEmitter = { title: "ClassEmitter", where: "src/Qotoba.Language/Emit/ClassEmitter.cs", step: "steps 4 and 5 of [[fpb:FTR-2]]" };
 WB.nyw["check-observable"] = { title: "specimens · class observable", where: "qwb specimens --construct class --target observable", step: "step 6 of [[fpb:FTR-2]]" };
 WB.nyw["spec-unterminated"] = { title: "specimen round-trip/unterminated-string-comment", where: "specimens/recovery/unterminated-string-comment.qo", step: "the acceptance of [[fpb:BUG-2]]" };
+
+/* ================================================================ round 1 (redo) · content and sample data */
+/* 1.1 why each pushed card reached the inbox, in plain words */
+WB.cardWhy = {
+  'q-design': 'Blocking question on step 3',
+  'q-unseen': 'Blocking question on step 4, about a file you have not read yet',
+  'q-comment': 'Your + comment asks for something the session cannot do',
+  'pk-runs': 'All checks passed, ready to merge',
+  'pk-dope': 'All checks passed on the seed; a preview, nothing to merge while Dope is closed',
+  'pk-hello': 'All checks passed; you approved it and it merged',
+  'pl-24': 'Plan needs your approval',
+  'st-23': 'Failed three times on the same step',
+  'q-f2a': 'Blocking question on step 4, deferred until Language opens',
+  'q-f2b': 'Blocking question on step 5, deferred until Language opens',
+  'i1': 'A lane factor changed', 'i2': 'A machine registered', 'i3': 'A seed was imported',
+  'i4': 'A branch was pushed', 'i5': 'A session ended', 'i6': 'A seeded run met its target'
+};
+
+/* 2.2 the cost to change later, on every option, not only the recommended one */
+(function (c) { Object.keys(c).forEach(function (q) { c[q].forEach(function (cost, i) { if (WB.questions[q] && WB.questions[q].options[i]) WB.questions[q].options[i].cost = cost; }); }); })({
+  'Q-07': ['small, one method', 'large, a push channel per page and a Host change', 'medium, a paging query and a migration'],
+  'Q-08': ['small, one property and one migration', 'small now; a migration later to get the difference back', 'small now, but every tool\'s wording becomes a dependency'],
+  'Q-09': ['medium, the Host payload and one queue method', 'small, one sort key in the queue', 'small, one findings rule'],
+  'Q-10': ['medium, the emitter for computed members', 'small, one emitter rule'],
+  'Q-11': ['small, one emitter rule per target', 'large, every Dope model\'s construction call']
+});
+
+/* 1.4 minutes each running session has spent on its current step */
+WB.sessions['7f3a'].stepMin = 21;
+WB.sessions['b915'].stepMin = 34;
+WB.sessions['2a6d'].stepMin = 14;
+
+/* 1.9 where each ruling came from, as a short phrase for the list */
+WB.rulingFrom = {
+  'R-01': 'set by you', 'R-02': 'set by you', 'R-05': 'set by you', 'R-06': 'set by you', 'R-10': 'set by you', 'R-15': 'set by you',
+  'R-07': 'from a chat proposal', 'R-08': 'from a chat proposal',
+  'R-04': 'answered on a question card', 'R-09': 'answered on a question card', 'R-13': 'answered on a question card',
+  'R-14': 'from a settle pass',
+  'R-03': 'carried over from the Quanta Workbench',
+  'R-11': 'imported with the Dope seed', 'R-12': 'imported with the Dope seed'
+};
+
+/* 2.5 durations in the sample data carry spaced units: "1 h 14 min", "7 h" */
+(function () {
+  function u(t) { return String(t).replace(/(\d+)h (\d+)m\b/g, '$1 h $2 min').replace(/(\d+)h\b/g, '$1 h').replace(/(\d+)m\b/g, '$1 min'); }
+  Object.keys(WB.cards).forEach(function (k) { var c = WB.cards[k]; if (c.waiting) c.waiting = u(c.waiting); if (c.age) c.age = u(c.age); });
+  Object.keys(WB.plans).forEach(function (k) { var p = WB.plans[k]; if (p.why) p.why = u(p.why); });
+})();
+
+/* ================================================================ round 2 · the inbox is the only place the owner acts
+   Reports (FTR, BUG, PER) are information. Each carries "When implementing": the lines a task will have to settle.
+   Decisions reach the owner only through a task: its plan card, a question card at a step, or its packet. */
+(function (W) {
+  function hist(list, find, repl) { for (var i = 0; i < list.length; i++) if (JSON.stringify(list[i]).indexOf(find) >= 0) { list[i] = repl; return; } }
+  function without(list, x) { var i = list.indexOf(x); if (i >= 0) list.splice(i, 1); }
+
+  /* ---------------------------------------------------------------- BUG-2, taken on by LNG-1.1: the whole chain, settled and proved */
+  W.items['LNG-1.1'] = {
+    kind: 'task', title: 'Keep comments when string recovery skips a line', project: 'lang', parent: 'LNG-1', children: [], state: 'done', isOpen: false,
+    lane: null, machine: 'desk-pc', branch: 'br-lng11', coarse: '~1 day', implements: ['fpb:BUG-2'], plan: 'card:pl-lng11', packet: 'card:pk-lng11',
+    goal: 'Recovery from an unterminated string keeps every token it skips, so the file prints back with its comment.',
+    steps: [
+      { t: 'Reproduce on the parser corpus', est: 10, state: 'done', proof: 'run:1020' },
+      { t: 'Trace where the comment is dropped', est: 10, state: 'done', proof: 'run:1021' },
+      { t: 'Attach skipped tokens as trivia on the error node', est: 20, state: 'done', proof: 'run:1022' },
+      { t: 'Prove the BUG-2 acceptance line with a run', est: 10, state: 'done', proof: 'run:1022' }
+    ],
+    checks: ['run:1020', 'run:1021', 'run:1022'], changes: { files: [['file:stringrecovery', 9, 3], ['file:triviaattacher', 6, 0]], types: [] },
+    time: { so: 68, est: 50, factor: 1.2, forecast: 68 }, needs: [{ ref: 'fpb:FTR-3', note: 'accepted with the plan' }], blocks: [], commentScope: [],
+    note: { text: 'Skipped tokens now ride on the error node as trivia; the corpus round-trips 1,204 of 1,204.', date: '5 Nov 02:04', session: 'session:e5c1' },
+    rulings: ['ruling:R-13', 'ruling:R-06'], sessions: [['session:e5c1', 68]],
+    info: { tpl: 'task', purpose: 'A one-off fix opened by you while Language is closed: it implements BUG-2 and nothing else.',
+      rulings: ['ruling:R-13', 'ruling:R-06'], files: [['file:stringrecovery', 'where recovery skips to the line end'], ['file:triviaattacher', 'attaches trivia to error nodes']],
+      acceptance: [{ t: 'The specimen with an unterminated string and a trailing comment round-trips', proof: 'run:1022' }], risks: ['A stray quote token stays in the tree; the printer keeps it.'], unblocks: [] },
+    history: [
+      ['4 Nov 21:30', 'opened', 'You added the item under [[item:LNG-1]] to implement [[fpb:BUG-2]]'],
+      ['5 Nov 01:02', 'plan submitted', 'Session [[session:e5c1]] drew a plan of 4 steps from the report\'s When implementing lines'],
+      ['5 Nov 01:05', 'plan approved', 'You approved [[card:pl-lng11]]; Fix 2 and the FTR-3 dependency settled with it'],
+      ['5 Nov 01:52', 'question answered', 'You answered [[question:Q-12]] at step 2; it became [[ruling:R-13]]'],
+      ['5 Nov 02:06', 'packet drawn', '[[card:pk-lng11]] with [[run:1022]] proving the acceptance line'],
+      ['5 Nov 08:10', 'packet approved', 'You approved; merged as [[commit:c7d21b4]]']
+    ]
+  };
+  W.items['LNG-1'].children = ['LNG-1.1'];
+  W.branches['br-lng11'] = { name: 'lng/1.1-string-recovery-trivia', item: 'LNG-1.1', machine: 'desk-pc', state: 'merged', ahead: 0, behind: 0, pushed: true, merged: 'commit:c7d21b4', worktree: 'removed 5 Nov 08:14' };
+  W.commits['c7d21b4'] = { msg: 'Merge LNG-1.1 Keep comments when string recovery skips a line', date: '5 Nov 08:12', session: 'e5c1', branch: 'br-lng11', files: 2, plus: 15, minus: 3,
+    diff: ['-        SkipToLineEnd(reader);', '+        var skipped = SkipToLineEnd(reader);', '+        node.TrailingTrivia.AddRange(skipped.Select(Trivia.From));', '+        // R-13: recovery never discards tokens'] };
+  W.runs['1022'] = { check: 'round-trip · parser corpus', item: 'LNG-1.1', session: 'e5c1', machine: 'desk-pc', result: 'pass', passed: 1204, total: 1204, dur: 61, at: '5 Nov 02:00',
+    cmd: 'qwb check round-trip --corpus parser', exitCode: 0, out: ['round-trip · parser corpus · 1,204 files', '  recovery/unterminated-string.qo ... ok', '1,204 of 1,204 print back unchanged'] };
+  W.runs['1020'].item = 'LNG-1.1'; W.runs['1021'].item = 'LNG-1.1';
+  var e5 = W.sessions['e5c1'];
+  e5.item = 'LNG-1.1'; e5.title = 'Keep comments in string recovery'; e5.step = 'packet drawn'; e5.lastAction = 'ended with the packet waiting'; e5.packet = 'card:pk-lng11';
+  e5.checks = ['run:1020', 'run:1021', 'run:1022']; e5.assumptions = [];
+  e5.ledger = [['00:58', 'start', 'Brief delivered: LNG-1.1, which implements BUG-2'], ['01:02', 'plan', 'Plan of 4 steps drawn from BUG-2 · When implementing'], ['01:05', 'approved', 'You approved the plan; Fix 2 settled'],
+    ['01:18', 'check', 'round-trip fails on the corpus file · run 1020'], ['01:31', 'check', 'trivia trace confirms the dropped comment · run 1021'], ['01:40', 'ask', 'Q-12 at step 2 · may recovery discard tokens'],
+    ['01:52', 'answer', 'You answered: never discard · R-13'], ['02:00', 'check', 'round-trip 1,204 of 1,204 · run 1022'], ['02:06', 'packet', 'Packet drawn; session ended']];
+  var q12 = W.questions['Q-12'];
+  q12.item = 'LNG-1.1'; q12.card = 'q-lng11'; q12.blocks = 'step 2 of 4'; q12.unblockMin = 30; q12.cost = 'high, every recovery path and the round-trip guarantee';
+  q12.context = 'Step 2 of [[item:LNG-1.1]] traced the drop to StringRecovery.SkipToLineEnd: it reads to the newline and throws the tokens away. The report [[fpb:BUG-2]] lists this as a blocking decision.';
+  q12.options = [
+    { t: 'Never discard: skipped text becomes trivia on the error node', why: 'Every file prints back; the printer already emits trivia.', rec: true, support: ['ruling:R-06'], cost: 'low, one attach call' },
+    { t: 'Discard skipped tokens and record a finding', why: 'Simpler, but the file no longer prints back.', support: [], cost: 'high, every recovery path and the round-trip guarantee' }
+  ];
+  q12.tried = ['Kept the tokens in a side list; the printer ignored them.'];
+  W.rulings['R-13'].item = 'item:LNG-1.1';
+  W.plans['pl-lng11'] = { item: 'LNG-1.1', session: 'e5c1', machine: 'desk-pc', lane: '-', factor: 1.2, factorNote: 'Language has no lane yet; the programme default 1.2 applies', approved: '5 Nov 01:05',
+    goal: 'Recovery from an unterminated string keeps every token it skips, so the file prints back with its comment.',
+    steps: [
+      { t: 'Reproduce on the parser corpus', est: 10, needs: [], proof: 'round-trip · parser corpus' },
+      { t: 'Trace where the comment is dropped', est: 10, needs: [], proof: 'trivia trace' },
+      { t: 'Attach skipped tokens as trivia on the error node', est: 20, needs: ['settle:s1'], proof: 'round-trip · parser corpus' },
+      { t: 'Prove the BUG-2 acceptance line with a run', est: 10, needs: ['settle:s2'], proof: 'specimen round-trip' }
+    ],
+    settle: [
+      { id: 's1', q: 'Which fix?', options: ['Fix 2: attach skipped tokens as trivia on the error node', 'Fix 1: stop recovery at the comment start', 'Fix 3: re-lex the line after recovery'], rec: 0, from: 'fpb:BUG-2' },
+      { id: 's2', q: 'Depends on FTR-3: the round-trip check proves the fix', options: ['Accept', 'Not needed'], rec: 0, from: 'fpb:BUG-2' },
+      { id: 's3', q: 'A comment inside the unterminated string belongs to the string', options: ['Yes, keep it with the string', 'No, lex it as a comment'], rec: 0, from: 'fpb:BUG-2' }
+    ], opensBranch: 'br-lng11' };
+  W.packets['pk-lng11'] = { item: 'LNG-1.1', session: 'e5c1', machine: 'desk-pc', state: 'approved', approved: '5 Nov 08:10', merged: 'commit:c7d21b4',
+    outcome: 'Comments survive string recovery; the corpus round-trips 1,204 of 1,204', time: { actual: 68, est: 50, factor: 1.2 },
+    checks: [{ label: 'round-trip', ref: 'run:1022', text: 'round-trip 1204/1204' }, { label: 'trace', ref: 'run:1021', text: 'trivia trace' }],
+    assumptions: [], found: [], commentsHandled: [], commentsOpen: [], beyond: [],
+    claims: [{ t: 'The BUG-2 specimen prints back with its comment', proof: 'run:1022' }, { t: 'No other file in the corpus changed', proof: 'run:1022' }],
+    note: { text: 'Fix 2 as settled in the plan. The stray quote token stays in the tree and prints back.', date: '5 Nov 02:04' },
+    deliver: 'session e5c1 on desk-pc', toast: 'Already approved and merged as c7d21b4',
+    instruction: ['# delivered to session e5c1 on desk-pc · packet pk-lng11 · approved by owner 5 Nov 08:10', 'git -C D:\\Development\\repos\\Qotoba merge --no-ff lng/1.1-string-recovery-trivia', '# reported: merged as c7d21b4, worktree removed 08:14'] };
+  W.cards['pl-lng11'] = { type: 'plan', item: 'LNG-1.1', project: 'lang', session: 'e5c1', weight: 0, waiting: '', at: '5 Nov 01:02', approved: '5 Nov 01:05', headline: 'Plan: keep comments when string recovery skips a line, 4 steps' };
+  W.cards['q-lng11'] = { type: 'question', question: 'Q-12', item: 'LNG-1.1', project: 'lang', session: 'e5c1', weight: 30, waiting: '', at: '5 Nov 01:40', answered: '5 Nov 01:52', headline: 'May recovery discard the tokens it skips?' };
+  W.cards['pk-lng11'] = { type: 'packet', item: 'LNG-1.1', project: 'lang', session: 'e5c1', weight: 0, waiting: '', at: '5 Nov 02:06', approved: '5 Nov 08:10', headline: 'Comments survive string recovery' };
+
+  var b2 = W.fpbs['BUG-2'];
+  b2.state = 'verified'; b2.takenOnBy = ['LNG-1.1']; b2.checks = ['run:1020', 'run:1021', 'run:1022'];
+  b2.sections.acceptance.lines[0].run = 'run:1022'; b2.sections.acceptance.lines[0].nyw = null;
+  b2.severity = { level: 'serious', reason: 'The round-trip check fails on any file with this pattern.', by: 'claude', confirmed: false };
+  b2.history = b2.history.filter(function (h) { return h[0] !== '5 Nov 02:01' && h[0] !== '5 Nov 01:52'; }).concat([
+    ['4 Nov 21:30', 'you', 'Added [[item:LNG-1.1]] to take this on'],
+    ['5 Nov 01:05', 'you', 'Approved the plan [[card:pl-lng11]]; Fix 2 and the FTR-3 dependency settled'],
+    ['5 Nov 01:52', 'you', 'Answered [[question:Q-12]] on its question card; it became [[ruling:R-13]]'],
+    ['5 Nov 02:00', 'machine:desk-pc', '[[run:1022]] proves the acceptance line'],
+    ['5 Nov 08:10', 'you', 'Approved [[card:pk-lng11]]; merged as [[commit:c7d21b4]]']]);
+  b2.sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Which fix', rec: 'Fix 2, attach skipped tokens as trivia', why: 'Low risk, high confidence, and a regression check already exists.', cost: 'low', status: 'settled', ref: 'card:pl-lng11', date: '5 Nov 01:05', note: 'Fix 2 chosen · plan for LNG-1.1' },
+    { kind: 'decision', text: 'May recovery discard the tokens it skips?', rec: 'Never discard', why: 'Every file must print back.', cost: 'high', status: 'settled', ref: 'ruling:R-13', date: '5 Nov 01:52', note: 'Answered on a question card at step 2 of LNG-1.1 · became R-13', via: 'card:q-lng11' },
+    { kind: 'decision', text: 'Does a comment inside the unterminated string belong to the string?', rec: 'Yes, keep it with the string', why: 'Claude assumed this while investigating; the recommendation is already applied.', cost: 'low', status: 'settled', ref: 'card:pl-lng11', date: '5 Nov 01:05', note: 'Accepted as a default in the settle pass' },
+    { kind: 'decision', text: 'Fix 1, stop recovery at the comment start', status: 'dropped', note: 'superseded by Fix 2: it leaves a stray quote the printer must special-case' },
+    { kind: 'dependency', text: 'Depends on FTR-3: the round-trip check runs on every .qo file', status: 'settled', ref: 'card:pl-lng11', date: '5 Nov 01:05', note: 'Accepted with the plan for LNG-1.1' },
+    { kind: 'precondition', text: 'The parser corpus holds the recovery specimens', status: 'proved', ref: 'run:1020', date: '5 Nov 01:18' },
+    { kind: 'proof', text: 'The cause is confirmed by a run', status: 'proved', ref: 'run:1021', date: '5 Nov 01:31' },
+    { kind: 'proof', text: 'Acceptance: the specimen with an unterminated string and a trailing comment round-trips', status: 'proved', ref: 'run:1022', date: '5 Nov 02:00' }
+  ] };
+  delete W.assumptions.a15;
+
+  /* ---------------------------------------------------------------- PER-1, taken on by WB-2.5: target settled in the plan, comparison proved by a run */
+  W.found.f3.session = '51b0'; W.found.f3.item = 'WB-1'; W.found.f3.found = '5 Nov 17:20';
+  without(W.sessions['7f3a'].found, 'found:f3'); W.sessions['51b0'].found = ['found:f3'];
+  W.runs['1048'].item = 'WB-1'; W.runs['1048'].session = '51b0'; W.runs['1048'].at = '5 Nov 17:18';
+  without(W.sessions['7f3a'].checks, 'run:1048'); without(W.items['WB-2.2'].checks, 'run:1048');
+  W.items['WB-2.5'] = {
+    kind: 'task', title: 'Tree query under 50 ms', project: 'wb', parent: 'WB-2', children: [], state: 'done', isOpen: false, lane: 'A', machine: 'desk-pc', branch: 'br-25', coarse: '~1 day',
+    implements: ['fpb:PER-1'], plan: 'card:pl-25', packet: 'card:pk-25',
+    goal: 'Opening an item loads one level of the tree, so the query stays under 50 ms warm for 40 nodes.',
+    steps: [
+      { t: 'Measure the tree query on 40 nodes', est: 10, state: 'done', proof: 'run:1048' },
+      { t: 'Load one level at a time; children on expand', est: 25, state: 'done', proof: 'run:1061' },
+      { t: 'Prove the PER-1 comparison with a run', est: 10, state: 'done', proof: 'run:1061' }
+    ],
+    checks: ['run:1048', 'run:1061'], changes: { files: [['file:treequery', 14, 9]], types: [] },
+    time: { so: 58, est: 45, factor: 1.3, forecast: 58 }, needs: [], blocks: [], commentScope: [],
+    note: { text: 'One level per query; 38 ms warm for 40 nodes, under the 50 ms target settled in the plan.', date: '5 Nov 20:02', session: 'session:a71c' },
+    rulings: ['ruling:R-02'], sessions: [['session:a71c', 58]],
+    info: { tpl: 'task', purpose: 'Implements PER-1: the tree reloads one level, not the whole tree.', rulings: ['ruling:R-02'], files: [['file:treequery', 'the query behind the tree']],
+      acceptance: [{ t: 'Under 50 ms warm for a tree of 40 nodes', proof: 'run:1061' }], risks: ['Deep trees now take one query per level opened.'], unblocks: [] },
+    history: [
+      ['5 Nov 18:50', 'opened', 'You added the item under [[item:WB-2]] to implement [[fpb:PER-1]]'],
+      ['5 Nov 19:05', 'plan approved', 'You approved [[card:pl-25]]; the 50 ms target settled with it'],
+      ['5 Nov 19:58', 'check', '[[run:1061]] times 38 ms, was 400 ms'],
+      ['5 Nov 20:30', 'packet approved', 'You approved [[card:pk-25]]; merged as [[commit:e93b0d1]]']
+    ]
+  };
+  W.items['WB-2'].children.push('WB-2.5');
+  W.files['treequery'] = { path: 'src/Qotoba.Workbench.Service/Tree/TreeQuery.cs', repo: 'Qotoba', proj: 'Workbench', folder: 'src/Qotoba.Workbench.Service/Tree', branch: 'br-25', seen: true, newLines: 0, lastSeen: '5 Nov 20:40', added: false,
+    lines: ['namespace Qotoba.Workbench.Service.Tree;', '', 'public sealed class TreeQuery(WorkbenchDb db)', '{', '    // One level per call: the tree opens a node, then asks for its children.', '    public Task<IReadOnlyList<TreeRow>> Level(ItemId? parent, CancellationToken ct) =>', '        db.Items.Where(i => i.Parent == parent)', '                .OrderBy(i => i.Order)', '                .Select(TreeRow.From)', '                .ToListAsync(ct);', '}'] };
+  W.branches['br-25'] = { name: 'wb/2.5-tree-query', item: 'WB-2.5', machine: 'desk-pc', state: 'merged', ahead: 0, behind: 0, pushed: true, merged: 'commit:e93b0d1', worktree: 'removed 5 Nov 20:34' };
+  W.commits['e93b0d1'] = { msg: 'Merge WB-2.5 Tree query under 50 ms', date: '5 Nov 20:32', session: 'a71c', branch: 'br-25', files: 1, plus: 14, minus: 9,
+    diff: ['-    public Task<IReadOnlyList<TreeRow>> All(CancellationToken ct) =>', '-        db.Items.Select(TreeRow.From).ToListAsync(ct);', '+    public Task<IReadOnlyList<TreeRow>> Level(ItemId? parent, CancellationToken ct) =>', '+        db.Items.Where(i => i.Parent == parent)'] };
+  W.runs['1061'] = { check: 'tree-query-timing', item: 'WB-2.5', session: 'a71c', machine: 'desk-pc', result: 'pass', value: '38 ms', dur: 4, at: '5 Nov 19:58',
+    cmd: 'qwb time tree --nodes 40 --warm --runs 5', exitCode: 0, out: ['tree-query-timing · 40 nodes · warm · 5 runs', '  median 38 ms (was 400 ms in run 1048)', '  target under 50 ms · pass'] };
+  W.sessions['a71c'] = { title: 'Tree query under 50 ms', machine: 'desk-pc', item: 'WB-2.5', lane: 'A', state: 'ended', started: '5 Nov 19:06', ended: '5 Nov 20:04', minutes: 58, turns: 22, tools: 71,
+    step: 'packet drawn', lastAction: 'ended with the packet waiting', waitingSince: null, waitingOn: [], packet: 'card:pk-25', checks: ['run:1061'], questions: [], assumptions: [], found: [],
+    ledger: [['19:06', 'start', 'Brief delivered: WB-2.5, which implements PER-1'], ['19:20', 'step', 'one level per query'], ['19:58', 'check', 'tree-query-timing 38 ms · run 1061'], ['20:04', 'packet', 'Packet drawn; session ended']] };
+  W.machines['desk-pc'].sessions.push('a71c');
+  W.plans['pl-25'] = { item: 'WB-2.5', session: 'a71c', machine: 'desk-pc', lane: 'A', factor: 1.3, factorNote: 'lane A factor 1.3', approved: '5 Nov 19:05',
+    goal: 'Opening an item loads one level of the tree, so the query stays under 50 ms warm for 40 nodes.',
+    steps: [{ t: 'Measure the tree query on 40 nodes', est: 10, needs: [], proof: 'tree-query-timing' }, { t: 'Load one level at a time; children on expand', est: 25, needs: ['settle:s1'], proof: 'tree-query-timing' }, { t: 'Prove the PER-1 comparison with a run', est: 10, needs: [], proof: 'tree-query-timing' }],
+    settle: [{ id: 's1', q: 'Performance target', options: ['Under 50 ms warm for a tree of 40 nodes', 'Under 100 ms', 'No target'], rec: 0, from: 'fpb:PER-1' }], opensBranch: 'br-25' };
+  W.packets['pk-25'] = { item: 'WB-2.5', session: 'a71c', machine: 'desk-pc', state: 'approved', approved: '5 Nov 20:30', merged: 'commit:e93b0d1', outcome: 'The tree query takes 38 ms for 40 nodes, was 400 ms',
+    time: { actual: 58, est: 45, factor: 1.3 }, checks: [{ label: 'timing', ref: 'run:1061', text: 'tree-query-timing 38 ms' }], assumptions: [], found: [], commentsHandled: [], commentsOpen: [], beyond: [],
+    claims: [{ t: 'PER-1 comparison: 0.4 s → 38 ms, under the 50 ms target', proof: 'run:1061' }], note: { text: 'One level per query. Deep trees cost one query per level opened.', date: '5 Nov 20:02' },
+    deliver: 'session a71c on desk-pc', toast: 'Already approved and merged as e93b0d1', instruction: ['# delivered to session a71c on desk-pc · packet pk-25 · approved by owner 5 Nov 20:30', 'git -C D:\\Development\\repos\\Qotoba merge --no-ff wb/2.5-tree-query', '# reported: merged as e93b0d1'] };
+  W.cards['pl-25'] = { type: 'plan', item: 'WB-2.5', project: 'wb', session: 'a71c', weight: 0, waiting: '', at: '5 Nov 19:02', approved: '5 Nov 19:05', headline: 'Plan: tree query under 50 ms, 3 steps' };
+  W.cards['pk-25'] = { type: 'packet', item: 'WB-2.5', project: 'wb', session: 'a71c', weight: 0, waiting: '', at: '5 Nov 20:04', approved: '5 Nov 20:30', headline: 'The tree query takes 38 ms, was 400 ms' };
+  var p1 = W.fpbs['PER-1'];
+  p1.state = 'verified'; p1.takenOnBy = ['WB-2.5']; p1.checks = ['run:1048', 'run:1061'];
+  p1.source = { type: 'promoted', found: 'found:f3', session: 'session:51b0', item: 'item:WB-1', date: '5 Nov 17:40' };
+  p1.sections.headline = { author: 'machine', before: { v: 400, unit: 'ms', run: 'run:1048', label: 'median of 5, 40 nodes' }, after: { v: 38, unit: 'ms', run: 'run:1061', label: 'median of 5, 40 nodes' } };
+  p1.sections.target = { author: 'claude', v: 50, unit: 'ms', text: 'Under 50 ms warm for a tree of 40 nodes.', by: 'claude', date: '5 Nov 17:42' };
+  p1.history = [['5 Nov 17:20', 'session:51b0', 'Found while opening items; [[run:1048]] timed 400 ms'], ['5 Nov 17:40', 'you', 'Promoted from the found tray'],
+    ['5 Nov 18:50', 'you', 'Added [[item:WB-2.5]] to take this on'], ['5 Nov 19:05', 'you', 'Approved [[card:pl-25]]; the 50 ms target settled'], ['5 Nov 19:58', 'machine:desk-pc', '[[run:1061]] proves the comparison: 38 ms']];
+  p1.sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Performance target', rec: 'Under 50 ms warm for 40 nodes', why: 'Opening an item should feel instant; 50 ms is below what you notice.', cost: 'low', status: 'settled', ref: 'card:pl-25', date: '5 Nov 19:05', note: 'Under 50 ms chosen · plan for WB-2.5' },
+    { kind: 'precondition', text: 'A repeatable timing on 40 nodes exists', status: 'proved', ref: 'run:1048', date: '5 Nov 17:18' },
+    { kind: 'proof', text: 'The comparison: 400 ms before, under 50 ms after', status: 'proved', ref: 'run:1061', date: '5 Nov 19:58' }
+  ] };
+
+  /* ---------------------------------------------------------------- BUG-1, taken on by WB-2.3 (in progress): one line asked, one scheduled */
+  W.items['WB-2.3'].implements = ['fpb:BUG-1'];
+  var b1 = W.fpbs['BUG-1'];
+  b1.takenOnBy = ['WB-2.3']; b1.state = 'in progress';
+  if (b1.severity) { b1.severity.by = 'claude'; b1.severity.confirmed = false; }
+  b1.sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'How to order two events from one session', rec: 'The Host\'s per-session sequence number (Host 0.5)', why: 'Fixes clock skew for good.', cost: 'medium', status: 'asked', ref: 'card:q-comment', date: '6 Nov 04:38' },
+    { kind: 'proof', text: 'Two tool calls finishing in the same second keep their order', status: 'scheduled', ref: 'item:WB-2.3', note: 'Will be proved at step 4 of Order hook events across machines' }
+  ] };
+
+  /* ---------------------------------------------------------------- FTR-1, at rest: no task has taken it on */
+  W.fpbs['FTR-1'].takenOnBy = [];
+  W.fpbs['FTR-1'].sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Build the verbs on first tap or on first hover?', rec: 'First tap', why: 'Phones have no hover; one rule for both.', cost: 'low', status: 'open' },
+    { kind: 'proof', text: 'Acceptance: the first tap on a card shows its verbs within 50 ms', status: 'open' },
+    { kind: 'dependency', text: 'Likely depends on PER-2: lazy verbs pay off once the rail realises 24 cards, not 1,356', status: 'open' },
+    { kind: 'precondition', text: 'Dope is open, so a task can be added under it', status: 'open' }
+  ] };
+
+  /* ---------------------------------------------------------------- FTR-2: the two deferred questions become decision lines */
+  ['Q-10', 'Q-11'].forEach(function (q) { W.questions[q].state = 'not asked'; W.questions[q].card = null; });
+  delete W.cards['q-f2a']; delete W.cards['q-f2b'];
+  hist(W.fpbs['FTR-2'].history, 'Plan of 6 steps approved', ['4 Nov 21:30', 'you', 'Spike plan of 6 steps recorded; [[question:Q-10]] and [[question:Q-11]] became When implementing lines for whichever task takes this on']);
+  W.sessions['9c40'].lastAction = 'ended; two decisions recorded on the report';
+  W.fpbs['FTR-2'].takenOnBy = [];
+  W.fpbs['FTR-2'].sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Should a computed member cache its value until a member it reads changes?', rec: 'Cache, and invalidate when a member it reads changes', why: 'Cheap reads in lists; needs the observable core.', cost: 'medium', status: 'open', ref: 'question:Q-10' },
+    { kind: 'decision', text: 'Default values: constructor or initialiser?', rec: 'Property initialisers in C#, constructor defaults in TypeScript', why: 'Each target reads naturally; the parity row stays the same.', cost: 'low', status: 'open', ref: 'question:Q-11' },
+    { kind: 'proof', text: 'Acceptance: observable members raise change events through the observable core', status: 'open' },
+    { kind: 'proof', text: 'Acceptance: the emitted TypeScript record passes tsc --strict', status: 'open' },
+    { kind: 'dependency', text: 'Step 6, observable members, needs Observable core', status: 'open', ref: 'item:FW-1' },
+    { kind: 'precondition', text: 'The QDL parser handles the class grammar', status: 'open', ref: 'item:LNG-1' }
+  ] };
+
+  /* ---------------------------------------------------------------- FTR-3 and PER-2 */
+  W.fpbs['FTR-3'].takenOnBy = [];
+  W.fpbs['FTR-3'].sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Run on every .qo file, or only the changed ones?', rec: 'Every file', why: 'The corpus runs in about a minute; partial runs miss printer regressions.', cost: 'low', status: 'open' },
+    { kind: 'proof', text: 'Acceptance: the parser corpus of 1,204 files round-trips with no mismatch', status: 'proved', ref: 'run:1022', date: '5 Nov 02:00', note: 'proved while LNG-1.1 proved its own line' }
+  ] };
+  W.fpbs['PER-2'].takenOnBy = [];
+  if (W.fpbs['PER-2'].sections.target) { W.fpbs['PER-2'].sections.target.author = 'claude'; W.fpbs['PER-2'].sections.target.by = 'claude'; }
+  W.fpbs['PER-2'].sections.implementing = { author: 'claude', lines: [
+    { kind: 'decision', text: 'Performance target', rec: 'Under 1 s cold on the laptop', why: 'The user-visible budget for opening the library.', cost: 'low', status: 'settled', ref: 'ruling:R-12', date: '29 Oct', note: 'Under 1 s · imported with the Dope seed as R-12' },
+    { kind: 'proof', text: 'The library opens under 1 s cold', status: 'proved', ref: 'run:0931', date: '30 Oct' },
+    { kind: 'precondition', text: 'Dope is open before any further work', status: 'open' }
+  ] };
+  Object.keys(W.reportOrder).forEach(function (k) { W.reportOrder[k].unshift(['implementing', 'When implementing']); });
+
+  /* ---------------------------------------------------------------- assumptions and found items: the packet card carries 4 and 3 */
+  delete W.assumptions.a10; delete W.assumptions.a12;
+  W.sessions.c21e.assumptions = ['a9', 'a11', 'a13', 'a14']; W.packets['pk-runs'].assumptions = ['a9', 'a11', 'a13', 'a14'];
+  W.found.f6 = { kind: 'FTR', title: 'Runs table could group by machine', session: 'c21e', item: 'WB-2.1', state: 'in tray', found: '6 Nov 03:44',
+    why: 'With two machines posting, the table interleaves their runs; a machine group reads faster.', evidence: 'run:1043', suggest: 'WB-3' };
+  W.sessions.c21e.found.push('found:f6'); W.packets['pk-runs'].found.push('f6');
+
+  /* ---------------------------------------------------------------- rulings proposed from chat: one Action card */
+  W.cards['rp-chat'] = { type: 'proposals', item: 'WB-2', project: 'wb', session: null, weight: 0, waiting: '7 h 32 min', at: '5 Nov 21:40', headline: '4 rulings proposed from chat' };
+  W.proposed.card = 'rp-chat'; W.proposed.item = 'WB-2';
+
+  /* ---------------------------------------------------------------- a preview built from the seed is not pushed: it waits for Dope to open */
+  W.cards['pk-dope'].preview = true;
+
+  /* ---------------------------------------------------------------- every card: its task, its step, and where it came from */
+  W.cardOrigin = {
+    'q-design': { step: 'step 3 of 5', from: ['session:7f3a'] },
+    'q-unseen': { step: 'step 4 of 5', from: ['session:7f3a', 'file:runrecord'] },
+    'q-comment': { step: 'step 3 of 4', from: ['fpb:BUG-1', 'comment:c4'], fromText: 'a When implementing line of BUG-1 and your + comment' },
+    'pk-runs': { step: 'packet, after step 5 of 5', from: ['session:c21e'] },
+    'pl-24': { step: 'plan, before step 1', from: ['session:2a6d'] },
+    'st-23': { step: 'step 2 of 4', from: ['session:b915'] },
+    'rp-chat': { step: 'step 3 of 5, the inbox design', from: [], fromText: 'the design chat on 5 Nov at 21:40, about deferral and clearing' },
+    'pk-dope': { step: 'no step: a preview', from: ['fpb:FTR-1'] },
+    'pk-hello': { step: 'packet, after step 5 of 5', from: ['session:51b0'] },
+    'pl-lng11': { step: 'plan, before step 1', from: ['session:e5c1', 'fpb:BUG-2'], fromText: 'BUG-2 · When implementing' },
+    'q-lng11': { step: 'step 2 of 4', from: ['fpb:BUG-2', 'session:e5c1'], fromText: 'a blocking decision line of BUG-2' },
+    'pk-lng11': { step: 'packet, after step 4 of 4', from: ['session:e5c1'] },
+    'pl-25': { step: 'plan, before step 1', from: ['session:a71c', 'fpb:PER-1'], fromText: 'PER-1 · When implementing' },
+    'pk-25': { step: 'packet, after step 3 of 3', from: ['session:a71c'] },
+    'i1': { step: 'packet, after step 5 of 5', from: ['session:c21e'] }, 'i4': { step: 'packet, after step 5 of 5', from: ['session:c21e'] }, 'i5': { step: 'packet, after step 5 of 5', from: ['session:c21e'] },
+    'i2': { step: null, from: ['machine:cloud-1'], fromText: 'not a task: you registered a machine' },
+    'i3': { step: null, from: [], fromText: 'not a task: you imported the Dope seed' },
+    'i6': { step: null, from: ['fpb:PER-2'], fromText: 'not a task: a seeded run on a report' }
+  };
+  ['i1', 'i4', 'i5'].forEach(function (k) { if (!W.cards[k].item) W.cards[k].item = 'WB-2.1'; });
+  W.cardWhy = {
+    'q-design': 'Blocking question on step 3 of Run page with output',
+    'q-unseen': 'Blocking question on step 4 of Run page with output, about a file you have not read yet',
+    'q-comment': 'Blocking decision from BUG-1, step 3 of Order hook events across machines',
+    'pk-runs': 'All checks passed on Runs table fills from hook events, ready to merge',
+    'pk-dope': 'A preview of Lazy card verbs built from the Dope seed; nothing to merge while Dope is closed',
+    'pk-hello': 'All checks passed on Hello card across two machines; you approved it and it merged',
+    'pl-24': 'Plan for Check chips on the summary block needs your approval before step 1',
+    'st-23': 'Failed three times on step 2 of Order hook events across machines',
+    'rp-chat': 'Four rulings proposed in the design chat about WB-2 need your tick before they are recorded',
+    'pl-lng11': 'Plan for Keep comments when string recovery skips a line needed your approval; it carried defaults from BUG-2',
+    'q-lng11': 'Blocking decision from BUG-2, step 2 of Keep comments when string recovery skips a line',
+    'pk-lng11': 'All checks passed on Keep comments when string recovery skips a line; it proves the BUG-2 acceptance line',
+    'pl-25': 'Plan for Tree query under 50 ms needed your approval; it carried the target from PER-1',
+    'pk-25': 'All checks passed on Tree query under 50 ms; it proves the PER-1 comparison',
+    'i1': 'A lane factor changed when Runs table fills from hook events finished', 'i2': 'A machine registered', 'i3': 'A seed was imported',
+    'i4': 'A branch was pushed for Runs table fills from hook events', 'i5': 'A session ended on Runs table fills from hook events', 'i6': 'A seeded run met the PER-2 target'
+  };
+})(WB);
+
+/* ================================================================ round 2, follow-up · test data only
+   FTR-2's spike becomes a task that implements it; tasks record the decisions made for them;
+   decision lines carry their options, each with its own cost to change. */
+(function (W) {
+  function hist(list, find, repl) { for (var i = 0; i < list.length; i++) if (JSON.stringify(list[i]).indexOf(find) >= 0) { list[i] = repl; return true; } return false; }
+
+  /* ---------------------------------------------------------------- FTR-2: the spike is task LNG-5.1, which implements it */
+  var f2 = W.fpbs['FTR-2'];
+  W.items['LNG-5.1'] = {
+    kind: 'task', title: 'Class construct spike', project: 'lang', parent: 'LNG-5', children: [], state: 'paused', isOpen: false,
+    lane: null, machine: 'desk-pc', branch: null, coarse: '~1 week', implements: ['fpb:FTR-2'], plan: 'card:pl-lng51',
+    goal: 'Prove the class construct end to end in the Quanta repo: parse, print, check and emit both targets, with observable members.',
+    steps: [
+      { t: 'Grammar and syntax tree for class and members', est: 60, state: 'done', proof: 'run:0950' },
+      { t: 'Printer round-trip for class', est: 40, state: 'done', proof: 'run:0950' },
+      { t: 'Checker rules: duplicate members, unknown types', est: 90, state: 'todo', proof: 'nyw:ClassDecl' },
+      { t: 'Emit computed members', est: 90, state: 'todo', proof: 'nyw:ClassEmitter', needs: ['question:Q-10'] },
+      { t: 'Emit defaults on both targets', est: 60, state: 'todo', proof: 'nyw:ClassEmitter', needs: ['question:Q-11'] },
+      { t: 'Observable members through the observable core', est: 120, state: 'todo', proof: 'nyw:check-observable', needs: ['item:FW-1'] }
+    ],
+    checks: ['run:0950', 'run:0951'], changes: { files: [], types: [] },
+    time: { so: 95, est: 460, factor: 1.2, forecast: 552 }, needs: [{ ref: 'item:LNG-1', note: 'the class grammar extends the parser' }, { ref: 'item:FW-1', note: 'step 6 only · proposed by Claude' }], blocks: [], commentScope: [],
+    note: { text: 'Parse, print and C# emit work for five member kinds. Paused after step 2: Language is closed, and steps 4 and 5 wait on two decisions recorded on FTR-2.', date: '4 Nov 19:38', session: 'session:9c40' },
+    rulings: ['ruling:R-14', 'ruling:R-15', 'ruling:R-06'], sessions: [['session:9c40', 95]],
+    info: { tpl: 'task', purpose: 'A spike opened by you while Language is closed: it implements FTR-2 in the Quanta repo and pauses until Language opens.',
+      rulings: ['ruling:R-14', 'ruling:R-15', 'ruling:R-06'], files: [],
+      acceptance: [{ t: 'A class with five kinds of member parses and prints back unchanged', proof: 'run:0950' }, { t: 'The emitted C# class builds with warnings as errors', proof: 'run:0951' }],
+      risks: ['Observable members wait on the Framework\'s observable core.'], unblocks: [] },
+    history: [
+      ['4 Nov 18:02', 'opened', 'You added the item under [[item:LNG-5]] to implement [[fpb:FTR-2]]'],
+      ['4 Nov 18:10', 'plan submitted', 'Session [[session:9c40]] drew a plan of 6 steps from the report\'s When implementing lines'],
+      ['4 Nov 18:12', 'plan approved', 'You approved [[card:pl-lng51]]; the spike runs in the Quanta repo while Language is closed'],
+      ['4 Nov 19:36', 'decisions recorded', '[[question:Q-10]] and [[question:Q-11]] were not asked: steps 4 and 5 were not reached. They wait on FTR-2 as When implementing lines'],
+      ['4 Nov 19:40', 'paused', 'Session ended after step 2; the spike resumes when Language opens']
+    ],
+    decisions: [
+      { t: 'Language is closed: run the spike in the Quanta repo', a: 'Accept', how: 'settle', ref: 'card:pl-lng51', from: 'fpb:FTR-2', date: '4 Nov 18:12' }
+    ]
+  };
+  W.items['LNG-5'].children = ['LNG-5.1'];
+  W.plans['pl-lng51'] = { item: 'LNG-5.1', session: '9c40', machine: 'desk-pc', lane: '-', factor: 1.2, factorNote: 'Language has no lane yet; the programme default 1.2 applies', approved: '4 Nov 18:12',
+    goal: 'Prove the class construct end to end in the Quanta repo: parse, print, check and emit both targets, with observable members.',
+    steps: [
+      { t: 'Grammar and syntax tree for class and members', est: 60, needs: ['settle:s1'], proof: 'specimens · class parse' },
+      { t: 'Printer round-trip for class', est: 40, needs: [], proof: 'specimens · class parse' },
+      { t: 'Checker rules: duplicate members, unknown types', est: 90, needs: [], proof: 'specimens · class check' },
+      { t: 'Emit computed members', est: 90, needs: [], proof: 'specimens · class emit C#' },
+      { t: 'Emit defaults on both targets', est: 60, needs: [], proof: 'specimens · class emit TS' },
+      { t: 'Observable members through the observable core', est: 120, needs: ['item:FW-1'], proof: 'specimens · class observable' }
+    ],
+    settle: [{ id: 's1', q: 'Language is closed: run the spike in the Quanta repo', options: ['Accept', 'Wait for Language to open'], rec: 0, from: 'fpb:FTR-2' }], opensBranch: null };
+  W.cards['pl-lng51'] = { type: 'plan', item: 'LNG-5.1', project: 'lang', session: '9c40', weight: 0, waiting: '', at: '4 Nov 18:10', approved: '4 Nov 18:12', headline: 'Plan: class construct spike, 6 steps' };
+  W.cardOrigin['pl-lng51'] = { step: 'plan, before step 1', from: ['session:9c40', 'fpb:FTR-2'], fromText: 'FTR-2 · When implementing' };
+  W.cardWhy['pl-lng51'] = 'Plan for Class construct spike needed your approval; it carried a precondition from FTR-2';
+
+  ['0950', '0951'].forEach(function (r) { W.runs[r].item = 'LNG-5.1'; });
+  var s9 = W.sessions['9c40'];
+  s9.item = 'LNG-5.1'; s9.step = 'steps 1 and 2 done; paused while Language is closed'; s9.lastAction = 'ended after step 2; two decisions recorded on FTR-2';
+  s9.ledger = [['18:05', 'start', 'Brief delivered: LNG-5.1, which implements FTR-2, in the Quanta repo'], ['18:10', 'plan', 'Plan of 6 steps drawn from FTR-2 · When implementing'], ['18:12', 'approved', 'You approved the plan'],
+    ['18:40', 'write', 'Grammar for class and members'], ['19:30', 'check', 'specimens 6/6 · run 0950'],
+    ['19:32', 'note', 'Q-10 · do computed members cache: recorded on FTR-2 for step 4'], ['19:36', 'note', 'Q-11 · defaults per target: recorded on FTR-2 for step 5'],
+    ['19:38', 'note', 'Note written (2 lines)'], ['19:41', 'check', 'C# emit builds · run 0951']];
+  ['Q-10', 'Q-11'].forEach(function (q) { W.questions[q].item = 'LNG-5.1'; W.questions[q].report = 'FTR-2'; });
+
+  // the report keeps what it is about; the plan, runs, sessions and time belong to the task
+  delete f2.steps; delete f2.checks; delete f2.changes; delete f2.commentScope; delete f2.machine; delete f2.branch; delete f2.lane;
+  f2.sessions = []; delete f2.sections.plan;
+  f2.time = { est: 460, estBy: 'from the plan of Class construct spike, which takes this on' };
+  f2.state = 'in progress'; f2.takenOnBy = ['LNG-5.1'];
+  f2.sections.note.text = 'Parse, print and C# emit work for five member kinds in the spike. Observability waits on the Framework core; two decisions wait as When implementing lines until the spike resumes.';
+  hist(f2.history, 'Spike started on', ['4 Nov 18:02', 'you', 'Added [[item:LNG-5.1]] to take this on; its session [[session:9c40]] ran the spike on [[machine:desk-pc]] in the Quanta repo']);
+  hist(f2.history, 'Spike plan of 6 steps recorded', ['4 Nov 19:40', 'session:9c40', 'Paused after step 2; [[question:Q-10]] and [[question:Q-11]] were not asked and stay here as When implementing lines']);
+  f2.history.push(['4 Nov 18:12', 'you', 'Approved [[card:pl-lng51]] for [[item:LNG-5.1]]']);
+  function tkey(e) { var m = /(\d+) Nov (\d+):(\d+)/.exec(e[0]); return m ? (+m[1]) * 10000 + (+m[2]) * 100 + (+m[3]) : 0; }
+  f2.history.sort(function (a, b) { return tkey(a) - tkey(b); });
+  f2.sections.implementing.lines = [
+    { kind: 'decision', q: 'Q-10', text: 'Should a computed member cache its value until a member it reads changes?', status: 'scheduled', ref: 'item:LNG-5.1', note: 'Will be asked on a Question Card when Class construct spike reaches step 4' },
+    { kind: 'decision', q: 'Q-11', text: 'Default values: constructor or initialiser?', status: 'scheduled', ref: 'item:LNG-5.1', note: 'Will be a default in the settle pass when Class construct spike resumes' },
+    { kind: 'proof', text: 'Acceptance: observable members raise change events through the observable core', status: 'scheduled', ref: 'item:LNG-5.1', note: 'Will be proved at step 6 of Class construct spike' },
+    { kind: 'proof', text: 'Acceptance: the emitted TypeScript record passes tsc --strict', status: 'scheduled', ref: 'item:LNG-5.1', note: 'Will be proved at step 5 of Class construct spike' },
+    { kind: 'dependency', text: 'Step 6, observable members, needs Observable core (FW-1)', status: 'scheduled', ref: 'item:LNG-5.1', note: 'Will be confirmed in the settle pass when Class construct spike resumes' },
+    { kind: 'precondition', text: 'Language is closed, so the spike runs in the Quanta repo', status: 'settled', ref: 'card:pl-lng51', date: '4 Nov 18:12', note: 'Accepted with the plan for LNG-5.1' },
+    { kind: 'precondition', text: 'The QDL parser handles the class grammar', status: 'proved', ref: 'run:0950', date: '4 Nov 19:30' }
+  ];
+
+  /* ---------------------------------------------------------------- "unblocks" weight is a card's; a report's links carry no minutes */
+  W.edges.forEach(function (e) { if (/^fpb:/.test(e.from) || /^fpb:/.test(e.to)) delete e.min; });
+
+  /* ---------------------------------------------------------------- tasks record the decisions made for them */
+  W.items['LNG-1.1'].decisions = [
+    { t: 'Which fix?', a: 'Fix 2: attach skipped tokens as trivia on the error node', how: 'settle', ref: 'card:pl-lng11', from: 'fpb:BUG-2', date: '5 Nov 01:05' },
+    { t: 'Depends on FTR-3: the round-trip check proves the fix', a: 'Accept', how: 'settle', ref: 'card:pl-lng11', from: 'fpb:BUG-2', date: '5 Nov 01:05' },
+    { t: 'A comment inside the unterminated string belongs to the string', a: 'Yes, keep it with the string', how: 'settle', ref: 'card:pl-lng11', from: 'fpb:BUG-2', date: '5 Nov 01:05' },
+    { t: 'May recovery discard the tokens it skips?', a: 'Never discard: skipped text becomes trivia on the error node', how: 'question', ref: 'card:q-lng11', from: 'fpb:BUG-2', date: '5 Nov 01:52', ruling: 'ruling:R-13' }
+  ];
+  W.items['WB-2.5'].decisions = [
+    { t: 'Performance target', a: 'Under 50 ms warm for a tree of 40 nodes', how: 'settle', ref: 'card:pl-25', from: 'fpb:PER-1', date: '5 Nov 19:05' }
+  ];
+
+  /* ---------------------------------------------------------------- decision lines carry their options, each with its reason and cost to change */
+  function opts(fpb, text, list) { var l = W.fpbs[fpb].sections.implementing.lines.filter(function (x) { return x.kind === 'decision' && x.text.indexOf(text) === 0; })[0]; if (l) l.options = list; }
+  opts('BUG-2', 'Which fix', [
+    { t: 'Fix 2: attach skipped tokens as trivia on the error node', why: 'Low risk, high confidence, and a regression check already exists', cost: 'low, one attach call', rec: true },
+    { t: 'Fix 1: stop recovery at the comment start', why: 'Leaves a stray quote the printer must special-case', cost: 'medium, a printer rule per string kind' },
+    { t: 'Fix 3: re-lex the line after recovery', why: 'Sure to work, but 90 min and high risk to the lexer', cost: 'high, the lexer\'s recovery contract' }]);
+  opts('BUG-2', 'Does a comment inside', [
+    { t: 'Yes, keep it with the string', why: 'The lexer already reads to the line end; the printer gives it back as written', cost: 'low, one test', rec: true },
+    { t: 'No, lex it as a comment', why: 'Reads better, but changes how every unterminated string recovers', cost: 'medium, every recovery specimen' }]);
+  opts('FTR-1', 'Build the verbs', [
+    { t: 'On first tap', why: 'Phones have no hover; one rule for both', cost: 'low, one event handler', rec: true },
+    { t: 'On first hover', why: 'A little faster on desktop, nothing on phones', cost: 'low, one event handler' }]);
+  opts('FTR-3', 'Run on every', [
+    { t: 'Every .qo file', why: 'The corpus runs in about a minute; partial runs miss printer regressions', cost: 'low, one check setting', rec: true },
+    { t: 'Only the changed files', why: 'Faster, but misses regressions in files nobody touched', cost: 'low, one check setting' }]);
+  opts('PER-1', 'Performance target', [
+    { t: 'Under 50 ms warm for a tree of 40 nodes', why: 'Below what you notice when an item opens', cost: 'low, the check\'s limit', rec: true },
+    { t: 'Under 100 ms', why: 'Noticeable on the laptop', cost: 'low, the check\'s limit' },
+    { t: 'No target', why: 'Nothing to prove the fix against', cost: 'medium, a guard written later' }]);
+  opts('PER-2', 'Performance target', [
+    { t: 'Under 1 s cold on the laptop', why: 'The user-visible budget for opening the library', cost: 'low, the guard\'s limit', rec: true },
+    { t: 'Under 2 s cold', why: 'Feels slow the first time the library opens', cost: 'low, the guard\'s limit' }]);
+})(window.WB);

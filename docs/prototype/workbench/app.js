@@ -7,9 +7,9 @@
 
   /* ================================================================ utilities */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function fmtMin(m) { if (m == null) return '—'; m = Math.round(m); if (m < 60) return m + 'm'; var h = Math.floor(m / 60), r = m % 60; return h + 'h ' + (r < 10 ? '0' : '') + r + 'm'; }
-  function fmtSec(s) { if (s < 60) return s + ' s'; var m = Math.floor(s / 60), r = s % 60; return m + 'm ' + (r < 10 ? '0' : '') + r + 's'; }
-  function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  function fmtMin(m) { if (m == null) return '—'; m = Math.round(m); if (m < 60) return m + '\u00a0min'; var h = Math.floor(m / 60), r = m % 60; return h + '\u00a0h' + (r ? ' ' + (r < 10 ? '0' : '') + r + '\u00a0min' : ''); }
+  function fmtSec(s) { if (s < 60) return s + ' s'; var m = Math.floor(s / 60), r = s % 60; return m + ' min ' + (r < 10 ? '0' : '') + r + ' s'; }
+  function trunc(s, n) { s = String(s); if (s.length <= n) return s; var c = s.slice(0, n - 1), sp = c.lastIndexOf(' '); if (sp > n * 0.5) c = c.slice(0, sp); return c.replace(/[\s,;:·–.-]+$/, '') + '…'; }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
   function by(arr, f) { return arr.slice().sort(function (a, b) { var x = f(a), y = f(b); return x < y ? -1 : x > y ? 1 : 0; }); }
   function keys(o) { return Object.keys(o || {}); }
@@ -138,7 +138,7 @@
       case 'commit': return { kind: k, title: e.msg, meta: e.date.replace(/ \d+:\d+$/, ''), id: r.id };
       case 'branch': return { kind: k, title: e.name, meta: e.state.split(' · ')[0], id: '' };
       case 'card': return { kind: k, title: e.headline, meta: e.approved ? 'approved' : e.preview ? 'preview' : ({ question: 'question', packet: 'approve', plan: 'plan', stuck: 'stuck', info: 'info' })[e.type], id: r.id };
-      case 'lane': return { kind: k, title: 'lane ' + r.id + ' · ' + e.name, meta: '×' + e.factor, id: '' };
+      case 'lane': return { kind: k, title: 'lane ' + r.id + ' · ' + e.name, meta: 'factor ' + e.factor, id: '' };
       case 'nyw': return { kind: k, title: e.title, meta: 'not yet written', id: '', cls: 'nyw' };
     }
     return { kind: k, title: r.id, meta: '', id: '' };
@@ -226,11 +226,13 @@
   function itemFound(ids) { return keys(D.found).filter(function (f) { return ids.indexOf(D.found[f].item) >= 0; }); }
   function itemRuns(ids) { return by(keys(D.runs).filter(function (r) { return ids.indexOf(D.runs[r].item) >= 0; }), function (r) { return -timeKey(D.runs[r].at); }); }
   function commentCounts(list) { var o = { n: 0, open: 0, handled: 0, stale: 0 }; (list || []).forEach(function (c) { var x = D.comments[c]; if (!x) return; o.n++; o[x.state]++; }); return o; }
+  function quietSample() { return /[?&]sample=quiet/.test(location.hash); }
   function needsCards(filter) {
-    return keys(D.cards).filter(function (id) { var c = D.cards[id]; return c.type !== 'info' && !c.approved && !c.deferred && (filter === 'all' || !filter || c.project === filter); });
+    if (quietSample()) return [];
+    return keys(D.cards).filter(function (id) { var c = D.cards[id]; return c.type !== 'info' && !c.approved && !c.answered && !c.preview && !c.deferred && (filter === 'all' || !filter || c.project === filter); });
   }
   function cardsForScope(ids) { return needsCards('all').filter(function (id) { return ids.indexOf(D.cards[id].item) >= 0; }); }
-  function queueText(n) { var sec = n * D.meta.avgDecisionSec; return 'about ' + Math.max(1, Math.round(sec / 60)) + ' min'; }
+  function queueText(n) { if (!n) return 'nothing to clear'; var sec = n * D.meta.avgDecisionSec; return 'about ' + Math.max(1, Math.round(sec / 60)) + ' min'; }
   function itemChanges(id) {
     var ids = scope(id), files = {}, types = [];
     ids.forEach(function (i) { var ch = work(i) && work(i).changes; if (!ch) return; ch.files.forEach(function (f) { var k = f[0]; if (!files[k]) files[k] = [k, 0, 0]; files[k][1] += f[1]; files[k][2] += f[2]; }); ch.types.forEach(function (t) { if (types.indexOf(t) < 0) types.push(t); }); });
@@ -246,7 +248,7 @@
     var first = D.items[parseRef(out[0]).id];
     return ['project:' + first.project].concat(out);
   }
-  function crumbs(refs) { return '<nav class="crumbs" aria-label="Breadcrumb">' + refs.map(function (r, i) { return (i ? '<span class="sep">/</span>' : '') + '<a class="crumb" href="' + hrefFor(r) + '" title="' + esc(KIND_LABEL[parseRef(r).kind] + ': ' + chipInfo(r).title) + '">' + esc(trunc(chipInfo(r).title, 32)) + '</a>'; }).join('') + '</nav>'; }
+  function crumbs(refs) { return '<nav class="crumbs" aria-label="Breadcrumb">' + refs.map(function (r, i) { return (i ? '<span class="sep">/</span>' : '') + '<a class="crumb" href="' + hrefFor(r) + '" title="' + esc(KIND_LABEL[parseRef(r).kind] + ': ' + chipInfo(r).title) + '">' + esc(chipInfo(r).title) + '</a>'; }).join('') + '</nav>'; }
 
   /* ================================================================ layers: popover, sheet, menu, toast */
   var layer = function () { return document.getElementById('layer'); };
@@ -270,13 +272,12 @@
   function openPop(ref, anchor) {
     var c = chipInfo(ref), body = popBody(ref);
     var back = backlinks(ref);
-    var more = (body.origin ? '<p class="small"><span class="muted">From</span> ' + body.origin + '</p>' : '') +
-      (back.length ? '<p class="small muted" style="margin:10px 0 6px">' + esc(backLabel(c.kind, back)) + '</p>' + chips(back.slice(0, 12), { max: 30 }) + (back.length > 12 ? '<div class="tiny">and ' + (back.length - 12) + ' more</div>' : '') : '<p class="small muted">Not referenced elsewhere yet.</p>');
+    var more = (back.length ? '<p class="small muted" style="margin:10px 0 6px">' + esc(backLabel(c.kind, back)) + '</p>' + chips(back.slice(0, 12), { max: 30 }) + (back.length > 12 ? '<div class="tiny">and ' + (back.length - 12) + ' more</div>' : '') : '<p class="small muted">Not referenced elsewhere yet.</p>');
     var html = '<div class="scrim pop-scrim" data-act="close"></div><div class="pop k-' + c.kind + '" role="dialog" aria-label="' + esc(KIND_LABEL[c.kind]) + '">' +
       '<div class="pop-h"><span class="kind"><span class="ic">' + ic(c.kind) + '</span>' + esc(KIND_LABEL[c.kind]) + (c.meta ? ' · ' + esc(c.meta) : '') + '</span>' +
       '<button class="icon-btn x" data-act="close" aria-label="Close">' + ic('close') + '</button></div>' +
-      '<div class="pop-b"><p class="pt">' + esc(c.title) + '</p>' + body.html +
-      '<details class="mini"><summary>Where it came from' + (back.length ? ' · ' + (c.kind === 'ruling' ? 'cited by ' : 'referenced by ') + back.length : '') + (c.id ? ' · <span class="mono">' + esc(c.id) + '</span>' : '') + '</summary>' + more + '</details>' +
+      '<div class="pop-b">' + (body.origin ? '<p class="pop-origin">' + body.origin + '</p>' : '') + '<p class="pt">' + esc(c.title) + '</p>' + body.html +
+      '<details class="mini"><summary>' + (back.length ? (c.kind === 'ruling' ? 'Cited in ' : 'Referenced in ') + plural(back.length, 'place') : 'Not referenced elsewhere yet') + (c.id ? ' · <span class="mono">' + esc(c.id) + '</span>' : '') + '</summary>' + more + '</details>' +
       '</div><div class="pop-f"><a class="btn primary" href="' + hrefFor(ref) + '" data-act="close-after">Open</a><button class="btn" data-act="copy" data-href="' + esc(hrefFor(ref)) + '">Copy link</button></div></div>';
     layer().innerHTML = html;
     placeNear(layer().querySelector('.pop'), anchor, 380);
@@ -331,8 +332,10 @@
   function fileDiff(id) { var f = D.files[id]; if (!f) return []; if (f.diff) return f.diff; return ['@@ -0,0 +1,' + f.lines.length + ' @@ new file ' + f.path].concat(f.lines.map(function (l) { return '+' + l; })); }
 
   /* progressive disclosure: one line closed, the detail when opened */
+  var EMPTY_SUM = ['none', 'nothing yet', 'no runs yet'];
   function drill(label, summary, body, opt) {
     opt = opt || {};
+    if (opt.empty || EMPTY_SUM.indexOf(summary) >= 0 || body === '' || body == null) return '';
     return '<details class="drill' + (opt.attn ? ' attn' : '') + '"' + (opt.open ? ' open' : '') + (opt.id ? ' id="' + opt.id + '"' : '') + '><summary><span class="dl">' + label + '</span><span class="ds">' + summary + '</span><span class="chev" aria-hidden="true"></span></summary><div class="db">' + body + '</div></details>';
   }
   function drills(rows, title) { return (title ? '<div class="deeper-h">' + title + '</div>' : '') + '<div class="drills">' + rows.filter(Boolean).join('') + '</div>'; }
@@ -407,13 +410,13 @@
         return { html: '<div class="meta-line"><span class="kind-label kl-' + (e.type === 'packet' ? 'approve' : e.type) + '">' + esc(cardKindLabel(e)) + '</span>' + (e.item ? chip(workRef(e.item)) : '') + '</div><p style="margin-top:8px">' + rich(e.why || e.body) + '</p>',
           origin: e.type === 'info' ? rich(e.origin) : (e.session ? 'Raised by ' + chip('session:' + e.session, { nometa: true }) + ', ' + esc(e.at) : 'Built from the seed, ' + esc(e.at)) };
       case 'lane':
-        return { html: '<div class="kvs"><span>factor <b>×' + e.factor + '</b>' + (e.was && e.was !== e.factor ? ' (was ×' + e.was + ')' : '') + '</span><span><b>' + esc(e.state) + '</b></span></div><div class="meta-line" style="margin-top:6px">path ' + chips(e.path, { nometa: true, max: 28 }) + '</div>', origin: e.proposed ? 'Proposed by ' + chip('card:pl-24', { nometa: true }) : 'Added by you' };
+        return { html: '<div class="kvs"><span>factor <b>' + e.factor + '</b>' + (e.was && e.was !== e.factor ? ' (was ' + e.was + ')' : '') + '</span><span><b>' + esc(e.state) + '</b></span></div><div class="meta-line" style="margin-top:6px">path ' + chips(e.path, { nometa: true, max: 28 }) + '</div>', origin: e.proposed ? 'Proposed by ' + chip('card:pl-24', { nometa: true }) : 'Added by you' };
       case 'nyw':
         return { html: '<p><span class="marker pv">not yet written</span></p><p class="small">Planned at <span class="mono">' + esc(e.where) + '</span>, in ' + rich(e.step) + '. No line exists, so nothing is pulled and nothing is claimed.</p>', origin: 'Named by an approved or proposed plan' };
     }
     return { html: '' };
   }
-  function cardKindLabel(c) { return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
+  function cardKindLabel(c) { if (c.type === 'proposals') return 'Record'; if (c.type === 'question' && c.answered) return 'Question · answered'; if (c.type === 'plan' && c.approved) return 'Plan · approved'; return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
 
   /* ================================================================ shared fragments */
   function budgetQ(itemId) {
@@ -432,8 +435,8 @@
     var to = s ? (s.state === 'ended' ? 'the Host on ' + s.machine + ' (session ' + c.session + ' resumes to read it)' : 'session ' + c.session + ' on ' + s.machine) : (c && c.type === 'info' ? 'your notes on this card' : 'the item, read when a session next opens it');
     return '<div class="reply" id="reply-' + id + '"' + (open ? '' : ' hidden') + '><input type="text" placeholder="Say it in your own words" aria-label="Your message" data-act="reply-input" data-card="' + id + '"><button class="btn primary" data-act="send-reply" data-card="' + id + '" data-to="' + esc(to) + '">Send</button><p class="small muted">Goes to ' + esc(to) + ' instead of the buttons above.</p></div>';
   }
-  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type; }
-  function ago(c) { return c.waiting ? c.waiting : c.age || ''; }
+  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type === 'proposals' ? 'plan' : c.type; }
+  function ago(c) { return c.waiting ? 'waiting ' + c.waiting : c.age ? c.age + ' ago' : ''; }
   function plainList(items) { return '<ul class="plain">' + items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
 
   /* ================================================================ 1. Inbox */
@@ -446,7 +449,7 @@
     var h = '<div class="lpane"><div class="lhead"><h2>Inbox</h2><p class="muted">' + (needs.length ? plural(needs.length, 'decision') + ' · ' + queueText(needs.length) : 'Nothing waits on you') + (f !== 'all' ? ' · ' + esc(projOf(f).name) + ' only' : '') + '</p></div>';
     h += '<div class="lctrl"><label class="quiet-select">Sort by <select data-act="sort" aria-label="Sort"><option value="weight"' + (S.sort === 'weight' ? ' selected' : '') + '>work it unblocks</option><option value="newest"' + (S.sort === 'newest' ? ' selected' : '') + '>newest</option><option value="oldest"' + (S.sort === 'oldest' ? ' selected' : '') + '>oldest</option></select></label>' +
       '<label class="toggle"><input type="checkbox" data-act="deferred"' + (S.showDeferred ? ' checked' : '') + '>Show deferred</label></div>';
-    h += needs.length ? '<div class="qlist">' + needs.map(function (id) { return qcard(id, sel === id); }).join('') + '</div>' : empty('Nothing needs you', 'Question, Approve, Plan and Stuck cards land here when a session cannot go on without you.');
+    h += needs.length ? '<div class="qlist">' + needs.map(function (id) { return qcard(id, sel === id); }).join('') + '</div>' : quietBlock();
     if (S.showDeferred) { var def = keys(D.cards).filter(function (id) { var c = D.cards[id]; return c.deferred && (f === 'all' || c.project === f); }); h += '<div class="lsec"><div class="lsec-h">Deferred · not counted in your queue</div>' + (def.length ? '<div class="qlist">' + def.map(function (id) { return qcard(id, sel === id); }).join('') + '</div>' : empty('No deferred cards', 'A card you defer waits here and comes back after 24 hours.')) + '</div>'; }
     var shown = S.cleared ? [] : info;
     h += '<details class="fyk"' + (S.fykOpen ? ' open' : '') + ' data-act="fyk"><summary><span>For you to know</span><span class="muted">' + (shown.length ? shown.length + ' updates, nothing to decide' : 'none') + '</span><span class="chev"></span></summary>';
@@ -457,9 +460,9 @@
   function qcard(id, sel) {
     var c = D.cards[id];
     return '<a class="qcard kc-' + kindClass(c) + (sel ? ' sel' : '') + '" href="#/card/' + id + '">' +
-      '<span class="qtop"><span class="kind-label kl-' + kindClass(c) + '">' + cardKindLabel(c) + '</span><span class="qw">' + (c.weight ? '~' + fmtMin(c.weight) : 'preview') + '</span></span>' +
+      '<span class="qtop"><span class="kind-label kl-' + kindClass(c) + '">' + cardKindLabel(c) + '</span><span class="qw">' + esc(ago(c)) + '</span></span>' +
       '<span class="qh">' + esc(c.headline) + '</span>' +
-      '<span class="qm">' + esc(itemTitle(c.item)) + ' · ' + esc(ago(c)) + '</span></a>';
+      '<span class="qu">' + unblocksText(c) + '</span>' + originTags(id) + '</a>';
   }
 
   /* ================================================================ card detail router */
@@ -470,6 +473,7 @@
     if (c.type === 'packet') return vPacket(id, q);
     if (c.type === 'plan') return vPlan(id, q);
     if (c.type === 'stuck') return vStuck(id);
+    if (c.type === 'proposals') return vProposals(id);
     return vInfo(id);
   }
   function cardHead(c) { return head(crumbRefs(c.item)); }
@@ -478,7 +482,8 @@
   function vQuestion(id) {
     var c = D.cards[id], q = D.questions[c.question], s = D.sessions[q.session] || { machine: 'no machine yet' };
     var h = cardHead(c) + '<div class="pane">';
-    h += dhead('Question', 'question', 'unblocks ~' + fmtMin(q.unblockMin), esc(q.text), 'Blocks ' + esc(q.blocks) + ' of ' + itemLink(q.item));
+    h += dhead(c.answered ? 'Question · answered' : 'Question', 'question', c.answered ? 'answered ' + esc(c.answered) : 'unblocks about ' + fmtMin(q.unblockMin), esc(q.text), 'Blocks ' + esc(q.blocks) + ' of ' + itemLink(q.item));
+    h += whyLine(id);
     if (q.unseenFile) {
       var uid = parseRef(q.unseenFile).id, uf = D.files[uid];
       h += '<div class="notice"><p><b>' + esc(uf.path.split('/').pop()) + ' is new to you.</b> ' + uf.newLines + ' lines changed since you last opened it at ' + esc(uf.lastSeen) + '.</p><details class="inline"><summary>Read the diff before answering</summary>' + diffBlock(fileDiff(uid), { small: true }) + '</details></div>';
@@ -487,18 +492,19 @@
       var cm = D.comments[q.comment];
       h += '<blockquote class="quote"><span class="muted small">Your + comment</span><code>//+ ' + esc(cm.text) + '</code></blockquote>';
     }
-    h += '<div class="choices" role="radiogroup" aria-label="Options">' + q.options.map(function (o) {
-      return '<label class="choice' + (o.rec ? ' rec' : '') + '"><input type="radio" name="opt-' + id + '"' + (o.rec ? ' checked' : '') + '><span class="cb"><span class="ct">' + esc(o.t) + (o.rec ? '<span class="recmark">Recommended</span>' : '') + '</span><span class="cr">' + esc(o.why) + '</span></span></label>';
+    var opts = q.options.filter(function (o) { return o.rec; }).concat(q.options.filter(function (o) { return !o.rec; }));
+    h += '<div class="choices" role="radiogroup" aria-label="Options">' + opts.map(function (o) {
+      return '<label class="choice' + (o.rec ? ' rec' : '') + '"><input type="radio" name="opt-' + id + '"' + (o.rec ? ' checked' : '') + (c.answered ? ' disabled' : '') + '><span class="cb">' + (o.rec ? '<span class="recmark">Recommended</span>' : '') + '<span class="ct">' + esc(o.t) + '</span><span class="cr">' + esc(o.why) + (o.cost ? '<span class="cc-i"> · cost to change later: ' + esc(o.cost) + '</span>' : '') + '</span></span></label>';
     }).join('') + '</div>';
-    h += '<div class="actions"><button class="btn primary" data-act="pick" data-card="' + id + '">Pick</button><button class="btn" data-toast="Assumed “' + esc(q.options[0].t) + '” · sent to session ' + q.session + ' on ' + s.machine + '">Use recommended</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '<button class="btn text" data-toast="Deferred for 24 hours · it comes back on 7 Nov">Defer</button></div>' + replyBox(id);
+    if (c.answered) h += '<div class="answered"><p><span class="done-line">Answered ' + esc(c.answered) + '</span></p><p>' + esc(q.answer || '') + '</p>' + (q.ruling ? '<p class="chips"><span class="small muted">became</span>' + chip(q.ruling) + '</p>' : '') + '</div>';
+    else h += '<div class="actions"><button class="btn primary" data-act="pick" data-card="' + id + '">Pick</button><button class="btn" data-toast="Assumed “' + esc(q.options[0].t) + '” · sent to session ' + q.session + ' on ' + s.machine + '">Use recommended</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '<button class="btn text" data-toast="Deferred for 24 hours · it comes back on 7 Nov">Defer</button></div>' + replyBox(id);
     var support = [];
     q.options.forEach(function (o) { o.support.forEach(function (r) { if (support.indexOf(r) < 0) support.push(r); }); });
     h += drills([
       drill('Context', esc(trunc(q.context.replace(/\[\[[^\]]+\]\]/g, function (m) { return chipInfo(m.slice(2, -2)).title; }), 70)), '<p class="rich">' + rich(q.context) + '</p>'),
       q.code ? drill('The code', esc(D.files[parseRef(q.code).id].path.split('/').pop()) + ', lines ' + parseRef(q.code).range.join('–'), codeBlock(q.code)) : '',
       support.length ? drill('What supports each option', plural(support.length, 'reference'), q.options.map(function (o, i) { return '<div class="sub-block"><p class="small"><b>' + (i + 1) + '. ' + esc(o.t) + '</b></p>' + chips(o.support) + '</div>'; }).join('')) : '',
-      drill('Cost to change later', esc(q.cost), '<p>If you pick differently later, the change is <b>' + esc(q.cost) + '</b>.</p>'),
-      q.tried.length ? drill('What the session tried', plural(q.tried.length, 'attempt'), plainList(q.tried.map(esc))) : '',
+      q.tried.length ? drill('What the session tried', plural(q.tried.length, 'attempt') + ' before asking', plainList(q.tried.map(esc))) : '',
       drill('Asked by', 'session ' + q.session + ' on ' + s.machine + ' · ' + esc(q.asked), '<div class="chips">' + chip('session:' + q.session, { meta: true }) + (D.machines[s.machine] ? chip('machine:' + s.machine) : '') + '</div><p class="small" style="margin-top:12px">' + budgetQ(q.item) + '</p>')
     ], 'Go deeper');
     return h + '</div>';
@@ -512,9 +518,10 @@
     var unrev = pk.assumptions.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; });
     var unver = pk.claims.filter(function (x) { return !x.proof; });
     var label = pk.state === 'approved' ? 'Approved' : pk.preview ? 'Approve · preview' : 'Approve';
-    var timeLine = pk.time.actual != null ? fmtMin(pk.time.actual) + ' against an estimate of ' + fmtMin(pk.time.est) : 'not measured yet';
+    var timeLine = pk.time.actual != null ? fmtMin(pk.time.actual) + ' of session time, against an estimate of ' + fmtMin(pk.time.est) : 'time not measured yet';
     var h = cardHead(c) + '<div class="pane">';
-    h += dhead(label, 'approve', c.weight ? 'unblocks ~' + fmtMin(c.weight) : '', esc(pk.outcome), itemLink(pk.item) + ' · ' + timeLine);
+    h += dhead(label, 'approve', c.weight ? 'unblocks about ' + fmtMin(c.weight) : '', esc(pk.outcome), itemLink(pk.item) + ' · ' + timeLine);
+    h += whyLine(id);
     if (pk.preview) h += '<div class="notice"><p>A preview built from the Dope seed. No session or branch exists while Dope is closed.</p></div>';
     var glance = [];
     if (unseen.length) glance.push('<a href="#" data-act="open-drill" data-target="d-changes">' + plural(unseen.length, 'file') + ' new to you</a>');
@@ -528,13 +535,13 @@
     }
     var filesBody = ch.files.length ? '<div class="list">' + ch.files.map(function (f) { var fe = D.files[parseRef(f[0]).id]; return '<div class="li"><span class="li-main">' + chip(f[0]) + '</span><span class="li-meta"><span class="tone-good">+' + f[1] + '</span> <span class="tone-bad">−' + f[2] + '</span>' + (fe.seen ? '' : ' <span class="marker new">new to you</span>') + '</span><a class="li-act" href="#/diff/' + parseRef(f[0]).id + '">diff</a></div>'; }).join('') + '</div>' + (ch.types.length ? '<p class="small muted" style="margin:16px 0 8px">New types</p>' + chips(ch.types) : '') : empty('No files', 'A packet lists every file git reports as changed on the branch.');
     h += drills([
-      drill('Checks', pk.checks.length + ' of ' + pk.checks.length + ' passed', '<div class="chips">' + pk.checks.map(function (k) { return chip(k.ref, { meta: true }); }).join('') + '</div>'),
-      drill('Changes', plural(ch.files.length, 'file') + ' · +' + plus + ' −' + minus + (unseen.length ? ' · ' + unseen.length + ' new to you' : ''), filesBody, { id: 'd-changes', attn: unseen.length > 0 }),
-      drill('Assumptions', pk.assumptions.length ? pk.assumptions.length + (unrev.length ? ' · ' + unrev.length + ' to review' : ' · all fine') : 'none', pk.assumptions.length ? assumptionBatch(pk.assumptions) : empty('No assumptions', 'Assumptions a session makes are batched here.'), { id: 'd-assume', attn: unrev.length > 0 }),
-      drill('Found items', pk.found.length ? pk.found.length + ' in the tray' : 'none', pk.found.length ? foundTray(pk.found) : empty('Tray is empty', 'Found items wait here for Task, Later or Drop.')),
-      drill('+ comments', pk.commentsHandled.length + ' handled · ' + pk.commentsOpen.length + ' still open', commentsBody(pk)),
-      drill('Plan', it.steps.length ? it.steps.length + ' of ' + it.steps.length + ' steps done' + (pk.beyond.length ? ' · ' + pk.beyond.length + ' extra helper' : '') : 'no plan yet', planBody(pk, it, id), { id: 'd-plan', attn: pk.beyond.length > 0 }),
-      drill('Claims', (pk.claims.length - unver.length) + ' proved by runs' + (unver.length ? ' · ' + unver.length + ' unverified' : ''), claimsList(pk.claims), { id: 'd-claims', attn: unver.length > 0 }),
+      drill('Checks', NU, '<div class="chips">' + pk.checks.map(function (k) { return chip(k.ref, { meta: true }); }).join('') + '</div>'),
+      drill('Changes', unseen.length ? plural(unseen.length, 'file') + ' new to you' : NU, filesBody, { id: 'd-changes', attn: unseen.length > 0 }),
+      drill('Assumptions', pk.assumptions.length ? (unrev.length ? plural(unrev.length, 'assumption') + ' to review' : NU) : 'none', pk.assumptions.length ? assumptionBatch(pk.assumptions, pk.state === 'approved') : empty('No assumptions', 'Assumptions a session makes are batched here.'), { id: 'd-assume', attn: unrev.length > 0 }),
+      drill('Found', pk.found.length ? (pk.state === 'approved' ? plural(pk.found.length, 'item') + ' sorted' : pk.found.length + ' to sort') : 'none', pk.found.length ? foundTray(pk.found, pk.state === 'approved') : empty('Tray is empty', 'Found items wait here for Task, Later or Drop.')),
+      (pk.commentsHandled.length || pk.commentsOpen.length) ? drill('+ comments', pk.commentsOpen.length ? plural(pk.commentsOpen.length, 'comment') + ' still open' : NU, commentsBody(pk)) : '',
+      drill('Plan', it.steps.length ? (pk.beyond.length ? plural(pk.beyond.length, 'helper') + ' built beyond the plan' : NU) : 'no plan yet', planBody(pk, it, id), { id: 'd-plan', attn: pk.beyond.length > 0 }),
+      drill('Claims', unver.length ? plural(unver.length, 'claim') + ' without a run' : NU, claimsList(pk.claims), { id: 'd-claims', attn: unver.length > 0 }),
       drill('Claude’s note', esc(trunc(pk.note.text, 60)), '<p>' + esc(pk.note.text) + '</p><p class="small muted">' + (pk.session ? 'Session ' + pk.session : 'Seed') + ' · ' + esc(pk.note.date) + '</p>'),
       drill('What Approve sends', esc(pk.deliver), '<pre class="instr">' + esc(pk.instruction.join('\n')) + '</pre>')
     ], 'Go deeper');
@@ -551,15 +558,6 @@
     pk.beyond.forEach(function (b, i) { h += '<div class="notice soft"><p><b>Beyond the plan:</b> ' + esc(b.t) + '</p><p class="small">' + esc(b.why) + '</p><div class="chips">' + chip(b.type) + '<button class="btn text" data-act="beyond" data-pk="' + pkId + '" data-i="' + i + '">See the code</button></div></div>'; });
     return h;
   }
-  function assumptionBatch(ids) {
-    var groups = {};
-    ids.forEach(function (a) { var s = D.assumptions[a].session; (groups[s] = groups[s] || []).push(a); });
-    return keys(groups).map(function (s) {
-      var un = groups[s].filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length;
-      return '<div class="group"><div class="group-h"><span>Session ' + s + ' · ' + plural(groups[s].length, 'assumption') + (un ? ', ' + un + ' to review' : '') + '</span><button class="btn small" data-toast="' + groups[s].length + ' assumptions from session ' + s + ' marked fine">All fine</button></div>' +
-        groups[s].map(function (a) { var x = D.assumptions[a]; return '<div class="li"><span class="li-main">' + esc(x.text) + '</span><span class="li-meta">' + (x.state === 'fine' ? '<span class="tone-good">fine</span>' : 'to review') + '</span><button class="li-act" data-act="flip">Flip</button></div>'; }).join('') + '</div>';
-    }).join('');
-  }
   function foundTray(ids) {
     var places = ['WB-2', 'WB-2.4', 'WB-3', 'WB-4', 'WB-5', 'WB-6'];
     return ids.map(function (f) {
@@ -575,16 +573,20 @@
     var c = D.cards[id], pl = D.plans[id], it = D.items[pl.item];
     var total = pl.steps.reduce(function (a, s) { return a + s.est; }, 0);
     var h = cardHead(c) + '<div class="pane' + (qs && qs.edit ? ' editing' : '') + '" id="plan-pane">';
-    h += dhead('Plan', 'plan', 'unblocks ~' + fmtMin(c.weight), esc(it.title), esc(pl.goal));
-    h += '<ol class="plan-list">' + pl.steps.map(function (s, i) { return '<li><span class="handle" title="Drag to reorder">' + ic('grip') + '</span><span class="num">' + (i + 1) + '</span><span class="pt">' + esc(s.t) + '</span><span class="pe">' + s.est + ' min</span><button class="icon-btn rm" title="Remove step" data-toast="Step ' + (i + 1) + ' would be removed from the plan">' + ic('trash') + '</button></li>'; }).join('') + '</ol>';
-    h += '<p class="muted small">' + pl.steps.length + ' of ' + D.budgets[2].value + ' steps · ' + total + ' Claude-min · about ' + fmtMin(total * pl.factor) + ' at ×' + pl.factor + '</p>';
-    h += '<div class="actions"><button class="btn primary" data-toast="Plan approved · WB-2.4 opens in lane C on cloud-1; branch wb/2.4-check-chips is created">Approve plan</button><button class="btn" data-act="plan-edit">' + (qs && qs.edit ? 'Done changing' : 'Change') + '</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
+    h += dhead(pl.approved ? 'Plan · approved' : 'Plan', 'plan', pl.approved ? 'approved ' + esc(pl.approved) : 'unblocks about ' + fmtMin(c.weight), esc(it.title), esc(pl.goal));
+    h += whyLine(id);
+    var settleUi = '<div class="settle">' + pl.settle.map(function (s, i) {
+        if (pl.approved) return '<div class="sq done"><p><b>' + esc(s.q) + '</b>' + (s.from ? ' <span class="small muted">from</span> ' + cchip(s.from) : '') + '</p><p class="small"><span class="tone-good">' + esc(s.options[s.rec]) + '</span> · accepted with the plan, ' + esc(pl.approved) + '</p></div>';
+        return '<div class="sq"><p><b>' + esc(s.q) + '</b>' + (s.from ? ' <span class="small muted">from</span> ' + cchip(s.from) : '') + '</p><div class="so">' + s.options.map(function (o, j) { return '<button type="button" class="' + (j === s.rec ? 'on' : '') + '" data-act="settle">' + esc(o) + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+    if (pl.approved) h += '<div class="answered"><p><span class="done-line">Approved ' + esc(pl.approved) + '</span> · opened ' + cchip('item:' + pl.item) + '</p></div><p class="sub-h">Settle pass · ' + plural(pl.settle.length, 'default') + ' accepted with the plan</p>' + settleUi;
+    else if (!(S.settled || {})[id]) h += '<div class="need"><p class="need-h">What I need from you</p><div class="need-row static"><span class="nk">Confirm</span><span class="nt">' + plural(pl.settle.length, 'default') + ' to confirm · the session chose the recommended ones</span><button class="btn small primary" data-act="settle-all" data-card="' + id + '">Accept all</button></div><details class="inline need-more"><summary>See the ' + pl.settle.length + ' questions</summary>' + settleUi + '</details></div>';
+    h += '<ol class="plan-list' + (pl.approved ? ' locked' : '') + '">' + pl.steps.map(function (s, i) { return '<li>' + (pl.approved ? '' : '<span class="handle" title="Drag to reorder">' + ic('grip') + '</span>') + '<span class="num">' + (i + 1) + '</span><span class="pt">' + esc(s.t) + '</span><span class="pe">' + s.est + ' min</span>' + (pl.approved ? '' : '<button class="icon-btn rm" title="Remove step" data-toast="Step ' + (i + 1) + ' would be removed from the plan">' + ic('trash') + '</button>') + '</li>'; }).join('') + '</ol>';
+    h += '<p class="muted small">' + pl.steps.length + ' steps of the ' + D.budgets[2].value + ' allowed · ' + total + ' Claude-min estimated · about ' + fmtMin(total * pl.factor) + ' at factor ' + pl.factor + '</p>';
+    if (!pl.approved) h += '<div class="actions"><button class="btn primary" data-toast="Plan approved · WB-2.4 opens in lane C on cloud-1; branch wb/2.4-check-chips is created">Approve plan</button><button class="btn" data-act="plan-edit">' + (qs && qs.edit ? 'Done changing' : 'Change') + '</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
-      drill('Settle pass', pl.settle.length + ' questions · defaults chosen', '<div class="actions" style="margin:0 0 16px"><button class="btn small" data-toast="All three recommended defaults accepted">Accept all recommended</button></div><div class="settle">' + pl.settle.map(function (s, i) {
-        return '<div class="sq"><p><b>' + esc(s.q) + '</b></p><div class="so">' + s.options.map(function (o, j) { return '<button type="button" class="' + (j === s.rec ? 'on' : '') + '" data-act="settle">' + esc(o) + '</button>'; }).join('') + '</div></div>';
-      }).join('') + '</div>', { attn: true }),
       drill('What each step needs and proves', plural(pl.steps.length, 'step'), '<div class="list">' + pl.steps.map(function (s, i) { return '<div class="li col"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(s.t) + '</span><span class="li-sub"><span class="muted">needs</span> ' + (s.needs.length ? s.needs.map(function (n) { return n.indexOf('settle:') === 0 ? '<span class="marker">settle ' + n.slice(8) + '</span>' : chip(n); }).join(' ') : 'nothing') + ' <span class="muted">· proof</span> ' + esc(s.proof) + '</span></div>'; }).join('') + '</div>'),
-      drill('Where it runs', 'lane C on ' + pl.machine, '<p>Approving opens the item in lane C, beside lanes A and B: one open node per level in each lane.</p><div class="chips">' + chip('lane:' + pl.lane, { meta: true }) + chip('machine:' + pl.machine) + chip('branch:' + pl.opensBranch, { meta: true }) + chip('ruling:R-02') + '</div><p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>'),
+      drill('Where it runs', pl.lane === 'C' ? 'lane C on ' + pl.machine : (pl.lane && pl.lane !== '-' ? 'lane ' + pl.lane + ' on ' : 'no lane yet · ') + pl.machine, (pl.approved ? '<p>Approved; the item opened ' + (pl.lane && pl.lane !== '-' ? 'in lane ' + esc(pl.lane) : 'outside the lanes, its project being closed') + '.</p>' : '<p>Approving opens the item in lane C, beside lanes A and B: one open node per level in each lane.</p>') + '<div class="chips">' + (D.lanes[pl.lane] ? chip('lane:' + pl.lane, { meta: true }) : '') + chip('machine:' + pl.machine) + (D.branches[pl.opensBranch] ? chip('branch:' + pl.opensBranch, { meta: true }) : '') + chip('ruling:R-02') + '</div><p class="small muted" style="margin-top:12px">' + esc(pl.factorNote) + '</p>'),
       drill('Submitted by', 'session ' + pl.session + ' · ' + esc(c.at), chips(['session:' + pl.session, 'machine:' + pl.machine]))
     ], 'Go deeper');
     return h + '</div>';
@@ -594,12 +596,14 @@
   function vStuck(id) {
     var c = D.cards[id], st = D.stucks[id], run = D.runs[parseRef(st.check).id];
     var h = cardHead(c) + '<div class="pane">';
-    h += dhead('Stuck', 'stuck', 'unblocks ~' + fmtMin(c.weight), 'A check failed three times', itemLink(st.item) + ' · ' + esc(st.step) + ' · the session stopped instead of trying again');
+    h += dhead('Stuck', 'stuck', 'unblocks about ' + fmtMin(c.weight), 'A check failed three times', itemLink(st.item) + ' · ' + esc(st.step) + ' · the session stopped instead of trying again');
+    h += whyLine(id);
+    h += '<p class="glance-line"><span class="gl-k">Last failure</span><code>' + esc(run.out[0]) + '</code></p>';
     h += '<blockquote class="quote"><span class="muted small">The session’s diagnosis</span><span class="rich">' + rich(st.diagnosis) + '</span></blockquote>';
     h += '<div class="actions"><button class="btn" data-act="reassign" data-card="' + id + '">Reassign</button><button class="btn" data-toast="One more attempt allowed · session b915 on laptop retries step 2">Retry once more</button><button class="btn" data-toast="Step 2 dropped on WB-2.3 · session b915 moves to step 3">Drop the step</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
       drill('Last failure', esc(st.checkName.replace('tests · ', '')), '<pre class="instr">' + esc(run.out.slice(0, 6).join('\n')) + '</pre><p class="small"><a href="#/run/' + parseRef(st.check).id + '">Full output</a></p>'),
-      drill('Three attempts', st.attempts.map(function (a) { return a.result; }).join(' → '), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span>' + chip(a.run) + '</div>'; }).join('') + '</div>'),
+      drill('Three attempts', esc(attemptsSeq(st.attempts)), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span>' + chip(a.run) + '</div>'; }).join('') + '</div>'),
       drill('Where', 'session ' + st.session + ' on ' + st.machine + ' · since ' + esc(c.at), chips(['session:' + st.session, 'machine:' + st.machine, st.check]))
     ], 'Go deeper');
     return h + '</div>';
@@ -610,6 +614,7 @@
     var c = D.cards[id];
     var h = head(['project:' + c.project]) + '<div class="pane">';
     h += dhead('For you to know', 'info', esc(c.at), esc(c.headline), rich(c.body));
+    h += whyLine(id);
     h += '<div class="chips" style="margin:-8px 0 24px">' + chip(c.chip, { meta: true }) + '</div>';
     h += '<div class="actions"><button class="btn" data-act="dismiss" data-card="' + id + '">Dismiss</button>' + (c.ruling ? '<button class="btn primary" data-act="make-ruling" data-card="' + id + '">Make a ruling</button>' : '') + '<span class="spacer"></span>' + replyBtn(id, 'Write a note') + '</div>' + replyBox(id);
     if (c.ruling) h += '<p class="small muted">Looks like a settled convention: “' + esc(c.ruling) + '”</p>';
@@ -738,7 +743,7 @@
     h += drills([
       drill('Waiting on you', bo.length ? plural(bo.length, 'card') : 'nothing', bo.length ? '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">~' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>' : empty('Nothing waits on you here', 'Cards that block this node or its children list here.'), { attn: bo.length > 0 }),
       drill('Work left', (isRoot ? 'programme' : esc(proj.name)) + ' · ' + measured + ' of ~' + coarse + ' weeks measured', '<div class="wbar"><span class="m" style="width:' + Math.round(100 * measured / coarse) + '%"></span><span class="c"></span></div><div class="wbar-legend"><span><i class="lm"></i>measured ' + measured + ' wk</span><span><i class="lc"></i>coarse ' + (coarse - measured) + ' wk</span></div>'),
-      proj.factor ? drill('Factor', '×' + proj.factor + (proj.id === 'wb' ? ' · lanes A ×1.3, B ×1.1, C ×1.2' : ''), '<p>Actual time over estimate, measured from session hooks.</p>' + (proj.lanes ? chips(proj.lanes.map(function (l) { return 'lane:' + l; }), { meta: true }) : '')) : '',
+      proj.factor ? drill('Factor', 'factor ' + proj.factor + (proj.id === 'wb' ? ' · lanes A 1.3, B 1.1, C 1.2' : ''), '<p>Actual time over estimate, measured from session hooks.</p>' + (proj.lanes ? chips(proj.lanes.map(function (l) { return 'lane:' + l; }), { meta: true }) : '')) : '',
       proj.criticalPath ? drill('Critical path', proj.criticalPath.length + ' nodes', '<div class="critical">' + proj.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
       isRoot ? '' : drill('Opening rule', esc(trunc(co.why, 48)), '<p>' + esc(co.why) + '</p>')
     ]);
@@ -768,6 +773,7 @@
     var ids = scope(id), waiting = cardsForScope(ids).length;
     var h = head(crumbRefs(id)) + '<div class="pane">';
     h += dhead(esc(it.kind) + ' · ' + esc(nodeMeta(id)), 'item-' + it.kind, waiting ? '<a href="#/item/' + id + '/decisions">' + plural(waiting, 'decision') + ' waiting</a>' : '', esc(it.title), it.goal ? esc(it.goal) : '');
+    if ((it.implements || []).length) h += '<p class="taken"><span class="muted">Implements</span> ' + it.implements.map(function (r) { return chip(r); }).join(' ') + '</p>';
     h += '<nav class="tabs" aria-label="Item sections">' + TABS.map(function (t) { return '<a class="tab' + (t[0] === tab ? ' on' : '') + '" href="#/item/' + id + '/' + t[0] + '">' + t[1] + '</a>'; }).join('') + '</nav>';
     h += ({ overview: tabOverview, about: tabAbout, plan: tabPlan, changes: tabChanges, issues: tabIssues, decisions: tabDecisions, activity: tabActivity }[tab] || tabOverview)(id, openSec);
     return h + '</div>';
@@ -784,21 +790,23 @@
     var ids = scope(id), ch = itemChanges(id), st = it.steps || [];
     var cur = st.filter(function (s) { return s.state === 'current' || s.state === 'blocked'; })[0];
     var left = it.time && it.time.forecast != null && it.state !== 'done' ? fmtMin(Math.max(0, it.time.forecast - it.time.so)) + ' left' : it.state === 'done' ? 'done in ' + fmtMin(it.time.so) : 'not started';
-    var h = '<div class="status"><div><p class="bignum">' + esc(left) + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + st.length + ' steps done' + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + '</p></div></div>';
+    var leftRef = it.time && it.time.forecast != null && it.state !== 'done' ? 'of ' + fmtMin(it.time.forecast) + ' forecast' : it.state === 'done' && it.time ? 'against an estimate of ' + fmtMin(it.time.est) : '';
+    var h = '<div class="status"><div><p class="bignum">' + esc(left) + (leftRef ? ' <span class="bignum-ref">' + esc(leftRef) + '</span>' : '') + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + plural(st.length, 'step') + ' done' + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + '</p></div></div>';
     var oqHere = openQuestions(id).length, oqKids = ids.slice(1).reduce(function (a, k) { return a + openQuestions(k).length; }, 0);
     var as = itemAssumptions(ids), asUn = as.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length, fd = itemFound(ids).length;
     var cc = commentCounts(it.commentScope);
+    var blockedN = st.filter(function (x) { return x.state === 'blocked'; }).length, unseenN = ch.files.filter(function (f) { return !D.files[parseRef(f[0]).id].seen; }).length;
     var runs = it.checks || [], failing = runs.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length;
     var stepsBody = st.length ? stepsList(it) : (it.plan ? '<p>The plan waits for you: ' + chip(it.plan) + '</p>' : '<p class="muted">' + (it.unscheduled ? 'Unscheduled until Dope opens.' : 'A plan is drawn when the node opens.') + '</p>');
     h += drills([
-      drill('Steps', st.length ? stepsDone(it) + ' of ' + st.length + ' done' : 'no plan yet', stepsBody, { open: openSec === 'steps' }),
-      drill('Checks', runs.length ? plural(runs.length, 'run') + (failing ? ' · ' + failing + ' not passing' : ' · all passing') : 'no runs yet', runs.length ? chips(runs, { meta: true }) : empty('No runs', 'Checks appear when a session runs one.'), { attn: failing > 0 }),
-      drill('Changed', ch.files.length ? plural(ch.files.length, 'file') + ' · +' + ch.plus + ' −' + ch.minus : 'nothing yet', ch.files.length ? chips(ch.files.map(function (f) { return f[0]; })) + '<p class="small" style="margin-top:12px"><a href="#/item/' + id + '/changes">See every change</a></p>' : empty('Nothing changed', 'Files git reports on the branch appear here.')),
-      drill('Time', it.time && it.time.factor ? fmtMin(it.time.so) + ' so far · forecast ' + fmtMin(it.time.forecast) : it.time ? 'estimate ' + fmtMin(it.time.est) + ' · not started' : esc(it.coarse), it.time ? '<dl class="kv"><dt>So far</dt><dd>' + fmtMin(it.time.so) + ', measured from hooks</dd><dt>Estimate</dt><dd>' + fmtMin(it.time.est) + ' Claude-minutes</dd><dt>Factor</dt><dd>' + (it.time.factor ? '×' + it.time.factor : 'not measured') + '</dd><dt>Forecast</dt><dd>' + fmtMin(it.time.forecast) + '</dd></dl>' : ''),
-      drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + (it.needs || []).filter(function (n) { return n.note !== 'done'; }).length : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? '~' + fmtMin(b.min) + ' behind' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
-      drill('Open', 'questions ' + oqHere + ' of 2' + (oqKids ? ' (+' + oqKids + ' below)' : '') + ' · ' + as.length + ' assumptions · ' + fd + ' found', '<p>' + budgetQ(id) + '</p>' + (oqKids ? '<p class="small">' + oqKids + ' more open in children.</p>' : '') + '<p class="small"><a href="#/item/' + id + '/decisions">Questions, assumptions and found items</a>' + (asUn ? ' · ' + asUn + ' assumptions to review' : '') + '</p>', { attn: asUn > 0 }),
-      drill('Issues', fpbsUnder(id).length ? fpbCountLabel(fpbsUnder(id)) + ' attached' : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems raised on this task appear here.'), { attn: fpbsUnder(id).some(function (i) { return fpbNeeds(i).length; }) }),
-      drill('Comments in scope', cc.n ? cc.n + ' · ' + cc.open + ' open' + (cc.stale ? ' · ' + cc.stale + ' stale' : '') : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
+      drill('Steps', st.length ? (blockedN ? plural(blockedN, 'step') + ' blocked' : NU) : 'no plan yet', stepsBody, { open: openSec === 'steps', attn: blockedN > 0 }),
+      drill('Checks', runs.length ? (failing ? plural(failing, 'check') + ' not passing' : NU) : 'no runs yet', runs.length ? chips(runs, { meta: true }) : empty('No runs', 'Checks appear when a session runs one.'), { attn: failing > 0 }),
+      drill('Changed', ch.files.length ? (unseenN ? plural(unseenN, 'file') + ' new to you' : NU) : 'nothing yet', ch.files.length ? chips(ch.files.map(function (f) { return f[0]; })) + '<p class="small" style="margin-top:12px"><a href="#/item/' + id + '/changes">See every change</a></p>' : empty('Nothing changed', 'Files git reports on the branch appear here.'), { attn: unseenN > 0 }),
+      drill('Time', it.time && it.state === 'done' ? fmtMin(it.time.so) + ' in all, against an estimate of ' + fmtMin(it.time.est) : it.time && it.time.factor ? fmtMin(it.time.so) + ' so far of ' + fmtMin(it.time.forecast) + ' forecast' : it.time ? 'estimate ' + fmtMin(it.time.est) + ' · not started' : esc(it.coarse), it.time ? '<dl class="kv"><dt>So far</dt><dd>' + fmtMin(it.time.so) + ', measured from hooks</dd><dt>Estimate</dt><dd>' + fmtMin(it.time.est) + ' Claude-minutes</dd><dt>Factor</dt><dd>' + (it.time.factor ? it.time.factor + ', actual over estimate' : 'not measured') + '</dd><dt>Forecast</dt><dd>' + fmtMin(it.time.forecast) + ', the estimate times the factor</dd></dl>' : ''),
+      drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + plural((it.needs || []).filter(function (n) { return n.note !== 'done'; }).length, 'item') : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? 'about ' + fmtMin(b.min) + ' of work behind it' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
+      drill('Open', [oqHere + oqKids ? plural(oqHere + oqKids, 'question') + ' open' : '', asUn ? plural(asUn, 'assumption') + ' to review' : '', fd ? plural(fd, 'found item') + ' to sort' : ''].filter(Boolean).join(' · ') || NU, '<p>' + budgetQ(id) + '</p>' + (oqKids ? '<p class="small">' + oqKids + ' more open in children.</p>' : '') + '<p class="small"><a href="#/item/' + id + '/decisions">Questions, assumptions and found items</a>' + (asUn ? ' · ' + asUn + ' assumptions to review' : '') + '</p>', { attn: asUn > 0 }),
+      drill('Issues', fpbsUnder(id).length ? fpbCountLabel(fpbsUnder(id)) + ' raised here' : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems raised on this task appear here.'), {}),
+      drill('Comments in scope', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
       drill('Claude’s note', it.note ? esc(trunc(it.note.text, 56)) : 'none', it.note ? '<p>' + esc(it.note.text) + '</p><p class="small muted">' + (it.note.session ? 'Session ' + parseRef(it.note.session).id : 'Seed import') + ' · ' + esc(it.note.date) + '</p>' + (it.claims ? '<p class="small muted" style="margin-top:12px">Claims</p>' + claimsList(it.claims) : '') : ''),
       drill('Rulings that apply', plural((it.rulings || []).length, 'ruling'), (it.rulings || []).length ? '<div class="list">' + it.rulings.map(function (r) { return '<a class="li link" href="' + hrefFor(r) + '"><span class="li-main">' + esc(get(r).title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings this item\'s brief carries appear here.'), { open: openSec === 'rulings' }),
       drill('Where it lives', [it.machine, it.branch && D.branches[it.branch] ? D.branches[it.branch].name : null, it.lane ? 'lane ' + it.lane : null].filter(Boolean).join(' · ') || 'nowhere yet', '<div class="chips">' + (it.machine ? chip('machine:' + it.machine) : '') + (it.branch && D.branches[it.branch] ? chip('branch:' + it.branch, { meta: true }) : '') + (it.lane ? it.lane.split(' + ').map(function (l) { return chip('lane:' + l, { meta: true }); }).join('') : '') + '</div>')
@@ -858,9 +866,9 @@
     if (!(it.steps || []).length) return it.plan ? '<p class="lead-p">The plan waits for your approval.</p><div class="actions"><a class="btn primary" href="#/card/' + parseRef(it.plan).id + '">Review the plan</a></div>' : empty('No plan yet', 'An approved plan of up to 7 steps, each with an estimate and the check that proves it, appears here.');
     var total = it.steps.reduce(function (a, s) { return a + s.est; }, 0);
     var approved = (it.history || []).filter(function (e) { return e[1] === 'plan approved'; })[0];
-    var h = '<p class="muted small" style="margin-bottom:16px">Approved by you' + (approved ? ' ' + esc(approved[0]) : '') + ' · ' + it.steps.length + ' of ' + D.budgets[2].value + ' steps · ' + total + ' Claude-min' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + '</p>';
+    var h = '<p class="muted small" style="margin-bottom:16px">Approved by you' + (approved ? ' ' + esc(approved[0]) : '') + ' · ' + it.steps.length + ' steps of the ' + D.budgets[2].value + ' allowed · ' + total + ' Claude-min estimated' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + '</p>';
     h += '<div class="drills">' + it.steps.map(function (s, i) {
-      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' min', '<dl class="kv"><dt>Proof</dt><dd>' + chip(s.proof, { meta: true }) + '</dd>' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
+      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv"><dt>Proof</dt><dd>' + chip(s.proof, { meta: true }) + '</dd>' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
     }).join('') + '</div>';
     if (D.fpbs[id]) h += '<p class="small" style="margin-top:16px"><a href="#/fpb/' + id + '/report">Back to the report</a></p>';
     if (id === 'WB-2.1') h += '<div class="notice soft" style="margin-top:24px"><p><b>Beyond the plan:</b> 1 helper added, justified.</p><button class="btn text" data-act="beyond" data-pk="pk-runs" data-i="0">See why</button></div>';
@@ -872,9 +880,9 @@
     if (!ch.files.length && !list.length) return empty('No changes', 'Files git reports as changed on this item\'s branch list here, with whether you have seen them.');
     var filesBody = ch.files.length ? '<div class="list">' + ch.files.map(function (f) { var fe = D.files[parseRef(f[0]).id]; return '<div class="li"><span class="li-main">' + chip(f[0]) + '</span><span class="li-meta"><span class="tone-good">+' + f[1] + '</span> <span class="tone-bad">−' + f[2] + '</span>' + (fe.seen ? '' : ' <span class="marker new">new to you</span>') + '</span><a class="li-act" href="#/diff/' + parseRef(f[0]).id + '">diff</a></div>'; }).join('') + '</div><p class="small" style="margin-top:12px"><a href="#/diff/' + (it.packet ? parseRef(it.packet).id : 'item-' + id) + '">Read the whole diff</a></p>' : empty('No files', 'Nothing changed on the branch yet.');
     return drills([
-      drill('Files', ch.files.length ? plural(ch.files.length, 'file') + ' · +' + ch.plus + ' −' + ch.minus + (unseen ? ' · ' + unseen + ' new to you' : '') : 'none', filesBody, { open: openSec === 'files', attn: unseen > 0 }),
-      drill('New types', ch.types.length ? plural(ch.types.length, 'type') : 'none', ch.types.length ? '<div class="list">' + ch.types.map(function (t) { var te = D.types[parseRef(t).id]; return '<div class="li"><span class="li-main">' + chip(t) + '</span><span class="li-meta">' + (te.seen ? '' : '<span class="marker new">new to you</span>') + (te.beyondPlan ? ' <span class="marker warn">beyond plan</span>' : '') + '</span></div>'; }).join('') + '</div>' : empty('No new types', 'Public types added on the branch appear here.')),
-      drill('+ comments', cc.n ? cc.n + ' · ' + cc.open + ' open · ' + cc.handled + ' handled' + (cc.stale ? ' · ' + cc.stale + ' stale' : '') : 'none', list.length ? '<p class="small muted" style="margin-bottom:12px">Read from the source files; the Workbench never edits them.</p>' + list.map(function (c) { return commentCard(c); }).join('') : empty('No comments in scope', '+ comments in the files this item touches list here.'), { open: openSec === 'comments', attn: cc.stale > 0 })
+      drill('Files', ch.files.length ? (unseen ? plural(unseen, 'file') + ' new to you' : NU) : 'none', filesBody, { open: openSec === 'files', attn: unseen > 0 }),
+      drill('New types', ch.types.length ? (function () { var n = ch.types.filter(function (t) { var te = D.types[parseRef(t).id]; return !te.seen || te.beyondPlan; }).length; return n ? plural(n, 'type') + ' new to you or beyond the plan' : NU; })() : 'none', ch.types.length ? '<div class="list">' + ch.types.map(function (t) { var te = D.types[parseRef(t).id]; return '<div class="li"><span class="li-main">' + chip(t) + '</span><span class="li-meta">' + (te.seen ? '' : '<span class="marker new">new to you</span>') + (te.beyondPlan ? ' <span class="marker warn">beyond plan</span>' : '') + '</span></div>'; }).join('') + '</div>' : empty('No new types', 'Public types added on the branch appear here.')),
+      drill('+ comments', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', list.length ? '<p class="small muted" style="margin-bottom:12px">Read from the source files; the Workbench never edits them.</p>' + list.map(function (c) { return commentCard(c); }).join('') : empty('No comments in scope', '+ comments in the files this item touches list here.'), { open: openSec === 'comments', attn: cc.stale > 0 })
     ]);
   }
   function tabDecisions(id, openSec) {
@@ -883,22 +891,24 @@
     var as = itemAssumptions(ids), un = as.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length, fd = itemFound(ids);
     function qrow(qid) {
       var q = D.questions[qid];
-      return q.state === 'open' ? '<a class="li link" href="#/card/' + q.card + '"><span class="li-main">' + esc(q.text) + '</span><span class="li-meta">answer ›</span></a>'
+      if (q.state === 'not asked') return '<a class="li link" href="#/fpb/' + (q.report || q.item) + '/report"><span class="li-main">' + esc(q.text) + '</span><span class="li-meta">not asked · a When implementing line</span></a>';
+      return q.state === 'open' ? '<a class="li link" href="#/card/' + q.card + '"><span class="li-main">' + esc(q.text) + '</span><span class="li-meta">on its card ›</span></a>'
         : '<div class="li col"><span class="li-main">' + esc(q.text) + '</span><span class="li-sub"><span class="tone-good">' + esc(q.answer) + '</span>' + (q.ruling ? ' → ' + chip(q.ruling) : '') + '</span></div>';
     }
     var qBody = '<p style="margin-bottom:12px">' + budgetQ(id) + '</p>' + (qs.length ? (open.length ? '<p class="small muted">Open</p><div class="list">' + open.map(qrow).join('') + '</div>' : '') + (ans.length ? '<p class="small muted" style="margin-top:16px">Answered</p><div class="list">' + ans.map(qrow).join('') + '</div>' : '') : empty('No questions', 'Open questions (2 per item at most) and answered ones with their rulings list here.'));
     return drills([
-      drill('Questions', open.length ? open.length + ' open · ' + ans.length + ' answered' : ans.length + ' answered', qBody, { open: openSec === 'questions', attn: open.length > 0 }),
-      drill('Assumptions', as.length ? as.length + (un ? ' · ' + un + ' to review' : ' · all fine') : 'none', as.length ? '<p class="small muted" style="margin-bottom:12px">Never pushed to the inbox. Glance, then mark fine or flip one.</p>' + assumptionBatch(as) : empty('No assumptions', 'Assumptions a session makes are batched here by session.'), { open: openSec === 'assumptions', attn: un > 0 }),
-      drill('Found items', fd.length ? fd.length + ' in the tray' : 'none', fd.length ? '<p class="small muted" style="margin-bottom:12px">Only you make them tasks; at most ' + D.budgets[1].value + ' per session.</p>' + foundTray(fd) : empty('Tray is empty', 'Found items wait here for Task, Later or Drop.'), { open: openSec === 'found' })
+      D.items[id] ? decidedDrill(D.items[id]) : '',
+      drill('Questions', qs.length ? (open.length ? plural(open.length, 'question') + ' open' : NU) : 'none', qBody, { open: openSec === 'questions', attn: open.length > 0 }),
+      drill('Assumptions', as.length ? (un ? plural(un, 'assumption') + ' to review' : NU) : 'none', as.length ? '<p class="small muted" style="margin-bottom:12px">Read only. You review assumptions on the packet card in the inbox.</p>' + assumptionBatch(as, true) : empty('No assumptions', 'Assumptions a session makes are batched here by session.'), { open: openSec === 'assumptions', attn: un > 0 }),
+      drill('Found items', fd.length ? (function () { var t = fd.filter(function (f) { var x = D.found[parseRef(f).kind === 'found' ? parseRef(f).id : f]; return x && x.state === 'in tray'; }).length; return t ? t + ' in the tray' : plural(fd.length, 'item') + ' sorted'; })() : 'none', fd.length ? '<p class="small muted" style="margin-bottom:12px">Read only. You sort found items on the packet card in the inbox; a Task goes into the tree only when you place it there.</p>' + foundTray(fd, true) : empty('Tray is empty', 'Found items wait here for Task, Later or Drop.'), { open: openSec === 'found' })
     ]);
   }
   function tabActivity(id, openSec) {
     var it = D.items[id], r = itemRuns(scope(id)), s = it.sessions || [], hi = it.history || [];
     var tot = s.reduce(function (a, x) { return a + x[1]; }, 0);
     return drills([
-      drill('Runs', r.length ? plural(r.length, 'run') : 'none', r.length ? runsTable(r) : empty('No runs', 'Runs appear when a session runs a check on this item.'), { open: openSec === 'runs' }),
-      drill('Sessions', s.length ? plural(s.length, 'session') + ' · ' + fmtMin(tot) : 'none', s.length ? '<div class="list">' + s.map(function (x) { return '<div class="li"><span class="li-main">' + chip(x[0], { meta: true }) + '</span><span class="li-meta">' + fmtMin(x[1]) + '</span></div>'; }).join('') + '</div>' : empty('No sessions', 'Sessions that worked on this item list here with their minutes.'), { open: openSec === 'sessions' }),
+      drill('Runs', r.length ? (function () { var n = r.filter(function (x) { return D.runs[x].result !== 'pass'; }).length; return n ? plural(n, 'run') + ' not passing' : NU; })() : 'none', r.length ? runsTable(r) : empty('No runs', 'Runs appear when a session runs a check on this item.'), { open: openSec === 'runs' }),
+      drill('Sessions', s.length ? plural(s.length, 'session') + ' · ' + fmtMin(tot) + ' of session time' : 'none', s.length ? '<div class="list">' + s.map(function (x) { return '<div class="li"><span class="li-main">' + chip(x[0], { meta: true }) + '</span><span class="li-meta">' + fmtMin(x[1]) + '</span></div>'; }).join('') + '</div>' : empty('No sessions', 'Sessions that worked on this item list here with their minutes.'), { open: openSec === 'sessions' }),
       drill('History', hi.length ? plural(hi.length, 'event') + ' · last ' + esc(hi[hi.length - 1][1]) : 'none', hi.length ? '<div class="list">' + hi.slice().reverse().map(function (e) { return '<div class="li col"><span class="li-main">' + esc(e[1]) + ' <span class="muted small">· ' + esc(e[0]) + '</span></span><span class="li-sub rich">' + rich(e[2]) + '</span></div>'; }).join('') + '</div>' : empty('No history', 'Events land here: opened, plan approved, question answered, packet approved.'), { open: openSec === 'history' })
     ]);
   }
@@ -917,7 +927,7 @@
   function runsTable(runIds) {
     return '<div class="list">' + runIds.map(function (r) {
       var x = D.runs[r];
-      return '<a class="li link" href="#/run/' + r + '"><span class="dot ' + (x.result === 'pass' ? 'online' : x.result === 'warn' ? 'waiting' : 'bad') + '"></span><span class="li-main">' + esc(x.check) + (x.total ? ' ' + x.passed + '/' + x.total : x.value ? ' · ' + esc(x.value) : '') + '</span><span class="li-meta">' + esc(x.machine) + ' · ' + esc(x.at.replace(/^\d+ Nov /, '')) + '</span></a>';
+      return '<a class="li link" href="#/run/' + r + '"><span class="dot ' + (x.result === 'pass' ? 'online' : x.result === 'warn' ? 'waiting' : 'bad') + '"></span><span class="li-main">' + esc(x.check) + (x.total ? ' · ' + x.passed + ' of ' + x.total + ' passed' : x.value ? ' · ' + esc(x.value) : '') + '</span><span class="li-meta">' + esc(x.machine) + ' · ' + esc(x.at.replace(/^\d+ Nov /, '')) + '</span></a>';
     }).join('') + '</div>';
   }
   function rowMenu(id) {
@@ -938,16 +948,21 @@
   }
 
   /* ================================================================ 10. Now */
-  var SESSION_ORDER = ['7f3a', 'b915', '2a6d', 'c21e', 'e5c1', '9c40', '51b0'];
+  var SESSION_ORDER = ['7f3a', 'b915', '2a6d', 'c21e', 'e5c1', '9c40', 'a71c', '51b0'];
   function stateLabel(s) { return s.stuck ? 'stuck · waiting on you' : s.state === 'waiting' ? 'waiting on you' : s.state; }
   function vNowList(sel) {
     var list = SESSION_ORDER.filter(function (id) { return S.project === 'all' || work(D.sessions[id].item).project === S.project; });
     var live = list.filter(function (id) { return D.sessions[id].state !== 'ended'; }), ended = list.filter(function (id) { return D.sessions[id].state === 'ended'; });
     var waiting = live.filter(function (id) { return D.sessions[id].state === 'waiting'; }).length;
-    var h = '<div class="lpane"><div class="lhead"><h2>Now</h2><p class="muted">' + (live.length ? plural(live.length, 'session') + ' running' + (waiting ? ', ' + waiting + ' waiting on you' : '') : 'No live sessions') + '</p></div>';
+    var h = '<div class="lpane"><div class="lhead"><h2>Now</h2><p class="muted">' + (live.length ? plural(live.length, 'session') + ' running' + (waiting ? ', ' + waiting + ' waiting on you' : '') : 'No session is running') + '</p></div>';
     function row(id) {
-      var s = D.sessions[id];
-      return '<a class="srow' + (sel === id ? ' sel' : '') + '" href="#/session/' + id + '"><span class="dot ' + s.state + '"></span><span class="sb-main"><span class="st1">' + esc(itemTitle(s.item)) + '</span><span class="st2">' + esc(stateLabel(s)) + ' · ' + esc(s.machine) + ' · ' + s.minutes + ' min' + (s.waitingSince ? ' · since ' + esc(s.waitingSince) : '') + '</span></span></a>';
+      var s = D.sessions[id], line;
+      if (s.state === 'waiting') line = esc(stateLabel(s)) + ' for ' + fmtMin(minsSince(s.waitingSince)) + ' · ' + esc(s.machine);
+      else if (s.state === 'working') line = 'working · ' + esc(s.machine) + ' · ' + esc(stepText(s)) + ' · ' + fmtMin(s.stepMin) + ' on it';
+      else line = 'ended · ' + esc(s.machine) + ' · ' + fmtMin(s.minutes) + ' of session time';
+      var a = '<a class="srow' + (sel === id ? ' sel' : '') + '" href="#/session/' + id + '"><span class="dot ' + s.state + '"></span><span class="sb-main"><span class="st1">' + esc(itemTitle(s.item)) + '</span><span class="st2">' + line + '</span></span></a>';
+      if (s.state !== 'waiting' || !s.waitingOn.length) return a;
+      return '<div class="sgroup">' + a + s.waitingOn.map(function (c) { var cid = parseRef(c).id, cd = D.cards[cid]; return '<a class="swait' + (sel === cid ? ' sel' : '') + '" href="#/card/' + cid + '"><span class="sw-k">Waiting on ' + (cd.type === 'question' ? 'your answer' : cd.type === 'stuck' ? 'your call' : 'you') + '</span><span class="sw-q">“' + esc(cd.headline) + '”</span></a>'; }).join('') + '</div>';
     }
     h += live.length ? '<div class="slist">' + live.map(row).join('') + '</div>' : empty('No sessions', 'Claude Code sessions on your machines appear here with their state and step.');
     if (ended.length) h += '<details class="fyk"><summary><span>Ended</span><span class="muted">' + plural(ended.length, 'session') + '</span><span class="chev"></span></summary><div class="slist">' + ended.map(row).join('') + '</div></details>';
@@ -966,15 +981,15 @@
     var s = D.sessions[id];
     if (!s) return head(null) + '<div class="pane">' + empty('No such session', 'It may have ended long ago.') + '</div>';
     var h = head(crumbRefs(s.item).concat(['session:' + id])) + '<div class="pane">';
-    h += dhead('Session ' + id, s.state === 'waiting' ? 'stuck' : s.state === 'working' ? 'approve' : 'info', '<span class="dot ' + s.state + '"></span> ' + esc(stateLabel(s)), esc(itemTitle(s.item)), esc(s.step) + ' · ' + esc(s.machine) + ' · ' + s.minutes + ' min');
+    h += dhead('Session ' + id, s.state === 'waiting' ? 'stuck' : s.state === 'working' ? 'approve' : 'info', '<span class="dot ' + s.state + '"></span> ' + esc(stateLabel(s)), esc(itemTitle(s.item)), esc(stepText(s)) + ' · ' + esc(s.machine) + ' · ' + fmtMin(s.minutes) + ' of session time');
     if (s.waitingOn.length) h += '<div class="notice"><p><b>Waiting on you.</b> ' + s.waitingOn.map(function (c) { return '<a href="#/card/' + parseRef(c).id + '">' + esc(D.cards[parseRef(c).id].headline) + '</a>'; }).join(' · ') + '</p></div>';
     h += '<div class="actions"><button class="btn" data-act="message" data-session="' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Message</button><button class="btn" data-toast="Stop sent to session ' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Stop</button><button class="btn" data-toast="Resume sent to the Host on ' + s.machine + ' for session ' + id + '"' + (s.state === 'working' ? ' disabled' : '') + '>Resume</button></div>';
     h += drills([
-      drill('Effort', s.minutes + ' min · ' + s.turns + ' turns · ' + s.tools + ' tool calls', '<dl class="kv"><dt>Started</dt><dd>' + esc(s.started) + '</dd>' + (s.ended ? '<dt>Ended</dt><dd>' + esc(s.ended) + '</dd>' : '') + '<dt>Minutes</dt><dd>' + s.minutes + '</dd><dt>Turns</dt><dd>' + s.turns + '</dd><dt>Tool calls</dt><dd>' + s.tools + '</dd></dl>'),
-      drill('Checks run', s.checks.length ? plural(s.checks.length, 'run') : 'none', s.checks.length ? runsTable(s.checks.map(function (r) { return parseRef(r).id; })) : empty('No checks yet', 'Runs reported by the hook for this session appear here.')),
-      drill('Questions asked', s.questions.length ? String(s.questions.length) : 'none', s.questions.length ? chips(s.questions, { meta: true }) : empty('No questions', 'Questions this session asked appear here.')),
-      drill('Assumptions', s.assumptions.length ? String(s.assumptions.length) : 'none', s.assumptions.length ? assumptionBatch(s.assumptions) : empty('No assumptions', 'Assumptions this session made appear here.')),
-      drill('Found items', s.found.length + ' of ' + D.budgets[1].value, s.found.length ? chips(s.found) : empty('None found', 'At most five per session; they go to the item\'s tray.')),
+      drill('Effort', fmtMin(s.minutes) + ' · ' + plural(s.turns, 'turn') + ' · ' + plural(s.tools, 'tool call'), '<dl class="kv"><dt>Started</dt><dd>' + esc(s.started) + '</dd>' + (s.ended ? '<dt>Ended</dt><dd>' + esc(s.ended) + '</dd>' : '') + '<dt>Session time</dt><dd>' + fmtMin(s.minutes) + '</dd><dt>Turns</dt><dd>' + plural(s.turns, 'turn') + '</dd><dt>Tool calls</dt><dd>' + plural(s.tools, 'call') + '</dd></dl>'),
+      drill('Checks run', s.checks.length ? (function () { var bad = s.checks.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : NU; })() : 'none', s.checks.length ? runsTable(s.checks.map(function (r) { return parseRef(r).id; })) : empty('No checks yet', 'Runs reported by the hook for this session appear here.')),
+      drill('Questions asked', s.questions.length ? (function () { var op = s.questions.filter(function (q) { var x = D.questions[parseRef(q).id]; return x && x.state === 'open'; }).length; return op ? plural(op, 'question') + ' still open' : NU; })() : 'none', s.questions.length ? chips(s.questions, { meta: true }) : empty('No questions', 'Questions this session asked appear here.')),
+      drill('Assumptions', s.assumptions.length ? (function () { var un = s.assumptions.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length; return un ? plural(un, 'assumption') + ' to review' : NU; })() : 'none', s.assumptions.length ? assumptionBatch(s.assumptions, true) : empty('No assumptions', 'Assumptions this session made appear here.')),
+      drill('Found items', s.found.length ? s.found.length + ' of the ' + D.budgets[1].value + ' allowed' : 'none', s.found.length ? chips(s.found) : empty('None found', 'At most five per session; they go to the item\'s tray.')),
       s.packet ? drill('Packet', esc(D.cards[parseRef(s.packet).id].headline), chip(s.packet, { meta: true })) : '',
       drill('Turn ledger', plural(s.ledger.length, 'entry', 'entries'), '<div class="list">' + s.ledger.map(function (l) { return '<div class="li"><span class="li-meta mono" style="min-width:44px">' + esc(l[0]) + '</span><span class="li-main">' + esc(l[2]) + '</span></div>'; }).join('') + '</div>'),
       drill('Machine', esc(s.machine), chip('machine:' + s.machine, { meta: true }) + (D.lanes[s.lane] ? chip('lane:' + s.lane, { meta: true }) : ''))
@@ -1009,7 +1024,7 @@
   function countText(files) {
     var o = 0, hd = 0, s = 0;
     keys(D.comments).forEach(function (c) { var x = D.comments[c]; if (files.indexOf(x.file) < 0) return; if (x.state === 'open') o++; else if (x.state === 'handled') hd++; else s++; });
-    return [o ? o + ' open' : '', hd ? hd + ' handled' : '', s ? '<span class="tone-warn" title="Stale: the code under the comment changed after it was written">' + s + ' stale</span>' : ''].filter(Boolean).join(' · ');
+    return [s ? '<span class="tone-warn" title="Stale: the code under the comment changed after it was written">' + s + ' stale</span>' : '', o ? o + ' open' : '', hd ? hd + ' handled' : ''].filter(Boolean).join(' · ');
   }
   function vFilesList(sel) {
     var files = filesWithComments();
@@ -1066,13 +1081,13 @@
     var q = S.rulingQ.toLowerCase();
     var h = '<div class="lpane"><div class="lhead"><h2>Rulings</h2><p class="muted">Decisions in your words. ' + keys(D.rulings).length + ' recorded.</p></div>';
     h += '<div class="lctrl"><div class="search inline"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="' + P.search + '"/></svg><input type="search" placeholder="Search rulings" value="' + esc(S.rulingQ) + '" data-act="rq" aria-label="Search rulings"></div></div>';
-    h += '<a class="proposal-link' + (mode === 'proposed' ? ' sel' : '') + '" href="#/rulings/proposed"><span><b>' + D.proposed.items.length + ' proposed from chat</b><span class="muted small"> · tick the ones you mean</span></span><span class="chev"></span></a>';
+    h += '<a class="proposal-link' + (mode === 'proposed' ? ' sel' : '') + '" href="#/rulings/proposed"><span><b>' + D.proposed.items.length + ' proposed from chat</b><span class="muted small"> · read only; you tick them on their card in the inbox</span></span><span class="chev"></span></a>';
     var groups = {};
     keys(D.rulings).forEach(function (id) { var r = D.rulings[id]; if (S.project !== 'all' && r.project !== S.project) return; if (q && (r.title + ' ' + r.text).toLowerCase().indexOf(q) < 0) return; (groups[r.project] = groups[r.project] || []).push(id); });
     var gk = D.projects.map(function (p) { return p.id; }).filter(function (p) { return groups[p]; });
     if (!gk.length) return h + empty('No rulings match', 'Rulings appear here grouped by project.') + '</div>';
     gk.forEach(function (p) {
-      h += '<p class="lgroup">' + esc(projOf(p).name) + '</p><div class="slist">' + groups[p].map(function (id) { var r = D.rulings[id]; return '<a class="srow' + (sel === id ? ' sel' : '') + '" href="#/ruling/' + id + '"><span class="sb-main"><span class="st1">' + esc(r.title) + '</span><span class="st2">' + esc(r.date) + ' · cited by ' + citedCount(id) + '</span></span></a>'; }).join('') + '</div>';
+      h += '<p class="lgroup">' + esc(projOf(p).name) + '</p><div class="slist">' + groups[p].map(function (id) { var r = D.rulings[id]; return '<a class="srow' + (sel === id ? ' sel' : '') + '" href="#/ruling/' + id + '"><span class="sb-main"><span class="st1">' + esc(r.title) + '</span><span class="st2">' + esc((D.rulingFrom || {})[id] || r.origin) + ', ' + esc(r.date) + ' · cited in ' + plural(citedCount(id), 'place') + '</span></span></a>'; }).join('') + '</div>';
     });
     return h + '</div>';
   }
@@ -1084,7 +1099,7 @@
     h += '<p class="ruling-text">' + esc(r.text) + '</p>';
     h += drills([
       drill('Where it came from', esc(r.origin), '<p>' + esc(r.origin) + ', ' + esc(r.date) + '.</p>' + (r.question || r.item ? '<div class="chips">' + (r.question ? chip(r.question, { meta: true }) : '') + (r.item ? chip(r.item, { meta: true }) : '') + '</div>' : '') + (r.reopenNote ? '<p class="small tone-warn" style="margin-top:12px">' + esc(r.reopenNote) + '</p>' : '')),
-      drill('Cited by', plural(back.length, 'record'), back.length ? chips(back, { meta: true }) : empty('Not cited yet', 'Items, cards and questions that carry this ruling appear here.')),
+      drill('Cited by', 'cited in ' + plural(back.length, 'place'), back.length ? chips(back, { meta: true }) : empty('Not cited yet', 'Items, cards and questions that carry this ruling appear here.')),
       drill('Related', plural(r.related.length, 'link'), chips(r.related))
     ]);
     return h + '</div>';
@@ -1102,7 +1117,7 @@
     var v = p.burn, W = 240, H = 48, max = Math.max.apply(null, v), min = Math.min.apply(null, v) - 4;
     var pts = v.map(function (y, i) { return [Math.round(i * (W - 10) / (v.length - 1)) + 5, Math.round(6 + (H - 20) * (1 - (y - min) / (max - min)))]; });
     var line = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' ');
-    return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Measured hours left: ' + v.join(', ') + '"><path class="a" d="' + line + ' L' + pts[pts.length - 1][0] + ' ' + (H - 12) + ' L5 ' + (H - 12) + ' Z"/><path class="l" d="' + line + '"/><circle cx="' + pts[pts.length - 1][0] + '" cy="' + pts[pts.length - 1][1] + '" r="3"/><text x="5" y="' + (H - 1) + '">' + p.burnDays[0] + ' · ' + v[0] + 'h</text><text x="' + (W - 5) + '" y="' + (H - 1) + '" text-anchor="end">' + p.burnDays[p.burnDays.length - 1] + ' · ' + v[v.length - 1] + 'h</text></svg>';
+    return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Measured hours left: ' + v.join(', ') + '"><path class="a" d="' + line + ' L' + pts[pts.length - 1][0] + ' ' + (H - 12) + ' L5 ' + (H - 12) + ' Z"/><path class="l" d="' + line + '"/><circle cx="' + pts[pts.length - 1][0] + '" cy="' + pts[pts.length - 1][1] + '" r="3"/><text x="5" y="' + (H - 1) + '">' + p.burnDays[0] + ' · ' + v[0] + ' h</text><text x="' + (W - 5) + '" y="' + (H - 1) + '" text-anchor="end">' + p.burnDays[p.burnDays.length - 1] + ' · ' + v[v.length - 1] + ' h</text></svg>';
   }
   function kindCounts(pid) { var c = { FTR: 0, BUG: 0, PER: 0, task: 0 }; keys(D.items).forEach(function (i) { var it = D.items[i]; if (it.project === pid && !it.preview) c[it.kind]++; }); return c; }
   function projectCard(p) {
@@ -1111,7 +1126,7 @@
       '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small">' + (p.measuredWeeks ? ' · ' + p.measuredWeeks + ' measured' : '') + '</span></p>' +
       '<div class="wbar"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>' +
       (p.burn ? spark(p) : '') +
-      '<p class="small muted pc-foot">' + (bo.length ? '<span class="tone-warn">' + plural(bo.length, 'decision') + ' waiting</span>' : p.state === 'open' ? 'nothing waiting' : esc(trunc(p.closedWhy, 70))) + '</p>' +
+      '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting' : esc(trunc(p.closedWhy, 70))) + '</p>' +
       '<a class="btn small text" href="#/project/' + p.id + '">Project page</a></article>';
   }
   function vProjects() {
@@ -1122,15 +1137,15 @@
     if (!p) return head(null) + '<div class="pane">' + empty('No such project', 'Projects are created by you only.') + '</div>';
     var items = keys(D.items).filter(function (i) { return D.items[i].project === id; });
     var kc = kindCounts(id), bo = blockedOnYou(id), rs = keys(D.rulings).filter(function (r) { return D.rulings[r].project === id; });
-    var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<span class="tone-warn">' + plural(bo.length, 'decision') + ' waiting</span>' : '', esc(p.name), esc(p.purpose));
+    var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
     h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">' + (p.measuredWeeks ? p.measuredWeeks + ' measured, the rest coarse' : 'none measured yet') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>';
     h += '<div class="actions"><button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>';
     h += drills([
-      p.burn ? drill('Burn-down', p.burn[0] + 'h → ' + p.burn[p.burn.length - 1] + 'h measured, since ' + p.burnDays[0], spark(p)) : '',
+      p.burn ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
       drill('Items', items.length ? items.length + ' · ' + ['FTR', 'BUG', 'PER', 'task'].filter(function (k) { return kc[k]; }).map(function (k) { return kc[k] + ' ' + k; }).join(', ') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
-      bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">~' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
-      p.criticalPath ? drill('Critical path', p.criticalPath.length + ' nodes', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
-      p.lanes ? drill('Lanes', p.lanes.length + ' · factor ×' + p.factor, '<div class="list">' + p.lanes.map(function (l) { var ln = D.lanes[l]; return '<div class="li"><span class="li-main">' + chip('lane:' + l, { meta: true }) + '</span><span class="li-meta">' + esc(ln.state) + '</span></div>'; }).join('') + '</div>') : '',
+      bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
+      p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
+      p.lanes ? drill('Lanes', plural(p.lanes.length, 'lane') + ' · factor ' + p.factor, '<div class="list">' + p.lanes.map(function (l) { var ln = D.lanes[l]; return '<div class="li"><span class="li-main">' + chip('lane:' + l, { meta: true }) + '</span><span class="li-meta">' + esc(ln.state) + '</span></div>'; }).join('') + '</div>') : '',
       drill('Issues', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? fpbCountLabel(l) : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
@@ -1298,6 +1313,10 @@
     if (un.length) out.push({ key: 'as', html: '<a class="need-row" href="#/fpb/' + id + '/assumptions"><span class="nk">Review</span><span class="nt">' + plural(un.length, 'assumption') + ' not reviewed</span><span class="chev"></span></a>' });
     if (f.kind === 'PER' && !targetOf(id)) out.push({ key: 'target', html: '<button class="need-row" data-act="set-target" data-fpb="' + id + '"><span class="nk">Set</span><span class="nt">a target: value, unit and conditions</span><span class="chev"></span></button>' });
     if (f.sections.fixes && chosenFix(id) == null) out.push({ key: 'fix', html: '<button class="need-row" data-act="open-sec" data-target="sec-fixes"><span class="nk">Choose</span><span class="nt">a fix: ' + f.sections.fixes.rows.length + ' compared</span><span class="chev"></span></button>' });
+    var cz = f.sections.cause;
+    if (cz && !cz.run) out.push({ key: 'unv', html: '<button class="need-row" data-act="open-sec" data-target="sec-cause"><span class="nk">Check</span><span class="nt">the cause is unverified: no run confirms it yet</span><span class="chev"></span></button>' });
+    var acc = f.sections.acceptance, unp = acc ? acc.lines.filter(function (l) { return !l.run; }).length : 0;
+    if (unp) out.push({ key: 'unp', html: '<button class="need-row" data-act="open-sec" data-target="sec-acceptance"><span class="nk">Check</span><span class="nt">' + plural(unp, 'acceptance line') + ' with no run proving ' + (unp === 1 ? 'it' : 'them') + ' yet</span><span class="chev"></span></button>' });
     var sv = severityOf(id);
     if (sv && !sv.confirmed) out.push({ key: 'sev', html: '<button class="need-row" data-act="sev" data-fpb="' + id + '"><span class="nk">Confirm</span><span class="nt">severity: ' + esc(sv.level) + ', proposed by Claude</span><span class="chev"></span></button>' });
     return out;
@@ -1312,15 +1331,14 @@
       var f = D.fpbs[id];
       if (S.project !== 'all' && f.project !== S.project) return false;
       if (S.iss.kind !== 'all' && f.kind !== S.iss.kind) return false;
-      if (S.iss.needs && !fpbNeeds(id).length) return false;
       if (q.attach && f.attach !== (q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach)) return false;
       return true;
     });
-    var all = fpbList(), needN = all.filter(function (id) { return fpbNeeds(id).length; }).length;
+    var all = fpbList(), takenN = all.filter(function (id) { return (D.fpbs[id].takenOnBy || []).length; }).length;
     var tasks = {}; all.forEach(function (id) { tasks[D.fpbs[id].attach] = 1; });
-    var h = '<div class="lpane"><div class="lhead"><h2>Issues</h2><p class="muted">' + plural(all.length, 'issue') + ' on ' + keys(tasks).length + ' tasks and projects · ' + needN + ' waiting on you</p></div>';
+    var h = '<div class="lpane"><div class="lhead"><h2>Issues</h2><p class="muted">' + plural(all.length, 'issue') + ' on ' + keys(tasks).length + ' tasks and projects · ' + takenN + ' taken on by a task</p></div>';
     h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Tasks</button><button class="on">Issues</button></div></div>';
-    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div><label class="toggle"><input type="checkbox" data-act="iss-needs"' + (S.iss.needs ? ' checked' : '') + '>Needs me</label></div>';
+    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div></div>';
     if (q.attach) h += '<div class="notice soft"><p>Only issues on ' + chip(q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach) + ' · <a href="#/issues">show all</a></p></div>';
     if (!ids.length) return h + empty('No issues match', 'Features, bugs and performance issues raised while building a task appear here, grouped by the task they belong to.') + '</div>';
     var groups = {}, order = [];
@@ -1333,8 +1351,8 @@
     return h + '</div>';
   }
   function issueRow(id, sel) {
-    var f = D.fpbs[id], n = fpbNeeds(id).length, sv = severityOf(id);
-    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2">' + f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : '') + (n ? ' · <span class="tone-warn">' + plural(n, 'thing') + ' for you</span>' : '') + '</span></span></a>';
+    var f = D.fpbs[id], t = f.takenOnBy || [], sv = severityOf(id);
+    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2">' + f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + t.join(', ') : ' · no task yet') + '</span></span></a>';
   }
 
   /* ================================================================ report page */
@@ -1349,8 +1367,8 @@
     }
     if (f.kind === 'BUG') {
       var ch = chosenFix(id), fr = x.frequency ? ' · fails ' + x.frequency.count : '';
-      if (x.fixes && ch != null) return ['Fix ' + (ch + 1) + ' chosen', trunc(x.fixes.rows[ch].t, 60) + ' · ' + x.fixes.rows[ch].size + ' min'];
-      if (x.fixes) return ['Choose a fix', x.fixes.rows.length + ' compared' + fr];
+      if (x.fixes && ch != null) return ['Fix ' + (ch + 1) + (fixSettled(id) ? ' settled' : ' recommended'), trunc(x.fixes.rows[ch].t, 60) + ' · ' + x.fixes.rows[ch].size + ' min' + (fixSettled(id) ? '' : ' · Claude\'s proposal')];
+      if (x.fixes) return [x.fixes.rows.length + ' fixes compared', 'no recommendation yet' + fr];
       if (x.cause) return ['Cause ' + x.cause.status, x.cause.confidence + ' confidence' + fr];
       if (x.reproduce) return ['Reproduced', 'cause not found yet' + fr];
       return ['Not reproduced yet', 'reported ' + (f.source.date || '')];
@@ -1366,23 +1384,22 @@
     var openSec = null;
     if (FPB_ALIAS[tab]) { openSec = FPB_ALIAS[tab][1] || null; tab = FPB_ALIAS[tab][0]; }
     tab = tab || 'report';
-    var sv = severityOf(id), need = fpbNeeds(id), ub = unblockMin('fpb:' + id);
-    var right = need.length ? '<span class="tone-warn">' + plural(need.length, 'thing') + ' for you</span>' : ub ? 'unblocks ~' + fmtMin(ub) : '';
+    var sv = severityOf(id), ub = unblockMin('fpb:' + id);
+    var right = reportEditBtn(id);
     var lead = f.kind === 'PER' ? '' : esc(fpbLead(id));
     var h = head(crumbRefs(id)) + '<div class="pane report r-' + f.kind + '">';
     h += dhead(f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : ''), 'fk-' + f.kind, right, esc(f.title), lead);
-    if (need.length) h += '<div class="need"><p class="need-h">What I need from you</p>' + need.map(function (n) { return n.html; }).join('') + '</div>';
     h += '<nav class="tabs" aria-label="Issue sections">' + FPB_TABS.map(function (x) { return '<a class="tab' + (x[0] === tab ? ' on' : '') + '" href="#/fpb/' + id + '/' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>';
     if (tab === 'report') {
       var hero = heroFor(id);
-      h += '<div class="status"><div><p class="bignum">' + esc(hero[0]) + '</p><p class="muted small">' + esc(hero[1]) + '</p></div></div>';
+      h += '<div class="status"><div><p class="bignum">' + esc(hero[0]) + '</p><p class="muted small">' + esc(hero[1]) + '</p></div></div>' + takenOnLine(id);
       h += reportSections(id, openSec) + aboutRows(id, openSec);
       var kf = S.folds[f.kind] || {};
       if (keys(kf).some(function (k) { return kf[k]; })) h += '<p class="fold-reset"><button class="btn text small" data-act="fold-reset" data-kind="' + f.kind + '">Close all sections</button><span class="small muted">Open sections are remembered for every ' + KIND_NAME[f.kind].toLowerCase() + '.</span></p>';
     }
-    else if (tab === 'plan') h += tabPlan(id);
-    else if (tab === 'changes') h += tabChanges(id, openSec);
-    else if (tab === 'decisions') h += tabDecisions(id, openSec);
+    else if (tab === 'plan') h += fpbPlan(id);
+    else if (tab === 'changes') h += fpbChanges(id, openSec);
+    else if (tab === 'decisions') h += fpbDecisions(id, openSec);
     else h += fpbActivity(id, openSec);
     return h + '</div>';
   }
@@ -1390,17 +1407,17 @@
   function aboutRows(id, openSec) {
     var f = D.fpbs[id], sv = severityOf(id), t = f.time, at = parseRef(f.attach);
     var waits = at.kind === 'item' && !onOpenPath(at.id);
-    var rows = [];
-    if (sv) rows.push(fold(f.kind, 'severity', 'Severity', esc(sv.level) + (sv.confirmed ? ' · confirmed by you' : ' · proposed by Claude'),
-      '<p>' + esc(sv.reason) + '</p><div class="actions" style="margin-top:12px"><button class="btn small" data-act="sev" data-fpb="' + id + '">' + (sv.confirmed ? 'Change' : 'Confirm or change') + '</button></div>', { attn: !sv.confirmed }));
+    var rows = [lifeRow(id)];
+    if (sv) rows.push(fold(f.kind, 'severity', 'Severity<span class="au-w au-w-' + (sv.by === 'you' ? 'me' : 'claude') + '">' + (sv.by === 'you' ? 'you' : 'Claude') + '</span>', esc(sv.level) + (sv.by === 'you' ? ' · changed by you' : ' · Claude\'s proposal'),
+      '<p>' + esc(sv.reason) + '</p><p class="small muted" style="margin-top:12px">' + (sv.by === 'you' ? 'You changed it with Edit.' : 'Claude proposed it. Nothing waits on it; change it with Edit at the top of the report if you disagree.') + '</p>'));
     rows.push(depsPanel(id, openSec));
     rows.push(fold(f.kind, 'time', 'Time', t.forecast ? 'forecast ' + fmtMin(t.forecast) : t.est != null ? 'estimate ' + t.est + ' Claude-min' : 'no estimate yet',
-      '<dl class="kv"><dt>Estimate</dt><dd>' + (t.est != null ? t.est + ' Claude-min, ' + esc(t.estBy) : 'not yet') + '</dd><dt>Actual</dt><dd>' + (t.actual ? fmtMin(t.actual) + ' from sessions' : 'no session time yet') + '</dd>' + (t.factor ? '<dt>Factor</dt><dd>×' + t.factor + '</dd>' : '') + (t.forecast ? '<dt>Forecast</dt><dd>' + fmtMin(t.forecast) + '</dd>' : '') + '</dl>'));
+      '<dl class="kv"><dt>Estimate</dt><dd>' + (t.est != null ? t.est + ' Claude-min, ' + esc(t.estBy) : 'not yet') + '</dd><dt>Actual</dt><dd>' + (t.actual ? fmtMin(t.actual) + ' from sessions' : 'no session time yet') + '</dd>' + (t.factor ? '<dt>Factor</dt><dd>' + t.factor + ', actual over estimate</dd>' : '') + (t.forecast ? '<dt>Forecast</dt><dd>' + fmtMin(t.forecast) + '</dd>' : '') + '</dl>'));
     rows.push(fold(f.kind, 'origin', 'Where it came from', esc(SRC_SHORT[f.source.type] || 'created by you') + (f.source.date ? ', ' + esc(f.source.date) : ''),
       '<dl class="kv"><dt>Source</dt><dd class="rich">' + sourceText(f).replace(/^./, function (c) { return c.toUpperCase(); }) + '</dd><dt>Attached to</dt><dd>' + chip(f.attach) + (waits ? ' <span class="muted small">waits for its task to open</span>' : '') + '</dd>' +
       ((f.machine || f.branch || f.lane) ? '<dt>Works on</dt><dd><div class="chips">' + (f.machine ? chip('machine:' + f.machine) : '') + (f.branch ? chip('branch:' + f.branch) : '') + (f.lane ? '<span class="marker">lane ' + esc(f.lane) + '</span>' : '') + '</div></dd>' : '') +
       (unscheduled(f) ? '<dt>Schedule</dt><dd>Unscheduled: ' + esc(projOf(f.project).name) + ' is not open yet.</dd>' : '') + '</dl>'));
-    return drills(rows, 'About this issue');
+    return drills(rows, 'About this item');
   }
   function fold(kind, key, label, summary, body, opt) {
     opt = opt || {};
@@ -1415,19 +1432,19 @@
     var cross = p && dir.project && op !== dir.project;
     return '<div class="edge' + (conf ? '' : ' unconf') + '"><div class="e-main">' + chip(other) + (cross ? '<span class="xproj' + (p.state === 'open' ? '' : ' warn') + '">' + esc(p.name) + (p.state === 'open' ? '' : ' · not open yet') + '</span>' : '') + '</div>' +
       '<p class="e-why">' + esc(e.reason) + '</p><div class="e-tags">' + (e.type === 'needs' ? '<span>' + (e.hard ? 'hard' : 'soft') + '</span>' : '') + '<span>by ' + (e.by === 'you' ? 'you' : 'Claude') + '</span>' + (e.min ? '<span>~' + fmtMin(e.min) + '</span>' : '') +
-      (conf ? '<span class="tone-good">confirmed</span>' : '<button class="btn small" data-act="edge" data-edge="' + e.id + '">Confirm or remove</button>') + '</div></div>';
+      (conf ? '<span class="tone-good">' + (e.by === 'you' ? 'yours' : 'confirmed in a plan') + '</span>' : '<span>Claude\'s proposal</span>') + '</div></div>';
   }
   function depsPanel(id, openSec) {
     var f = D.fpbs[id], ref = 'fpb:' + id;
     var nd = needsOf(ref), bl = blocksOf(ref), rl = relOf(ref, 'related'), du = relOf(ref, 'duplicate');
     var unc = nd.concat(bl).filter(function (e) { return !edgeConfirmed(e); }).length;
     var total = nd.length + bl.length + rl.length + du.length;
-    var sum = total ? [nd.length ? 'needs ' + nd.length : '', bl.length ? 'blocks ' + bl.length : '', rl.length ? 'related ' + rl.length : '', du.length ? 'duplicate ' + du.length : ''].filter(Boolean).join(' · ') + (unc ? ' · ' + unc + ' to confirm' : '') : 'none';
+    var sum = total ? [nd.length ? 'needs ' + nd.length : '', bl.length ? 'blocks ' + bl.length : '', rl.length ? 'related ' + rl.length : '', du.length ? 'duplicate ' + du.length : ''].filter(Boolean).join(' · ') + (unc ? ' · ' + unc + ' proposed by Claude' : '') : 'none';
     var ctx = { project: f.project };
     function grp(title, list, pick) { return list.length ? '<p class="egroup">' + title + '</p>' + list.map(function (e) { return edgeRow(e, pick(e), ctx); }).join('') : ''; }
     var body = total ? grp('Needs', nd, function (e) { return e.to; }) + grp('Blocks · worked out from what needs this', bl, function (e) { return e.from; }) + grp('Related', rl, function (e) { return e.from === ref ? e.to : e.from; }) + grp('Duplicates', du, function (e) { return e.from === ref ? e.to : e.from; }) : '<p class="muted">No links to other issues or tasks yet.</p>';
-    if (bl.length) body += '<p class="egroup">What this unblocks</p><p>' + (unblockMin(ref) ? '<b>~' + fmtMin(unblockMin(ref)) + '</b> of confirmed work' : 'Nothing confirmed yet') + (pendingMin(ref) ? ' <span class="tone-warn">· ~' + fmtMin(pendingMin(ref)) + ' more if you confirm</span>' : '') + '</p>';
-    return fold(f.kind, 'deps', 'Dependencies', sum, body, { attn: unc > 0, force: openSec === 'deps' });
+    if (false) body += '<p class="egroup">What this unblocks</p><p>' + (unblockMin(ref) ? '<b>~' + fmtMin(unblockMin(ref)) + '</b> of confirmed work' : 'Nothing confirmed yet') + (pendingMin(ref) ? ' <span class="muted">· ~' + fmtMin(pendingMin(ref)) + ' more behind links Claude proposed</span>' : '') + '</p><p class="small muted" style="margin-top:12px">A task that takes this on confirms its dependencies in its plan\'s settle pass. You can also change them with Edit.</p>';
+    return fold(f.kind, 'deps', 'Dependencies', sum, body, { force: openSec === 'deps' });
   }
 
   /* sections: fixed order per kind, present only with content, three author styles */
@@ -1447,7 +1464,7 @@
   function rsec(kind, key, title, a, summary, body, attn, force) {
     return fold(kind, key, esc(title) + '<span class="au-w au-w-' + a + '">' + AU_WORD[a] + '</span>', summary, body, { attn: attn, force: force, cls: 'sec a-' + a });
   }
-  var NEEDS_YOU = { fixes: function (f, id) { return chosenFix(id) == null; }, target: function (f, id) { return !targetOf(id); } };
+  var NEEDS_YOU = {};
   function reportSections(id, openSec) {
     var f = D.fpbs[id], out = [];
     D.reportOrder[f.kind].forEach(function (pair) {
@@ -1482,10 +1499,10 @@
     var ch = chosenFix(id);
     return '<div class="fixes">' + sec.rows.map(function (r, i) {
       var chosen = ch === i;
-      return '<details class="fxrow' + (chosen ? ' chosen' : '') + '"><summary class="fx"><span class="fx-n">' + (i + 1) + '</span><span class="fx-t">' + esc(r.t) + (chosen ? ' <span class="marker good">chosen</span>' : '') + '</span><span class="fx-m">' + r.size + ' min · <span class="' + (r.risk === 'high' ? 'tone-bad' : r.risk === 'medium' ? 'tone-warn' : 'tone-good') + '">' + esc(r.risk) + ' risk</span></span><span class="chev"></span></summary>' +
+      return '<details class="fxrow' + (chosen ? ' chosen' : '') + '"><summary class="fx"><span class="fx-n">' + (i + 1) + '</span><span class="fx-t">' + esc(r.t) + (chosen ? ' <span class="marker ' + (fixSettled(id) ? 'good">settled in a plan' : 'rec">Claude recommends') + '</span>' : '') + '</span><span class="fx-m">' + r.size + ' min · <span class="' + (r.risk === 'high' ? 'tone-bad' : r.risk === 'medium' ? 'tone-warn' : 'tone-good') + '">' + esc(r.risk) + ' risk</span></span><span class="chev"></span></summary>' +
         '<div class="fx-b"><dl class="kv"><dt>Confidence</dt><dd>' + esc(r.confidence) + '</dd><dt>Regression check</dt><dd>' + (r.regression === 'exists' ? 'exists' : 'proposed, not written') + '</dd></dl>' +
         subfold('Approach · ' + r.approach.length + ' steps', '<ol class="plain-ol">' + r.approach.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ol><div class="chips" style="margin:10px 0"><span class="small muted">files</span>' + chips(r.files) + '</div>') +
-        '<div class="actions" style="margin-top:12px"><button class="btn small' + (chosen ? '' : ' primary') + '" data-act="choose-fix" data-fpb="' + id + '" data-i="' + i + '">' + (chosen ? 'Unchoose' : 'Choose this fix') + '</button></div></div></details>';
+        '</div></details>';
     }).join('') + '</div>';
   }
   function causeBody(f, sec) {
@@ -1525,14 +1542,14 @@
         (s.questions ? '<p class="sub-h">Open questions</p>' + chips(s.questions, { meta: true }) : '');
       return { sum: (s.options ? s.options.length + ' options' + (chosen ? ', 1 chosen' : '') : 'surfaces') + (s.questions ? ' · ' + plural(s.questions.length, 'open question') : '') + (s.syntax && s.syntax.status === 'proposed' ? ' · syntax proposed' : ''), body: wrap('claude', b, { session: s.session, cap: 'one line per option' }) };
     },
-    acceptance: function (f, s) { var ran = s.lines.filter(function (l) { return l.run; }).length; return { sum: ran + ' of ' + s.lines.length + ' proved by runs', body: wrap('me', accLines(s)) }; },
+    acceptance: function (f, s) { var ran = s.lines.filter(function (l) { return l.run; }).length; return { sum: s.lines.length - ran ? plural(s.lines.length - ran, 'line') + ' without a run' : NU, body: wrap('me', accLines(s)) }; },
     parity: function (f, s) {
       var c = {}; s.rows.forEach(function (r) { c[r.status] = (c[r.status] || 0) + 1; });
       var b = '<p class="small muted" style="margin-bottom:8px">Against ' + esc(s.against) + '</p><div class="ptable"><div class="pr ph"><span>What</span><span>Before</span><span>Now</span><span>Status</span></div>' + s.rows.map(function (r) { return '<div class="pr"><span class="p-w">' + esc(r.what) + '</span><code data-l="before">' + esc(r.old) + '</code><code data-l="now">' + esc(r.now) + '</code><span><span class="marker ' + ({ same: 'good', changed: 'warn', dropped: 'bad', pending: '' }[r.status]) + '">' + r.status + '</span>' + (r.ref ? ' ' + chip(r.ref) : '') + '</span></div>'; }).join('') + '</div>';
-      return { sum: s.rows.length + ' rows · ' + keys(c).map(function (k) { return c[k] + ' ' + k; }).join(', '), body: wrap('claude', b, { session: s.session }) };
+      return { sum: keys(c).filter(function (k) { return k !== 'same'; }).map(function (k) { return c[k] + ' ' + k; }).join(', ') || NU, body: wrap('claude', b, { session: s.session }) };
     },
-    risks: function (f, s) { return { sum: plural(s.rows.length, 'risk') + ' · ' + s.rows.filter(function (r) { return r.likelihood === 'high'; }).length + ' high', body: wrap('claude', '<div class="list">' + s.rows.map(function (r) { return '<div class="li col"><span class="li-main">' + esc(r.t) + ' <span class="marker ' + (r.likelihood === 'high' ? 'bad' : r.likelihood === 'medium' ? 'warn' : '') + '">' + r.likelihood + '</span></span><span class="li-sub">Limited by: ' + esc(r.limit) + '</span></div>'; }).join('') + '</div>', { session: s.session, cap: 'max three' }) }; },
-    impact: function (f, s, id) { var bl = blocksOf('fpb:' + id); return { author: 'machine', sum: (s.affects ? s.affects.length + ' areas' : '') + (bl.length ? ' · unblocks ' + plural(bl.length, 'item') : ''), body: wrap('machine', (s.affects ? '<p class="sub-h" style="margin-top:0">Affects</p>' + plainList(s.affects.map(esc)) : '') + (bl.length ? '<p class="sub-h">Unblocks</p><div class="list">' + bl.map(function (e) { return '<div class="li"><span class="li-main">' + chip(e.from) + '</span><span class="li-meta">~' + fmtMin(e.min) + '</span></div>'; }).join('') + '</div>' : ''), { chips: [] }) }; },
+    risks: function (f, s) { return { sum: (function () { var hi = s.rows.filter(function (r) { return r.likelihood === 'high'; }).length; return hi ? plural(hi, 'high risk') : NU; })(), body: wrap('claude', '<div class="list">' + s.rows.map(function (r) { return '<div class="li col"><span class="li-main">' + esc(r.t) + ' <span class="marker ' + (r.likelihood === 'high' ? 'bad' : r.likelihood === 'medium' ? 'warn' : '') + '">' + r.likelihood + '</span></span><span class="li-sub">Limited by: ' + esc(r.limit) + '</span></div>'; }).join('') + '</div>', { session: s.session, cap: 'max three' }) }; },
+    impact: function (f, s, id) { var bl = blocksOf('fpb:' + id); return { author: 'machine', sum: (s.affects ? s.affects.length + ' areas' : '') + (bl.length ? ' · unblocks ' + plural(bl.length, 'item') : ''), body: wrap('machine', (s.affects ? '<p class="sub-h" style="margin-top:0">Affects</p>' + plainList(s.affects.map(esc)) : '') + (bl.length ? '<p class="sub-h">Unblocks</p><div class="list">' + bl.map(function (e) { return '<div class="li"><span class="li-main">' + chip(e.from) + '</span>' + (e.min ? '<span class="li-meta">~' + fmtMin(e.min) + '</span>' : '') + '</div>'; }).join('') + '</div>' : ''), { chips: [] }) }; },
     plan: function (f, s, id) { var done = f.steps.filter(function (x) { return x.state === 'done'; }).length; return { author: 'claude', sum: done + ' of ' + f.steps.length + ' steps done', body: wrap('claude', stepsList(f) + '<p class="small" style="margin-top:10px"><a href="#/fpb/' + id + '/plan">Open the Plan tab</a></p>', { session: s.session, cap: 'max seven steps' }) }; },
     note: function (f, s) { return { sum: esc(trunc(s.text, 70)), body: wrap('claude', '<p>' + esc(s.text) + '</p><p class="small muted" style="margin-top:6px">' + esc(s.date) + '</p>', { session: s.session, by: s.by, cap: 'two lines' }) }; },
     symptom: function (f, s) { return { sum: s.expected ? 'expected: ' + esc(trunc(s.expected, 70)) : esc(trunc(s.text, 80)), body: wrap(s.author, '<p>' + esc(s.text) + '</p><dl class="kv" style="margin-top:12px"><dt>Expected</dt><dd>' + esc(s.expected) + '</dd><dt>Actual</dt><dd>' + esc(s.actual) + '</dd></dl>', { session: s.session, cap: 'max three lines' }) }; },
@@ -1549,7 +1566,7 @@
     environment: function (f, s) { return { sum: [s.machine ? parseRef(s.machine).id : null].concat(s.tags.slice(0, 3)).filter(Boolean).join(' · '), body: wrap('machine', '<div class="chips">' + (s.machine ? chip(s.machine, { meta: true }) : '') + (s.commit ? chip(s.commit) : '') + s.tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' + (s.method ? '<p class="small" style="margin-top:12px">Method ' + chip(s.method, { meta: true }) + ' · ' + s.iterations + ' iterations</p>' : ''), { chips: [] }) }; },
     frequency: function (f, s) { return { sum: esc(s.level) + ' · ' + esc(s.count), body: wrap('machine', '<p class="bignum" style="font-size:24px">' + esc(s.level) + '</p><p class="small muted">' + esc(s.count) + '</p>') }; },
     cause: function (f, s) { return { sum: esc(s.status) + ' · ' + esc(s.confidence) + ' confidence', body: wrap('claude', causeBody(f, s), { session: s.session, by: s.by, cap: 'max three lines' }) }; },
-    fixes: function (f, s, id) { var ch = chosenFix(id); return { sum: s.rows.length + ' compared · ' + (ch != null ? 'fix ' + (ch + 1) + ' chosen' : '<span class="tone-warn">none chosen</span>'), body: wrap('claude', fixesBody(f, s, id), { session: s.session, by: s.by, cap: 'max three fixes' }) }; },
+    fixes: function (f, s, id) { var ch = chosenFix(id); return { sum: ch != null ? 'fix ' + (ch + 1) + ' of ' + s.rows.length + (fixSettled(id) ? ' settled in a plan' : ' recommended by Claude') : s.rows.length + ' compared, none recommended yet', body: wrap('claude', fixesBody(f, s, id), { session: s.session, by: s.by, cap: 'max three fixes' }) }; },
     workaround: function (f, s) { return { sum: esc(trunc(s.text, 70)), body: wrap('claude', '<p>' + esc(s.text) + '</p><p class="small muted" style="margin-top:6px">Applies to: ' + esc(s.who) + '</p>', { session: s.session, cap: 'two lines' }) }; },
     headline: function (f, s) {
       if (s.single) return { sum: s.single.v + ' ' + s.single.unit + ' · one measurement', body: wrap('machine', '<div class="per-nums"><span class="n">' + s.single.v + '<small> ' + s.single.unit + '</small></span></div><p class="small muted">' + esc(s.single.label) + '</p>', { chips: [s.single.run] }) };
@@ -1558,10 +1575,11 @@
     },
     target: function (f, s, id) {
       var t = targetOf(id);
-      if (!t) return { author: 'me', sum: '<span class="tone-warn">not set</span>', body: wrap('me', '<p>No target yet.</p><button class="btn small primary" data-act="set-target" data-fpb="' + id + '">Set a target</button>') };
-      return { author: 'me', sum: esc(trunc(t.text, 70)), body: wrap('me', '<p class="lead-p" style="margin:0 0 6px">' + esc(t.text) + '</p><p class="small muted">' + t.v + ' ' + esc(t.unit) + ' · set by you' + (t.date ? ', ' + esc(t.date) : '') + '</p>' + (t.ruling ? '<p style="margin-top:8px">' + chip(t.ruling) + '</p>' : '') + '<button class="btn small text" style="margin-left:-10px;margin-top:6px" data-act="set-target" data-fpb="' + id + '">Change target</button>') };
+      if (!t) return { author: 'claude', sum: 'no target yet', body: wrap('claude', '<p>No target yet. Claude proposes one under When implementing; the plan of the task that takes this on settles it.</p>') };
+      var tby = t.by === 'claude' ? 'claude' : 'me';
+      return { author: tby, sum: esc(trunc(t.text, 70)), body: wrap(tby, '<p class="lead-p" style="margin:0 0 6px">' + esc(t.text) + '</p><p class="small muted">' + t.v + ' ' + esc(t.unit) + ' · ' + (tby === 'claude' ? 'Claude\'s proposal' : 'set by you') + (t.date ? ', ' + esc(t.date) : '') + '</p>' + (t.ruling ? '<p style="margin-top:8px">' + chip(t.ruling) + '</p>' : '') + implSettledBy(id, 'Performance target'), { by: tby === 'claude' ? 'Claude' : null }) };
     },
-    comparison: function (f, s, id) { var hd = f.sections.headline, t = targetOf(id); return { sum: hd.before.v + ' → ' + hd.after.v + ' ' + hd.after.unit + ' · ' + esc(s.cond.join(', ')), body: wrap('machine', bars(hd.before, hd.after, hd.after.unit, t && t.unit === hd.after.unit ? t.v : null) + '<div class="chips">' + chips([hd.before.run, hd.after.run], { meta: true }) + '</div><p class="small muted" style="margin-top:8px">' + esc(s.cond.join(' · ')) + '</p>') }; },
+    comparison: function (f, s, id) { var hd = f.sections.headline, t = targetOf(id); return { sum: hd.before.v + ' ' + hd.before.unit + ' → ' + hd.after.v + ' ' + hd.after.unit + ' · ' + esc(s.cond.join(', ')), body: wrap('machine', bars(hd.before, hd.after, hd.after.unit, t && t.unit === hd.after.unit ? t.v : null) + '<div class="chips">' + chips([hd.before.run, hd.after.run], { meta: true }) + '</div><p class="small muted" style="margin-top:8px">' + esc(s.cond.join(' · ')) + '</p>') }; },
     series: function (f, s) { return { sum: esc(trunc(s.caption, 80)), body: wrap('machine', seriesChart(s) + '<p class="caption">' + esc(s.caption) + '</p>', { chips: s.runs }) }; },
     profile: function (f, s) {
       var max = s.frames[0].total;
@@ -1576,7 +1594,7 @@
 
   /* activity for an issue: runs, sessions, and a history with actors and small diffs */
   function fpbActivity(id, openSec) {
-    var f = D.fpbs[id], r = itemRuns([id]), s = f.sessions || [];
+    var f = D.fpbs[id], tk = f.takenOnBy || [], r = itemRuns([id].concat(tk)), s = (f.sessions || []).concat([].concat.apply([], tk.map(function (x) { return D.items[x].sessions || []; })));
     var hist = f.history.slice().reverse().map(function (e) {
       var actor = e[1] === 'you' ? '<span class="au au-me">You</span>' : e[1] === 'seed' ? '<span class="au">Old register</span>' : e[1].indexOf('machine:') === 0 ? '<span class="au au-mc">Machine</span> ' + chip(e[1]) : chip(e[1]);
       return '<div class="li col"><span class="li-main">' + actor + ' <span class="small muted">' + esc(e[0]) + '</span></span><span class="li-sub rich">' + rich(e[2]) + '</span>' + (e[3] ? diffBlock(e[3], { small: true }) : '') + '</div>';
@@ -1596,6 +1614,301 @@
     if (!list.length) return h + empty('No issues on this task', 'Features, bugs and performance problems raised while building this task are attached here, separate from its plan.');
     return h + '<div class="slist">' + list.map(function (i) { return issueRow(i); }).join('') + '</div>';
   }
+
+  /* ================================================================ round 1 (redo) · content helpers */
+  // a glance with no exception says so, in muted text
+  var NU = '<span class="nu">Nothing unusual</span>';
+  // 1.1 why a card was pushed, in plain words, once, under its headline
+  function whyLine(id) { var w = (D.cardWhy || {})[id]; return w ? '<p class="why"><span class="why-k">Why you are seeing this</span><span class="why-t">' + esc(w) + '</span></p>' : ''; }
+  // 1.2 what answering a card unblocks: the item and the time it frees
+  function unblocksText(c) {
+    if (c.weight) return 'Unblocks ' + esc(itemTitle(c.item)) + ' · about ' + fmtMin(c.weight) + ' of session time';
+    var p = projOf(c.project);
+    return 'Unblocks nothing while ' + esc(p ? p.name : 'its project') + ' is closed · a preview';
+  }
+  // 1.5 attempts as a short sequence with units: "13 out of place → 3 → 1"
+  function attemptsSeq(list) {
+    return list.map(function (a, i) { var m = /^(\d+)\s+(.*)$/.exec(a.result); return i && m ? m[1] : a.result; }).join(' → ');
+  }
+  // a session's step: "step 3 of 5 · …" when numbered, the words alone otherwise
+  function stepText(s) { return (/^\d/.test(s.step) ? 'step ' : '') + s.step; }
+  // minutes between a clock time today and 05:12, the snapshot time
+  function minsSince(hhmm) { var m = /(\d+):(\d+)/.exec(hhmm || ''); if (!m) return null; return Math.max(0, (5 * 60 + 12) - (+m[1] * 60 + +m[2])); }
+  // 1.3 the inbox when nothing needs you: what each running session is doing now
+  function quietBlock() {
+    var live = SESSION_ORDER.filter(function (id) { var s = D.sessions[id]; return s.state !== 'ended' && (S.project === 'all' || work(s.item).project === S.project); });
+    return '<div class="quiet"><p class="quiet-h">Nothing needs you</p>' +
+      (live.length ? '<p class="quiet-sub">What the sessions are doing now</p><ul class="quiet-list">' + live.map(function (id) {
+        var s = D.sessions[id];
+        return '<li><a href="#/session/' + id + '"><span class="ql-t">' + esc(itemTitle(s.item)) + '</span><span class="ql-s">' + esc(s.machine) + ' · ' + esc(stepText(s)) + (s.stepMin != null ? ' · ' + fmtMin(s.stepMin) + ' on it' : '') + '</span></a></li>';
+      }).join('') + '</ul>' : '<p class="quiet-sub">No session is running.</p>') + '</div>';
+  }
+  // 2.3 assumptions: the ones to review in full, the reviewed ones as one muted line
+  function assumptionBatch(ids) {
+    var groups = {};
+    ids.forEach(function (a) { var s = D.assumptions[a].session; (groups[s] = groups[s] || []).push(a); });
+    return keys(groups).map(function (s) {
+      var un = groups[s].filter(function (a) { return D.assumptions[a].state === 'unreviewed'; });
+      var done = groups[s].filter(function (a) { return D.assumptions[a].state !== 'unreviewed'; });
+      var h = '<div class="group as-group"><div class="group-h"><span>Session ' + s + ' · ' + (un.length ? plural(un.length, 'assumption') + ' to review' : 'all ' + plural(groups[s].length, 'assumption') + ' reviewed') + '</span>' +
+        (un.length ? '<button class="btn small" data-toast="' + plural(un.length, 'assumption') + ' from session ' + s + ' marked fine">' + (un.length === 1 ? 'This one is fine' : 'All ' + un.length + ' fine') + '</button>' : '') + '</div>';
+      h += un.map(function (a) { var x = D.assumptions[a]; return '<div class="as-item"><p class="as-t">' + esc(x.text) + '</p><button class="btn small text" data-act="flip">Flip</button></div>'; }).join('');
+      if (done.length) h += '<details class="inline as-done"><summary>' + done.length + ' reviewed</summary>' + done.map(function (a) { return '<p class="as-t muted">' + esc(D.assumptions[a].text) + '</p>'; }).join('') + '</details>';
+      return h + '</div>';
+    }).join('');
+  }
+
+  /* ================================================================ round 2 · the inbox is the only place the owner acts
+     Every control is one of: an inbox action (answers a card, on the card only), an owner structure control, or navigation. */
+
+  // nothing outside the inbox waits on you: a report never needs you
+  function fpbNeeds() { return []; }
+  function cchip(r) { return chip(r, { id: true, max: 90 }); }
+
+  /* ---------------------------------------------------------------- report: "When implementing" */
+  var IMPL_KIND = { decision: 'Decision', proof: 'Proof', dependency: 'Dependency', precondition: 'Precondition' };
+  function implStatus(l) {
+    var c = l.ref ? ' ' + cchip(l.ref) : '', via = l.via ? ' ' + cchip(l.via) : '';
+    switch (l.status) {
+      case 'open': return '<span class="st-open">No task has taken this on.</span>' + (l.ref ? c : '');
+      case 'scheduled': return '<span class="st-sched">' + esc(l.note || 'Will be settled when a task is planned.') + '</span>' + c;
+      case 'asked': return '<span class="st-asked">Asked on ' + esc(l.date) + '</span>' + c;
+      case 'settled': return '<span class="st-done">' + esc(l.note || 'Settled') + (l.date ? ' · ' + esc(l.date) : '') + '</span>' + c + via;
+      case 'proved': return '<span class="st-done">Proved by run ' + esc(parseRef(l.ref).id) + (l.date ? ' · ' + esc(l.date) : '') + (l.note ? ' · ' + esc(l.note) : '') + '</span>' + c;
+      case 'dropped': return '<span class="st-drop">Dropped: ' + esc(l.note || '') + '</span>';
+    }
+    return '';
+  }
+  var IMPL_STATUS_WORD = { open: 'no task yet', scheduled: 'scheduled', asked: 'asked', settled: 'settled', proved: 'proved', dropped: 'dropped' };
+  SECTIONS.implementing = function (f, sec, id) {
+    var lines = sec.lines || [], counts = {};
+    lines.forEach(function (l) { counts[l.status] = (counts[l.status] || 0) + 1; });
+    var order = ['asked', 'scheduled', 'open', 'settled', 'proved', 'dropped'];
+    var sum = order.filter(function (k) { return counts[k]; }).map(function (k) { return counts[k] + ' ' + IMPL_STATUS_WORD[k]; }).join(' · ');
+    var body = '<p class="small muted impl-note">What a task will have to settle before and while implementing this report. Claude writes it and keeps it current; it changes only when a plan, a question card, a run or a packet changes it.</p><ul class="impl">' + lines.map(function (l) {
+      return '<li class="impl-l s-' + l.status + '"><span class="impl-k">' + IMPL_KIND[l.kind] + '</span><p class="impl-t">' + esc(l.text) + '</p>' +
+        (l.rec ? '<p class="impl-r"><span class="muted">Claude recommends</span> ' + esc(l.rec) + (l.cost ? ' <span class="muted">· cost to change ' + esc(l.cost) + '</span>' : '') + '</p>' : '') +
+        (l.why ? '<p class="impl-w">' + esc(l.why) + '</p>' : '') + '<p class="impl-s">' + implStatus(l) + '</p></li>';
+    }).join('') + '</ul>';
+    return { author: 'claude', sum: sum || 'nothing yet', body: wrap('claude', body, { by: 'Claude, kept current' }) };
+  };
+
+  /* ---------------------------------------------------------------- report lifecycle, from task events only */
+  var LIFE = ['Reported', 'Taken on', 'In progress', 'Done', 'Verified'];
+  function lifeOf(id) {
+    var f = D.fpbs[id], t = (f.takenOnBy || []).map(function (x) { return D.items[x]; }).filter(Boolean);
+    if (!t.length) return 0;
+    var proofs = ((f.sections.implementing || {}).lines || []).filter(function (l) { return l.kind === 'proof'; });
+    if (t.every(function (x) { return x.state === 'done'; })) return proofs.length && proofs.every(function (l) { return l.status === 'proved'; }) ? 4 : 3;
+    return t.some(function (x) { return x.state === 'building' || x.state === 'blocked' || x.state === 'review'; }) || (f.state === 'in progress') ? 2 : 1;
+  }
+  function takenOnLine(id) {
+    var f = D.fpbs[id], t = f.takenOnBy || [];
+    return '<p class="taken">' + (t.length ? '<span class="muted">Taken on by</span> ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '<span class="muted">No task yet. A task takes a report on when you add it in the tree with Implements.</span>') + '</p>';
+  }
+  function lifeRow(id) {
+    var f = D.fpbs[id], n = lifeOf(id), t = f.takenOnBy || [];
+    var body = '<ol class="life">' + LIFE.map(function (s, i) { return '<li class="' + (i < n ? 'past' : i === n ? 'now' : '') + '">' + s + (i === 1 && t.length ? ' by ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '') + '</li>'; }).join('') + '</ol>' +
+      '<p class="small muted" style="margin-top:12px">Task events move a report along: a plan approved, a step started, a packet merged, an acceptance line proved. You never move it by hand.</p>';
+    return fold(f.kind, 'life', 'Lifecycle', LIFE[n] + (t.length ? ' · ' + t.map(function (x) { return esc(itemTitle(x)); }).join(', ') : ' · no task yet'), body);
+  }
+
+  /* ---------------------------------------------------------------- the owner can edit a report, like renaming a task: a structure control */
+  function reportEditBtn(id) { return '<button class="btn text small edit-btn" data-act="report-edit" data-fpb="' + id + '" aria-label="Edit this report">Edit</button>'; }
+
+  /* ---------------------------------------------------------------- card origin: the task, the step, and where it came from */
+  function originLine(id) {
+    var c = D.cards[id], o = (D.cardOrigin || {})[id];
+    if (!o) return '';
+    var parts = [];
+    if (c.item) parts.push(cchip(workRef(c.item)));
+    if (o.step) parts.push('<span class="o-step">' + esc(o.step) + '</span>');
+    var from = (o.from || []).map(function (r) { return cchip(r); }).join(' ');
+    return '<p class="origin"><span class="why-k">Where it came from</span><span class="o-body">' + parts.join('<span class="o-dot">·</span>') + (from || o.fromText ? (parts.length ? '<span class="o-dot">·</span>' : '') + '<span class="muted">from</span> ' + from + (o.fromText ? ' <span class="o-text">' + esc(o.fromText) + '</span>' : '') : '') + '</span></p>';
+  }
+  function whyLine(id) { var w = (D.cardWhy || {})[id]; return (w ? '<p class="why"><span class="why-k">Why you are seeing this</span><span class="why-t">' + esc(w) + '</span></p>' : '') + originLine(id); }
+  function unblocksText(c) {
+    if (c.type === 'proposals') return 'Records ' + plural(D.proposed.items.length, 'ruling') + ' · unblocks no session time';
+    if (c.weight) return 'Unblocks ' + esc(itemTitle(c.item)) + ' · about ' + fmtMin(c.weight) + ' of session time';
+    var p = projOf(c.project);
+    return 'Unblocks nothing while ' + esc(p ? p.name : 'its project') + ' is closed · a preview';
+  }
+
+  /* ---------------------------------------------------------------- assumptions and found items: acted on only on the packet card */
+  function packetFor(kind, x) { return keys(D.packets).filter(function (p) { var pk = D.packets[p]; return pk.state !== 'approved' && (pk[kind] || []).indexOf(x) >= 0; })[0]; }
+  function assumptionBatch(ids, ro) {
+    var groups = {};
+    ids.forEach(function (a) { if (!D.assumptions[a]) return; var s = D.assumptions[a].session; (groups[s] = groups[s] || []).push(a); });
+    return keys(groups).map(function (s) {
+      var un = groups[s].filter(function (a) { return D.assumptions[a].state === 'unreviewed'; });
+      var done = groups[s].filter(function (a) { return D.assumptions[a].state !== 'unreviewed'; });
+      var pk = un.length ? packetFor('assumptions', un[0]) : null;
+      var h = '<div class="group as-group"><div class="group-h"><span>Session ' + s + ' · ' + (un.length ? plural(un.length, 'assumption') + ' to review' : 'all ' + plural(groups[s].length, 'assumption') + ' reviewed') + '</span>' +
+        (un.length && !ro ? '<button class="btn small" data-toast="' + plural(un.length, 'assumption') + ' from session ' + s + ' marked fine">' + (un.length === 1 ? 'This one is fine' : 'All ' + un.length + ' fine') + '</button>' : '') + '</div>';
+      if (ro && un.length) h += '<p class="small ro-note">' + (pk ? 'Reviewed on the packet card ' + cchip('card:' + pk) : 'Reviewed on the packet card when this task\'s packet arrives') + '</p>';
+      h += un.map(function (a) { var x = D.assumptions[a]; return '<div class="as-item"><p class="as-t">' + esc(x.text) + '</p>' + (ro ? '<span class="marker">to review</span>' : '<button class="btn small text" data-act="flip">Flip</button>') + '</div>'; }).join('');
+      if (done.length) h += '<details class="inline as-done"><summary>' + done.length + ' reviewed</summary>' + done.map(function (a) { return '<p class="as-t muted">' + esc(D.assumptions[a].text) + '</p>'; }).join('') + '</details>';
+      return h + '</div>';
+    }).join('');
+  }
+  function foundTray(ids, ro) {
+    return ids.map(function (f) {
+      f = parseRef(f).kind === 'found' ? parseRef(f).id : f;
+      var x = D.found[f]; if (!x) return '';
+      var pk = packetFor('found', f);
+      var state = x.state === 'promoted' ? 'promoted to ' + cchip(x.promoted) : x.state === 'in tray' ? (pk ? 'waiting to be sorted on ' + cchip('card:' + pk) : 'in the tray until the packet arrives') : esc(x.state);
+      return '<div class="found"><p><span class="kt">' + x.kind + '</span> <b>' + esc(x.title) + '</b></p><p class="small rich">' + rich(x.why) + '</p>' +
+        (ro ? '<p class="small ro-note">' + state + '</p>' :
+          '<div class="found-acts"><button class="btn small" data-act="found-task" data-f="' + f + '">Task</button><button class="btn small" data-toast="' + esc(x.title) + ' kept for later">Later</button><button class="btn small text" data-toast="' + esc(x.title) + ' dropped">Drop</button></div>') + '</div>';
+    }).join('');
+  }
+
+  /* ---------------------------------------------------------------- inbox list: origin tags on every card (the card page carries the live chips) */
+  function originTags(id) {
+    var c = D.cards[id], o = (D.cardOrigin || {})[id];
+    if (!o) return '';
+    var t = [];
+    if (c.item) t.push(c.item);
+    if (o.step) t.push(o.step);
+    var from = (o.from || []).map(function (r) { var p = parseRef(r); return p.kind === 'fpb' ? p.id : p.kind === 'session' ? 'session ' + p.id : p.kind === 'machine' ? p.id : null; }).filter(Boolean);
+    if (from.length) t.push('from ' + from.join(', '));
+    else if (o.fromText) t.push(o.fromText.replace(/^not a task: /, ''));
+    return '<span class="qo">' + t.map(function (x) { return '<span class="otag">' + esc(x) + '</span>'; }).join('') + '</span>';
+  }
+
+  /* ---------------------------------------------------------------- what a plan has settled, read off the When implementing lines */
+  function implLine(id, text) { return (((D.fpbs[id].sections.implementing || {}).lines) || []).filter(function (l) { return l.text === text || l.text.indexOf(text) === 0; })[0]; }
+  function fixSettled(id) { var l = implLine(id, 'Which fix'); return !!(l && l.status === 'settled'); }
+  function implSettledBy(id, text) {
+    var l = implLine(id, text);
+    if (!l) return '';
+    if (l.status === 'settled') return '<p class="small" style="margin-top:10px"><span class="tone-good">Settled</span> ' + (l.date ? esc(l.date) + ' ' : '') + cchip(l.ref) + '</p>';
+    return '<p class="small muted" style="margin-top:10px">Settled by the plan of the task that takes this on · see When implementing</p>';
+  }
+
+  /* ---------------------------------------------------------------- Edit: the owner's structure control on a report, like Rename on a task */
+  function reportEditMenu(id) {
+    var f = D.fpbs[id], items = [['rename', 'Rename…', 'the title is yours']];
+    if (f.severity) items.push(['severity', 'Change severity…', 'Claude proposed ' + severityOf(id).level]);
+    if (f.sections.fixes) items.push(['fix', 'Change recommended fix…', 'Claude recommends fix ' + ((chosenFix(id) == null ? 0 : chosenFix(id)) + 1)]);
+    if (f.kind === 'PER') items.push(['target', 'Change target…', targetOf(id) ? 'now ' + targetOf(id).v + ' ' + targetOf(id).unit : 'none yet']);
+    items.push(['deps', 'Edit dependencies…', 'add or remove a link']);
+    return '<div class="mi-h">Edit ' + id + '</div>' + items.map(function (x) { return '<button class="mi" data-act="report-edit-x" data-fpb="' + id + '" data-v="' + x[0] + '">' + ic('edit') + '<span>' + x[1] + '<span class="why">' + esc(x[2]) + '</span></span></button>'; }).join('') +
+      '<p class="small muted" style="padding:8px 12px 4px;max-width:260px">Nothing waits on these. A task that takes this report on settles its decisions in the inbox.</p>';
+  }
+  function reportEditSheet(id, what) {
+    var f = D.fpbs[id], foot = function (msg) { return '<button class="btn primary" data-act="close" data-toast2="' + esc(msg) + '">Save</button><button class="btn" data-act="close">Cancel</button>'; };
+    if (what === 'rename') return openSheet('Rename ' + id, '<input type="text" style="width:100%" value="' + esc(f.title) + '" aria-label="Title"><p class="tiny" style="margin-top:6px">Titles are yours; sessions cannot rename.</p>', foot('Rename would be recorded by you'));
+    if (what === 'severity') return openSheet('Severity of ' + id, '<p class="small">Claude proposed <b>' + esc(severityOf(id).level) + '</b>: ' + esc(f.severity.reason) + '</p><div class="seg big">' + ['blocking', 'serious', 'minor', 'cosmetic'].map(function (l) { return '<button class="' + (l === severityOf(id).level ? 'on' : '') + '" data-act="pickone">' + l + '</button>'; }).join('') + '</div>', foot('Severity change would be recorded by you'));
+    if (what === 'fix') return openSheet('Recommended fix for ' + id, '<p class="small">The plan of the task that takes this on offers the recommended fix as its default.</p><div class="seg big col">' + f.sections.fixes.rows.map(function (r, i) { return '<button class="' + (i === chosenFix(id) ? 'on' : '') + '" data-act="pickone">Fix ' + (i + 1) + ': ' + esc(r.t) + '</button>'; }).join('') + '</div>', foot('Recommended fix change would be recorded by you'));
+    if (what === 'target') { var tg = targetOf(id) || {}; return openSheet('Target for ' + id, '<p class="small">One line in your words, with the conditions. The plan of the task that takes this on offers it as its default.</p><div class="target-entry"><input type="number" step="any" value="' + (tg.v != null ? tg.v : '') + '" aria-label="Value"><select aria-label="Unit">' + ['ms', 's', 'MB', '%', 'items/s'].map(function (u) { return '<option' + (u === tg.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div><input type="text" style="width:100%;margin-top:10px" aria-label="Conditions" value="' + esc(tg.text || '') + '">', foot('Target change would be recorded by you')); }
+    return openSheet('Dependencies of ' + id, '<p class="small">Links Claude proposed stay proposals until a plan confirms them. Add or remove one here.</p><input type="text" style="width:100%" placeholder="e.g. BUG-1 or WB-2.3" aria-label="Item or report">', foot('Dependency change would be recorded by you'));
+  }
+
+  /* ---------------------------------------------------------------- rulings proposed from chat: an Action card in the inbox */
+  function vProposals(id) {
+    var c = D.cards[id], p = D.proposed;
+    var h = head(crumbRefs(c.item)) + '<div class="pane">';
+    h += dhead('Record', 'plan', esc(p.when), esc(c.headline), 'From ' + esc(p.chat) + ' · ' + plural(p.turns, 'turn'));
+    h += whyLine(id);
+    h += '<p class="small muted" style="margin-bottom:12px">The only way anything from a chat reaches the store. Tick what you mean; the rest is not kept.</p>';
+    h += '<div class="ticks proposed">' + p.items.map(function (x) { return '<label class="tick-row"><input type="checkbox"' + (x.ticked ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>'; }).join('') + '</div>';
+    h += '<div class="actions"><button class="btn primary" data-act="record-ticked">Record ticked</button><button class="btn text" data-toast="Batch discarded · the chat stays in claude.ai">Discard</button><span class="spacer"></span>' + replyBtn(id) + '</div>' + replyBox(id);
+    return h + '</div>';
+  }
+  function vProposed() {
+    var p = D.proposed;
+    var h = head(null) + '<div class="pane">' + dhead('Proposed from chat', 'question', esc(p.when), esc(p.chat), 'Read only here. You tick and record these on their card in the inbox.');
+    h += '<p class="taken"><span class="muted">Waiting on</span> ' + cchip('card:' + p.card) + '</p>';
+    h += '<ul class="plain ro-list">' + p.items.map(function (x) { return '<li>' + esc(x.text) + ' <span class="small muted">· ' + (x.ticked ? 'pre-ticked' : 'not ticked') + '</span></li>'; }).join('') + '</ul>';
+    return h + '</div>';
+  }
+
+  /* ================================================================ round 2, follow-up
+     Reports' Plan, Changes and Decisions tabs draw from the tasks that take them on and from When implementing;
+     a decision line shows its options, each with its reason and cost to change on one line. */
+
+  function lineOptions(l) {
+    if (l.options) return l.options;
+    var q = l.q ? D.questions[l.q] : null;
+    if (!q) [l.via, l.ref].forEach(function (r) { var p = r ? parseRef(r) : null; if (!q && p && p.kind === 'card' && D.cards[p.id] && D.cards[p.id].question) q = D.questions[D.cards[p.id].question]; });
+    return q && q.options ? q.options : null;
+  }
+  function optionRows(list) {
+    var o = list.filter(function (x) { return x.rec; }).concat(list.filter(function (x) { return !x.rec; }));
+    return '<ul class="iopts">' + o.map(function (x) {
+      return '<li class="io' + (x.rec ? ' rec' : '') + '"><span class="io-t">' + (x.rec ? '<span class="recmark">Claude recommends</span>' : '') + esc(x.t) + '</span><span class="io-r">' + esc(x.why || '') + (x.cost ? '<span class="io-c"> · cost to change ' + esc(x.cost) + '</span>' : '') + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  function implLineHtml(l) {
+    var op = l.kind === 'decision' ? lineOptions(l) : null;
+    return '<li class="impl-l s-' + l.status + '"><span class="impl-k">' + IMPL_KIND[l.kind] + '</span><p class="impl-t">' + esc(l.text) + '</p>' +
+      (op ? optionRows(op) :
+        (l.rec ? '<p class="impl-r"><span class="muted">Claude recommends</span> ' + esc(l.rec) + (l.cost ? ' <span class="muted">· cost to change ' + esc(l.cost) + '</span>' : '') + '</p>' : '') +
+        (l.why ? '<p class="impl-w">' + esc(l.why) + '</p>' : '')) +
+      '<p class="impl-s">' + implStatus(l) + '</p></li>';
+  }
+  function implSummary(lines) {
+    var counts = {}; lines.forEach(function (l) { counts[l.status] = (counts[l.status] || 0) + 1; });
+    return ['asked', 'scheduled', 'open', 'settled', 'proved', 'dropped'].filter(function (k) { return counts[k]; }).map(function (k) { return counts[k] + ' ' + IMPL_STATUS_WORD[k]; }).join(' · ');
+  }
+  SECTIONS.implementing = function (f, sec) {
+    var lines = sec.lines || [];
+    var body = '<p class="small muted impl-note">What a task will have to settle before and while implementing this report. Claude writes it and keeps it current; it changes only when a plan, a question card, a run or a packet changes it.</p><ul class="impl">' + lines.map(implLineHtml).join('') + '</ul>';
+    return { author: 'claude', sum: implSummary(lines) || 'nothing yet', body: wrap('claude', body, { by: 'Claude, kept current' }) };
+  };
+
+  /* a task that has started a step moves its report to In progress */
+  var lifeOf0 = lifeOf;
+  lifeOf = function (id) {
+    var n = lifeOf0(id), t = (D.fpbs[id].takenOnBy || []).map(function (x) { return D.items[x]; }).filter(Boolean);
+    if (n === 1 && t.some(function (x) { return (x.steps || []).some(function (s) { return s.state === 'done' || s.state === 'current'; }); })) return 2;
+    return n;
+  };
+
+  /* ---------------------------------------------------------------- report tabs */
+  function takersHead(t, what) { return '<p class="taken"><span class="muted">' + what + '</span> ' + cchip('item:' + t) + (D.items[t].plan ? ' ' + cchip(D.items[t].plan) : '') + '</p>'; }
+  function fpbPlan(id) {
+    var t = D.fpbs[id].takenOnBy || [];
+    if (!t.length) return empty('No plan yet', 'A plan belongs to the task that takes this report on. No task has yet; you add one in the tree with Implements.');
+    return t.map(function (x) { return takersHead(x, 'The plan of') + tabPlan(x); }).join('');
+  }
+  function fpbChanges(id, openSec) {
+    var t = D.fpbs[id].takenOnBy || [];
+    if (!t.length) return empty('No changes', 'Changes belong to the task that takes this report on. No task has yet.');
+    return t.map(function (x) { return takersHead(x, 'Changes made by') + tabChanges(x, openSec); }).join('');
+  }
+  function fpbDecisions(id, openSec) {
+    var lines = ((D.fpbs[id].sections.implementing || {}).lines) || [], t = D.fpbs[id].takenOnBy || [];
+    var groups = [['decision', 'Decisions'], ['proof', 'Proofs'], ['dependency', 'Dependencies'], ['precondition', 'Preconditions']];
+    var h = '<p class="small muted" style="margin-bottom:16px">Read only: the When implementing lines, by kind. ' + (t.length ? 'The task that took this on settles them in the inbox: ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : 'No task has taken this on; a task\'s plan draws from these lines.') + '</p>';
+    return h + drills(groups.map(function (g) {
+      var ls = lines.filter(function (l) { return l.kind === g[0]; });
+      return ls.length ? drill(g[1], implSummary(ls), '<ul class="impl">' + ls.map(implLineHtml).join('') + '</ul>', { open: g[0] === 'decision' || openSec === g[0] }) : '';
+    }));
+  }
+
+  /* ---------------------------------------------------------------- a task's Decisions tab: what was decided for it, and where */
+  function decidedDrill(it) {
+    var d = it.decisions || [];
+    if (!d.length) return '';
+    var nS = d.filter(function (x) { return x.how === 'settle'; }).length, nQ = d.length - nS;
+    var sum = plural(d.length, 'decision') + ' · ' + [nS ? nS + ' in the plan' : '', nQ ? nQ + ' on a Question Card' : ''].filter(Boolean).join(', ');
+    var body = '<div class="list">' + d.map(function (x) {
+      return '<div class="li col"><span class="li-main">' + esc(x.t) + '</span><span class="li-sub"><span class="tone-good">' + esc(x.a) + '</span>' + (x.ruling ? ' → ' + chip(x.ruling) : '') + '</span>' +
+        '<span class="li-sub dec-how">' + (x.how === 'settle' ? 'Settle pass, accepted with the plan' : 'Answered on a Question Card') + ' · ' + esc(x.date) + '</span><span class="li-sub dec-how">' + chip(x.ref, { label: x.how === 'settle' ? 'Plan card' : 'Question Card' }) + (x.from ? ' <span class="muted">from</span> ' + chip(x.from, { label: parseRef(x.from).id }) : '') + '</span></div>';
+    }).join('') + '</div>';
+    return drill('Decided', sum, body, { open: true });
+  }
+
+  /* a report's headline counts the steps of the task that took it on */
+  var heroFor0 = heroFor;
+  heroFor = function (id) {
+    var f = D.fpbs[id], t = (f.takenOnBy || []).map(function (x) { return D.items[x]; }).filter(function (x) { return x && (x.steps || []).length; });
+    if (f.kind !== 'FTR' || !t.length) return heroFor0(id);
+    var st = [].concat.apply([], t.map(function (x) { return x.steps; })), acc = f.sections.acceptance;
+    return [st.filter(function (q) { return q.state === 'done'; }).length + ' of ' + st.length + ' steps done', (acc ? acc.lines.filter(function (l) { return l.run; }).length + ' of ' + acc.lines.length + ' acceptance lines proved · ' : '') + 'in ' + t.map(function (x) { return x.title; }).join(', ')];
+  };
 
   /* ================================================================ header, navigation, drawer */
   var NAV = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
@@ -1619,10 +1932,9 @@
     document.getElementById('hdr').innerHTML = h;
   }
   function renderNav(section) {
-    var n = needsCards(S.project).length, w = waitingSessions();
-    var badge = { inbox: n ? '<span class="badge">' + n + '</span>' : '', now: w ? '<span class="ndot" title="' + w + ' sessions waiting on you"></span>' : '' };
+    var n = needsCards(S.project).length;
+    var badge = { inbox: n ? '<span class="badge">' + n + '</span>' : '' };
     var moreOn = ['projects', 'machines', 'settings', 'more'].indexOf(section) >= 0;
-    var issN = fpbList().filter(function (i) { return fpbNeeds(i).length; }).length; badge.issues = issN ? '<span class="ndot" title="' + issN + ' issues need you"></span>' : '';
     document.getElementById('nav').innerHTML = NAV_WIDE.map(function (x) { return '<a class="nv' + (section === x[0] ? ' on' : '') + '" href="' + x[2] + '" title="' + x[1] + '">' + ic(x[0]) + '<span>' + x[1] + '</span>' + (badge[x[0]] || '') + '</a>'; }).join('') +
       '<div class="nv-sep"></div><div class="nv-group">More</div>' + MORE.map(function (x) { return '<a class="nv' + (section === x[0] ? ' on' : '') + '" href="' + x[2] + '" title="' + x[1] + '">' + ic(x[0]) + '<span>' + x[1] + '</span></a>'; }).join('') +
       '<div class="nv-sep"></div><button class="nv" style="border:0;background:none;cursor:pointer;width:auto" data-act="drawer" title="Screens">' + ic('screens') + '<span>Screens <span class="kbd">?</span></span></button>';
@@ -1635,7 +1947,7 @@
     var h = '<div class="drawer-scrim" data-act="drawer"></div><aside class="drawer" aria-label="Screens"><div class="drawer-h"><h2>Screens</h2><span class="kbd">?</span><button class="icon-btn" data-act="drawer" aria-label="Close">' + ic('close') + '</button></div><div class="drawer-b">';
     h += '<div class="review"><div class="rl"><span>Layout</span><div class="seg">' + [['phone', 'Phone 390'], ['rider', 'Rider 460'], ['desktop', 'Desktop']].map(function (l) { return '<button class="' + (S.layout === l[0] ? 'on' : '') + '" data-act="layout" data-v="' + l[0] + '">' + l[1] + '</button>'; }).join('') + '</div></div><div class="rl"><span>Theme</span><div class="seg">' + ['system', 'light', 'dark'].map(function (t) { return '<button class="' + (S.theme === t ? 'on' : '') + '" data-act="theme" data-v="' + t + '">' + t + '</button>'; }).join('') + '</div></div></div>';
     h += '<div class="dg">Navigation</div>' + di('#/inbox', '1 · Inbox', 'home') + di('#/work', '7 · Work · outline') + di('#/work/WB-2?view=columns', '7 · Work · Miller columns') + di('#/now', '10 · Now · sessions and machines') + di('#/files', '11 · Files') + di('#/rulings', '12 · Rulings') + di('#/rulings/proposed', '12 · Rulings · proposed from chat') + di('#/projects', '13 · Projects overview') + di('#/machines', '14 · Machines') + di('#/settings', '15 · Settings') + di('#/search?q=finding', '16 · Search results “finding”') + di('#/more', 'More (phone menu)');
-    h += '<div class="dg">Issues · reports (FTR, BUG, PER)</div>' + di('#/issues', 'Issues list, grouped by task') + di('#/fpb/FTR-1', 'FTR simple · Lazy card verbs', 'FTR-1') + di('#/fpb/FTR-2', 'FTR complex · class construct in QDL', 'FTR-2') + di('#/fpb/BUG-1', 'BUG simple · same-second hook events', 'BUG-1') + di('#/fpb/BUG-2', 'BUG complex · recovery drops a comment', 'BUG-2') + di('#/fpb/PER-1', 'PER simple · tree query 400 ms', 'PER-1') + di('#/fpb/PER-2', 'PER complex · library opens in 0.6 s', 'PER-2') + di('#/fpb/FTR-2/plan', 'Issue · Plan tab') + di('#/fpb/BUG-2/activity', 'Issue · history with actors and diffs') + di('#/fpb/FTR-2/decisions', 'Issue · deferred questions') + di('#/item/WB-2.3/issues', 'Issues per task · Order hook events') + di('#/issues?attach=dope', 'Issues on a project with no task yet') + di('reports.html', 'Report pattern overview (separate page)');
+    h += '<div class="dg">Issues · reports (FTR, BUG, PER)</div>' + di('#/issues', 'Issues list, grouped by task') + di('#/fpb/FTR-1', 'FTR simple · Lazy card verbs', 'FTR-1') + di('#/fpb/FTR-2', 'FTR complex · class construct in QDL', 'FTR-2') + di('#/fpb/BUG-1', 'BUG simple · same-second hook events', 'BUG-1') + di('#/fpb/BUG-2', 'BUG complex · recovery drops a comment', 'BUG-2') + di('#/fpb/PER-1', 'PER simple · tree query 400 ms', 'PER-1') + di('#/fpb/PER-2', 'PER complex · library opens in 0.6 s', 'PER-2') + di('#/fpb/FTR-2/plan', 'Issue · Plan tab') + di('#/fpb/BUG-2/activity', 'Issue · history with actors and diffs') + di('#/fpb/FTR-2/decisions', 'Issue · questions not asked, now When implementing lines') + di('#/item/WB-2.3/issues', 'Issues per task · Order hook events') + di('#/issues?attach=dope', 'Issues on a project with no task yet') + di('reports.html', 'Report pattern overview (separate page)');
     h += '<div class="dg">2 · Question cards</div>' + cards.filter(function (c) { return D.cards[c].type === 'question'; }).map(function (c) { var q = D.questions[D.cards[c].question]; return di('#/card/' + c, q.shape === 'design' ? 'Design choice, 3 options' : q.shape === 'comment' ? 'Anchored to a + comment' : 'About an unseen file', c); }).join('');
     h += '<div class="dg">3–5 · Action cards</div>' + di('#/card/pk-runs', '3 · Packet · Runs table (waiting)', 'pk-runs') + di('#/card/pk-hello', '3 · Packet · Hello card (approved)', 'pk-hello') + di('#/card/pk-dope', '3 · Packet · Dope lazy verbs (preview)', 'pk-dope') + di('#/card/pk-runs?changes=1', '3 · Packet · Ask for changes (free text)') + di('#/card/pl-24', '4 · Plan approval · check chips', 'pl-24') + di('#/card/pl-24?edit=1', '4 · Plan approval · Change mode') + di('#/card/st-23', '5 · Stuck · HookOrderingTests', 'st-23');
     h += '<div class="dg">6 · Info cards</div>' + cards.filter(function (c) { return D.cards[c].type === 'info'; }).map(function (c) { return di('#/card/' + c, D.cards[c].headline, c); }).join('');
@@ -1643,6 +1955,8 @@
     h += '<div class="dg">8 · Item tabs (WB-2) · old tab names still work</div>' + TABS.map(function (t) { return di('#/item/WB-2/' + t[0], t[1]); }).join('');
     h += '<div class="dg">9 · Info page templates</div>' + di('#/item/WB-2.2', 'Task info', 'WB-2.2') + di('#/item/WB-2/about', 'Slice info', 'WB-2') + di('#/item/WB-2.3/about', 'Task info · hook ordering', 'WB-2.3') + di('#/card/pk-runs', 'Packet info', 'pk-runs') + di('#/ruling/R-02', 'Ruling page', 'R-02') + di('#/comment/c4', 'Comment page · open, became a question', 'c4') + di('#/comment/c2', 'Comment page · stale', 'c2') + di('#/comment/c5', 'Comment page · handled with proof', 'c5') + di('#/session/7f3a', 'Session page · waiting on you', '7f3a') + di('#/session/b915', 'Session page · stuck', 'b915') + di('#/run/1056', 'Run page · failed', 'run-1056') + di('#/run/1042', 'Run page · tests 212', 'run-1042') + di('#/project/wb', 'Project page', 'Workbench') + di('#/machine/laptop', 'Machine page', 'laptop') + di('#/commit/3be07f1', 'Commit page', '3be07f1') + di('#/branch/br-23', 'Branch page', 'wb/2.3') + di('#/type/RunRecord', 'Type page', 'RunRecord') + di('#/claudemd/slots', 'CLAUDE.md section', '§1') + di('#/diff/pk-runs', 'Full diff of a packet') + di('#/file/hookendpoint', 'File view · handled comment with proof') + di('#/file/runrecord', 'File view · stale comment, unseen file');
     h += '<div class="dg">Overlays</div>' + di('#/inbox?pop=ruling:R-03', 'Chip popover · ruling') + di('#/inbox?pop=file:hookeventqueue:27-35', 'Chip popover · file and lines') + di('#/inbox?pop=nyw:RunOutputBlock', 'Chip popover · not yet written') + di('#/inbox?pop=commit:51f9e07', 'Chip popover · proof diff') + di('#/card/q-design?sheet=talk', 'Talk · chat with the brief') + di('#/work?sheet=add', 'Add item · kind and place picker') + di('#/work?menu=WB-4', 'Row actions · Open this node disabled') + di('#/work?menu=WB-2.4', 'Row actions · Open this node enabled');
+    h += '<div class="dg">Samples · round 1</div>' + di('#/inbox?sample=quiet', 'Inbox with nothing needing you', 'sessions now') + di('#/item/WB-1', 'A healthy task: everything normal', 'WB-1') + di('#/fpb/BUG-1', 'BUG with only a symptom', 'BUG-1') + di('#/now', 'Now: a session waiting on a question', '7f3a') + di('#/ruling/R-04', 'A ruling cited in three places', 'R-04');
+    h += '<div class="dg">Samples · round 2</div>' + di('#/fpb/BUG-2', 'BUG-2 · the whole chain, settled and proved', 'BUG-2') + di('#/card/pl-lng11', 'Its plan card · settle pass from BUG-2', 'pl-lng11') + di('#/card/q-lng11', 'Its Question Card · blocking decision at step 2', 'q-lng11') + di('#/card/pk-lng11', 'Its packet · run 1022 proves the line', 'pk-lng11') + di('#/fpb/FTR-1', 'FTR-1 · a report at rest, no task yet', 'FTR-1') + di('#/fpb/PER-1', 'PER-1 · target settled, comparison proved', 'PER-1') + di('#/card/rp-chat', 'Rulings proposed from chat · Action card', 'rp-chat') + di('#/card/pk-runs', 'Packet with 4 assumptions and 3 found items', 'pk-runs') + di('#/item/WB-2.1/decisions', 'The same, read only on the task page', 'WB-2.1');
     h += '<div class="dg">Empty states</div>' + di('#/files', 'Files filtered to Dope (pick Dope in the header)') + di('#/item/WB-4/runs', 'Item with no runs') + di('#/search?q=zebra', 'Search with no results');
     return h + '</div></aside>';
   }
@@ -1762,15 +2076,17 @@
     return lines.join('\n');
   }
   function openTalk(ctx) {
-    openSheet('Talk', '<p class="small">' + esc(D.chat.explain) + '</p><div class="chat-box"><textarea disabled aria-label="Brief">' + esc(briefFor(ctx)) + '</textarea><p class="tiny" style="margin:6px 0 0">Prototype: the chat is not live. ' + esc(D.chat.last) + '</p></div><p class="small" style="margin-top:10px">Back from chat: <a href="#/rulings/proposed" data-act="close-after">Rulings › Proposed from chat</a></p>',
+    openSheet('Talk', '<p class="small">' + esc(D.chat.explain) + '</p><div class="chat-box"><textarea disabled aria-label="Brief">' + esc(briefFor(ctx)) + '</textarea><p class="tiny" style="margin:6px 0 0">Prototype: the chat is not live. ' + esc(D.chat.last) + '</p></div><p class="small" style="margin-top:10px">Back from chat: what you proposed arrives as one Record card in the inbox, <a href="#/card/rp-chat" data-act="close-after">4 rulings proposed from chat</a></p>',
       '<button class="btn primary dis" disabled title="Not live in the prototype">Open chat in claude.ai</button><button class="btn" data-act="close">Close</button>');
   }
-  function addItemSheet(node) {
-    openSheet('Add item', '<p class="small">Only you add items; Claude never creates structure (' + chip('ruling:R-01', { nometa: true }) + ').</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="kindpick">' + ['FTR', 'BUG', 'PER', 'task'].map(function (k, i) { return '<button class="' + (i === 3 ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input type="text" style="width:100%" placeholder="e.g. Runs page keeps its scroll position" aria-label="Title"></div>' +
+  function addItemSheet(node, pre) {
+    pre = pre || {}; var kinds = ['FTR', 'BUG', 'PER', 'task'], kOn = kinds.indexOf(pre.kind || 'task'), impl = pre.implements || [];
+    openSheet('Add item', (pre.from ? '<p class="notice soft small">Prefilled from found item ' + chip(pre.from) + ', sorted as Task on its packet card. It enters the tree only when you add it here.</p>' : '') + '<p class="small">Only you add items; Claude never creates structure (' + chip('ruling:R-01', { nometa: true }) + ').</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="kindpick">' + kinds.map(function (k, i) { return '<button class="' + (i === kOn ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input type="text" style="width:100%" placeholder="e.g. Runs page keeps its scroll position" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Implements</h3></div><div class="impl-pick">' + fpbList().map(function (f) { return '<label class="tick-row"><input type="checkbox"' + (impl.indexOf(f) >= 0 ? ' checked' : '') + '><span><b>' + f + '</b> ' + esc(D.fpbs[f].title) + ((D.fpbs[f].takenOnBy || []).length ? ' <span class="small muted">· taken on by ' + D.fpbs[f].takenOnBy.join(', ') + '</span>' : '') + '</span></label>'; }).join('') + '</div><p class="tiny" style="margin-top:6px">Optional. A task may implement several reports, and a report may be split across tasks. Its plan draws from each report\'s When implementing lines.</p></div>' +
       '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select style="width:100%" aria-label="Place">' + placeOptions(node) + '</select><p class="tiny" style="margin-top:6px">It arrives closed, as one line with a coarse size, until a plan opens it.</p></div>' +
       '<div class="sec"><div class="sec-h"><h3>Coarse size</h3></div><div class="seg big">' + ['~half a day', '~3 days', '~1 week', '~3 weeks'].map(function (s, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + s + '</button>'; }).join('') + '</div></div>',
-      '<button class="btn primary" data-act="close" data-toast2="Item would be added under ' + esc(nodeTitle(node)) + ', closed, coarse">Add</button><button class="btn" data-act="close">Cancel</button>');
+      '<button class="btn primary" data-act="close" data-toast2="Item would be added under ' + esc(nodeTitle(node)) + ', closed, coarse' + (impl.length ? '; it takes on ' + impl.join(', ') : '') + '">Add</button><button class="btn" data-act="close">Cancel</button>');
   }
 
   function refreshMenu() { var m = document.querySelector('#layer .menu'); if (m && m.querySelector('[data-act="wkind"]')) m.innerHTML = filterMenu(); }
@@ -1805,6 +2121,9 @@
       case 'rowmenu': openMenu(el, rowMenu(dv.node)); return true;
       case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); location.hash = co.go; } else toast(esc(co.why)); return true;
       case 'additem': addItemSheet(dv.node); return true;
+      case 'found-task': var fx = D.found[dv.f]; toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;
+      case 'report-edit': openMenu(el, reportEditMenu(dv.fpb)); return true;
+      case 'report-edit-x': closeLayers(); reportEditSheet(dv.fpb, dv.v); return true;
       case 'move': openSheet('Move ' + nodeTitle(dv.node), '<p class="small">Pick the new parent. Moving keeps the item closed; it never moves an open node out of its lane.</p><select style="width:100%" aria-label="New parent">' + placeOptions(nodeParent(dv.node)) + '</select>', '<button class="btn primary" data-act="close" data-toast2="Move would be recorded by you">Move</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'rename': openSheet('Rename', '<input type="text" style="width:100%" value="' + esc(nodeTitle(dv.node)) + '" aria-label="Title"><p class="tiny" style="margin-top:6px">Titles are yours; sessions cannot rename.</p>', '<button class="btn primary" data-act="close" data-toast2="Rename would be recorded by you">Rename</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'summary': closeLayers(); S.work.sel = dv.node; S.scrollTo = '.split > .side'; location.hash = '#/work/' + dv.node; return true;
@@ -1821,11 +2140,13 @@
       case 'reassign': openMenu(el, '<div class="mi-h">Reassign to another machine</div>' + D.stucks['st-23'].reassign.map(function (m) { return '<button class="mi" data-act="close" data-toast2="WB-2.3 would move to ' + m + ': worktree recreated there, laptop\'s removed (one home machine, R-04)">' + ic('machine') + '<span>' + m + '<span class="why">' + esc(D.machines[m].os) + ' · Host ' + D.machines[m].host + ' · clock ' + esc(D.machines[m].clock) + '</span></span></button>'; }).join('')); return true;
       case 'message': var s = D.sessions[dv.session]; openSheet('Message session ' + dv.session, '<p class="small">One line to ' + chip('session:' + dv.session, { nometa: true }) + ' on ' + chip('machine:' + s.machine, { nometa: true }) + '. It is read at the session\'s next turn and kept in its ledger.</p><input type="text" style="width:100%" placeholder="e.g. Use the recommended option for now" aria-label="Message">', '<button class="btn primary" data-act="close" data-toast2="Message queued for session ' + dv.session + ' on ' + s.machine + '">Send</button><button class="btn" data-act="close">Cancel</button>'); return true;
       case 'beyond': var b = D.packets[dv.pk].beyond[+dv.i]; openSheet('Built beyond the plan', '<p><span class="marker beyond">beyond plan</span> <b>' + esc(b.t) + '</b></p><p>' + esc(b.why) + '</p>' + chip(b.type) + codeBlock(D.types[parseRef(b.type).id].at, { small: true }), '<button class="btn" data-act="close" data-toast2="Accepted as justified">Fine</button><button class="btn" data-act="close" data-toast2="Changes asked: remove the helper and inline it">Ask to remove</button>'); return true;
+      case 'settle-all': S.settled = S.settled || {}; S.settled[dv.card] = 1; toast('All ' + D.plans[dv.card].settle.length + ' recommended defaults accepted · sent to session ' + D.plans[dv.card].session); render(false); return true;
+      case 'pinbox': S.project = dv.p; location.hash = '#/inbox'; toast('Inbox filtered to <b>' + esc(projOf(dv.p).name) + '</b>'); return true;
       case 'settle': el.parentNode.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); el.classList.add('on'); return true;
       case 'pickone': el.parentNode.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); el.classList.add('on'); return true;
       case 'plan-edit': var pp = document.getElementById('plan-pane'); pp.classList.toggle('editing'); el.textContent = pp.classList.contains('editing') ? 'Done changing' : 'Change'; return true;
       case 'fold': var tg = document.getElementById(dv.target); if (tg) tg.hidden = !tg.hidden; return true;
-      case 'flip': var row = el.closest('.li'); row.classList.toggle('flipped'); toast(row.classList.contains('flipped') ? 'Flipped: the session will treat the opposite as true' : 'Flip undone'); return true;
+      case 'flip': var row = el.closest('.li, .as-item'); row.classList.toggle('flipped'); toast(row.classList.contains('flipped') ? 'Flipped: the session will treat the opposite as true' : 'Flip undone'); return true;
       case 'record-ticked': var n = document.querySelectorAll('.proposed input:checked').length; toast(n ? n + ' rulings would be recorded as R-13 to R-' + (12 + n) : 'Nothing ticked'); return true;
       case 'switch': el.classList.toggle('on'); el.setAttribute('aria-checked', el.classList.contains('on')); toast('Setting would be saved'); return true;
       case 'fscope': S.filesScope = dv.v; render(true); return true;

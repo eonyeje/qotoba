@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "workbench",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Workbench/Qotoba.Workbench.Service", "--no-launch-profile"],
+      "port": 5290
+    },
+    {
+      "name": "host",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Workbench/Qotoba.Workbench.Host", "--", "serve", "--checkout", "D:\\Development\\repos\\Qotoba"],
+      "port": 5291
+    }
+  ]
+}

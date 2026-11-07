@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="Qotoba.Workbench.Contracts/Qotoba.Workbench.Contracts.csproj" />
+  <Project Path="Qotoba.Workbench.Host/Qotoba.Workbench.Host.csproj" />
+  <Project Path="Qotoba.Workbench.Mcp/Qotoba.Workbench.Mcp.csproj" />
+  <Project Path="Qotoba.Workbench.Model/Qotoba.Workbench.Model.csproj" />
+  <Project Path="Qotoba.Workbench.Seed/Qotoba.Workbench.Seed.csproj" />
+  <Project Path="Qotoba.Workbench.Service/Qotoba.Workbench.Service.csproj" />
+  <Project Path="Qotoba.Workbench.Store/Qotoba.Workbench.Store.csproj" />
+  <Project Path="Qotoba.Workbench.Tests/Qotoba.Workbench.Tests.csproj" />
+</Solution>

@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 10, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 10, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 10, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "PostToolUse": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 10, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "PostToolUseFailure": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 10, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 15, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "http", "url": "http://localhost:5290/hooks", "timeout": 1, "headers": { "Authorization": "Bearer $QOTOBA_WB_TOKEN" }, "allowedEnvVars": ["QOTOBA_WB_TOKEN"] } ] }
+    ]
+  }
+}
