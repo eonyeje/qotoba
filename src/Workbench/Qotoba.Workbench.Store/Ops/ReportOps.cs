@@ -29,7 +29,7 @@ public sealed partial class WorkbenchOps
         if (string.IsNullOrWhiteSpace(title)) throw new WorkbenchRuleException("report.title", "A title: the capability for an FTR, the symptom as a causal sentence for a BUG, the wasteful mechanism for a PER.");
         Rules.TextFits(title, "The title");
         Item? item = null; Project? project = null;
-        var at = attach ?? s.ItemId;
+        var at = attach ?? s.ItemId ?? s.ProjectId;
         if (at is { Length: > 0 })
         {
             item = await db.Items.FindAsync([at], ct);

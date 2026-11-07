@@ -875,6 +875,9 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<int>("Minutes")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Started")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -68,6 +68,7 @@ public sealed partial class WorkbenchOps
             if (project is null) throw new WorkbenchRuleException("item.parent", $"There is no item or project {parentId}.");
         }
         else if (s.ItemId is not null) { parent = await db.Items.FindAsync([s.ItemId], ct); project = parent is null ? null : await ProjectOfAsync(parent, ct); }
+        else if (s.ProjectId is not null) project = await db.Projects.FindAsync([s.ProjectId], ct);
         if (project is null) throw new WorkbenchRuleException("item.parent", "Say which item or project the new items go under.");
         var made = new List<Item>();
         async Task WalkAsync(Item? under, List<ItemInput> list)

@@ -23,6 +23,7 @@ public sealed partial class WorkbenchOps
         s.MachineId ??= machine.Id;
         if (e.SessionTitle is { Length: > 0 } t) s.Title = t;
         s.ItemId ??= await ItemForCwdAsync(machine, e.Cwd, ct);
+        s.ProjectId = s.ItemId is not null ? (await db.Items.FindAsync([s.ItemId], ct))?.ProjectId : await ProjectForCwdAsync(machine, e.Cwd, ct);
         await LedgerAsync(s, "start", isNew ? $"Session started on {machine.Id} ({e.Source})" : $"Session resumed ({e.Source})");
         Audit(Actor.System, isNew ? "started" : "resumed", "session", s.Id, e.Cwd);
         await SaveAsync("session", s.Id, ct);
@@ -49,6 +50,7 @@ public sealed partial class WorkbenchOps
             it.HomeMachineId ??= machine.Id;
         }
         s.ItemId ??= await ItemForCwdAsync(machine, cwd ?? s.Cwd, ct);
+        s.ProjectId = s.ItemId is not null ? (await db.Items.FindAsync([s.ItemId], ct))?.ProjectId : await ProjectForCwdAsync(machine, cwd ?? s.Cwd, ct);
         await SaveAsync("session", s.Id, ct);
         return await BriefAsync(s.Id, ct);
     }
@@ -150,9 +152,17 @@ public sealed partial class WorkbenchOps
         sb.AppendLine();
         Item? it = s?.ItemId is null ? null : await db.Items.FindAsync([s.ItemId], ct);
         Project? p = it is null ? null : await ProjectOfAsync(it, ct);
-        if (it is null)
+        if (it is null && s?.ProjectId is not null && await db.Projects.FindAsync([s.ProjectId], ct) is { } sp)
         {
-            sb.AppendLine("No item is attached to this session: nothing is open in the tree for this checkout. When the owner names the work in chat, write it into the tree with `items_write` and call `session_hello` again; if they open a node meanwhile, `session_hello` picks it up.");
+            p = sp;
+            sb.AppendLine($"## Project {sp.Name} ({sp.Code}) · open, no item yet");
+            sb.AppendLine($"The owner opened the project. You belong to it until an item under it opens. When they say the work, write it with `items_write` (it goes under {sp.Code}) and open the one to work on with `item_open`. An FPB you raise attaches to the project.");
+            var tops = await db.Items.Where(i => i.ProjectId == sp.Id && i.ParentId == null).OrderBy(i => i.Order).ToListAsync(ct);
+            if (tops.Count > 0) { sb.AppendLine("Items in it:"); foreach (var t in tops) sb.AppendLine($"  {t.Id} · {t.Title} · {t.State.ToString().ToLowerInvariant()}{(t.IsOpen ? " · open" : "")}"); }
+        }
+        else if (it is null)
+        {
+            sb.AppendLine("No item or project is attached to this session: nothing is open for this checkout. When the owner names the project or the work in chat, write it into the tree with `items_write` under that project and call `session_hello` again; if they open a node meanwhile, `session_hello` picks it up.");
         }
         else
         {

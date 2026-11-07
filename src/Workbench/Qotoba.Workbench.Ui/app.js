@@ -690,7 +690,7 @@
   function canOpen(id) {
     if (id === 'root') return { ok: false, why: 'The programme is always open.' };
     var p = projOf(id);
-    if (p) return p.state === 'open' ? { ok: false, why: 'Already open.' } : { ok: false, why: 'A project opens when one of its items opens.' };
+    if (p) return p.state === 'open' ? { ok: false, why: 'Already open. Sessions in this checkout belong to it until you open an item under it.' } : { ok: true, why: 'Opens the project to work on: sessions in this checkout belong to it until you open an item under it.', go: '#/project/' + id, openProject: true };
     var it = D.items[id];
     if (it.isOpen) return { ok: false, why: 'Already open.' };
     if (it.state === 'done') return { ok: false, why: 'Done items do not reopen.' };
@@ -1201,7 +1201,7 @@
     var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
     if (p.total) h += '<p class="bignum">' + p.pct + '% done <span class="bignum-ref">' + p.done + ' of ' + plural(p.total, 'item') + '</span></p><p class="muted small">' + leftText(p) + (p.lastActivity ? ' · last activity ' + esc(p.lastActivity) : '') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + p.pct + '%"></span><span class="c"></span></div>';
     else h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">nothing started yet; the estimate is coarse</p>';
-    h += '<div class="actions"><button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>';
+    h += '<div class="actions">' + (p.state === 'open' ? '<button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button>' : '<button class="btn primary" data-act="opennode" data-node="' + id + '">Open this project</button>') + '<button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>' + (p.state === 'open' ? '' : '<p class="small muted">Opening it means sessions in your checkout belong to it until you open an item under it.</p>');
     h += drills([
       p.burn && p.burn.length ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
       (p.results && p.results.length) ? drill('Last results', (function () { var bad = p.results.filter(function (r) { return r.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : 'all ' + plural(p.results.length, 'check') + ' passing'; })(), resultsTable(p.results), { attn: p.results.some(function (r) { return r.result !== 'pass'; }) }) : '',
@@ -2254,7 +2254,7 @@
         return true;
       case 'colsel': S.work.sel = dv.node; location.hash = '#/work/' + dv.node; return true;
       case 'rowmenu': openMenu(el, rowMenu(dv.node)); return true;
-      case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
+      case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.openProject) WBAPI.openProject(dv.node).then(function () { location.hash = co.go; }); else if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
       case 'additem': addItemSheet(dv.node); return true;
       case 'openwindow': closeLayers(); toast('Preparing a second folder on the item\'s branch…'); WBAPI.window(dv.node); return true;
       case 'found-task': var fx = D.found[dv.f]; var pkf = D.sessions[fx.session] && D.sessions[fx.session].packet; if (pkf) WBAPI.press(parseRef(pkf).id, 'found-task', { target: dv.f }); toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;

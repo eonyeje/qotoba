@@ -259,7 +259,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         return new
         {
             title = string.IsNullOrEmpty(s.Title) ? (it?.Title ?? "Session " + s.Id[..Math.Min(4, s.Id.Length)]) : s.Title,
-            machine = s.MachineId, item = s.ItemId, lane = (string?)null, state = s.State.ToString().ToLowerInvariant(), stuck = s.Stuck,
+            machine = s.MachineId, item = s.ItemId, project = s.ProjectId, lane = (string?)null, state = s.State.ToString().ToLowerInvariant(), stuck = s.Stuck,
             started = fmt.DayTime(s.Started), ended = s.Ended is null ? null : fmt.DayTime(s.Ended.Value), minutes, turns = s.Turns, tools = s.Tools,
             step = stepText, stepMin = s.StepMin, lastAction = s.LastAction, waitingSince = s.WaitingSince is null ? null : fmt.Time(s.WaitingSince.Value), waitingOn,
             checks = new List<string>(), questions = new List<string>(),

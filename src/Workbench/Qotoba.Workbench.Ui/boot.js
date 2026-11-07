@@ -62,6 +62,9 @@
         refresh(); return r;
       }).catch(function (e) { toast(esc(e.message)); });
     },
+    openProject: function (id) {
+      return api('PATCH', '/api/projects/' + encodeURIComponent(id), { open: true }).then(function (r) { if (r.message) toast(esc(r.message)); refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
     pageAnswer: function (card, key, value) {
       return api('POST', '/api/cards/' + encodeURIComponent(card) + '/answers', { key: key, value: value }).then(function (r) { if (!r.ok) toast(esc(r.message)); return r; }).catch(function (e) { toast(esc(e.message)); });
     },

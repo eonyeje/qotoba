@@ -110,6 +110,26 @@ public sealed partial class WorkbenchOps
 
     private static string BranchSlug(string branch) { var i = branch.IndexOf('/'); return i < 0 ? branch : branch[(i + 1)..]; }
 
+    /// <summary>The project a session belongs to when no item is open: the one open project, or the project of the checkout's bound item.</summary>
+    public async Task<string?> ProjectForCwdAsync(Machine m, string? cwd, CancellationToken ct = default)
+    {
+        var hit = CheckoutHolding(m, cwd);
+        if (hit?.ItemId is not null && await db.Items.FindAsync([hit.ItemId], ct) is { } bound) return bound.ProjectId;
+        var open = await db.Projects.Where(p => p.State == ProjectState.Open).ToListAsync(ct);
+        return open.Count == 1 ? open[0].Id : null;
+    }
+
+    /// <summary>The owner opens a project to work on it: sessions in the checkout belong to it until an item under it opens.</summary>
+    public async Task<Project> OpenProjectAsync(string projectId, CancellationToken ct = default)
+    {
+        var p = await db.Projects.FindAsync([projectId], ct) ?? await db.Projects.FirstOrDefaultAsync(x => x.Code == projectId.ToUpperInvariant(), ct)
+            ?? throw new WorkbenchRuleException("project.unknown", $"There is no project {projectId}.");
+        if (p.State != ProjectState.Open) { p.State = ProjectState.Open; p.ClosedWhy = null; }
+        Audit(Actor.Owner, "open", "project", p.Id);
+        await SaveAsync("project", p.Id, ct);
+        return p;
+    }
+
     /// <summary>A session says which branch the opened top item is on, after it created or checked it out itself. Recorded, never acted on.</summary>
     public async Task<string> BranchNoteAsync(string sessionId, string itemId, string branch, string? checkout, CancellationToken ct = default)
     {

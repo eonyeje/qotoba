@@ -115,6 +115,24 @@ public class BranchTests : IDisposable
     }
 
     [Fact]
+    public async Task AnOpenProjectWithNoItemIsWhatASessionBelongsTo()
+    {
+        await RegisterCheckoutAsync();
+        // the seed leaves only Workbench open; the owner opens Language to work on it
+        using (var db = f.Db()) { foreach (var p in db.Projects) p.State = ProjectState.Coarse; db.SaveChanges(); }
+        await f.Ops().OpenProjectAsync("LNG");
+        var reply = await f.Ops().SessionStartedAsync(Start("s1", @"D:\repo"));
+        Assert.Contains("Project Language (LNG) · open, no item yet", reply.HookSpecificOutput!.AdditionalContext);
+        await f.Ops().HelloAsync("s1", @"D:\repo", null);
+        var made = await f.Ops().AddItemsAsync("s1", null, [new("Parser", null, null)]);
+        Assert.Equal("LNG-1", made[0].Id);
+        var r = await f.Ops().RaiseReportAsync("s1", "FTR", "A printer that keeps comments", null, null, "chat", null, null, null);
+        Assert.Equal("lang", r.ProjectId); Assert.Null(r.AttachItemId);
+        using var db2 = f.Db();
+        Assert.Equal("lang", db2.Sessions.Single().ProjectId);
+    }
+
+    [Fact]
     public void BranchNamesAreProjectCodeNumberAndSlug()
     {
         var p = new Project { Id = "lng", Code = "LNG", Name = "Language" };

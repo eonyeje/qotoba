@@ -39,6 +39,7 @@ public static class ApiEndpoints
             var (it, folder, branch, message) = await ops.OpenInWindowAsync(id, ct);
             return Results.Json(new { id = it.Id, folder, branch, message }, Json.Options);
         }));
+        api.MapPatch("/projects/{id}", async (string id, ProjectPatch patch, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { var p = patch.Open == true ? await ops.OpenProjectAsync(id, ct) : throw new WorkbenchRuleException("project.patch", "Only open is supported."); return Results.Json(new { id = p.Id, message = $"{p.Name} is open: sessions in this checkout belong to it until an item under it opens" }, Json.Options); }));
         api.MapPatch("/reports/{id}", async (string id, ReportPatch patch, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.PatchReportAsync(id, patch, ct)).Id }, Json.Options)));
         api.MapPatch("/edges/{id}", async (string id, EdgePatch patch, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { await ops.PatchEdgeAsync(id, patch, ct); return Results.Ok(new { ok = true }); }));
         api.MapPost("/edges", async (EdgeBody body, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.AddEdgeAsync(body.From, body.To, ct)).Id }, Json.Options)));
@@ -70,4 +71,5 @@ public static class ApiEndpoints
     public sealed record EdgeBody(string From, string To);
     public sealed record SettingBody(string Key, string Value);
     public sealed record WithdrawBody(string? Note);
+    public sealed record ProjectPatch(bool? Open);
 }
