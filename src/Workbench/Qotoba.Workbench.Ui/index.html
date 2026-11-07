@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Qotoba Workbench</title>
 <meta name="description" content="The Qotoba Workbench: inbox, tree, packets, rulings and sessions in phone, Rider and desktop layouts.">
-<link rel="stylesheet" href="workbench.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:,">
+<script>
+  /* every file the page needs is fetched with a fresh stamp, so an embedded browser's cache never shows an old build */
+  window.QWB_STAMP = String(Date.now());
+  document.write('<link rel="stylesheet" href="workbench.css?v=' + window.QWB_STAMP + '">');
+</script>
 </head>
 <body>
 <!-- The shell is empty on purpose: every screen is drawn by app.js from window.WB, which boot.js fetches from the service. -->
@@ -26,6 +30,6 @@
 </div>
 <div id="drawer-root"></div>
 <noscript>The Workbench needs JavaScript.</noscript>
-<script src="boot.js"></script>
+<script>document.write('<script src="boot.js?v=' + window.QWB_STAMP + '"><\/script>');</script>
 </body>
 </html>

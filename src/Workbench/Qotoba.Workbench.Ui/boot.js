@@ -25,7 +25,7 @@
     api('GET', '/api/snapshot').then(function (wb) {
       pending = false;
       window.WB = wb;
-      if (!loaded) { loaded = true; var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); }
+      if (!loaded) { loaded = true; var s = document.createElement('script'); s.src = 'app.js?v=' + (window.QWB_STAMP || Date.now()); document.body.appendChild(s); }
       else if (window.WB_RERENDER) window.WB_RERENDER();
     }).catch(function (e) { pending = false; if (!loaded) fail('Cannot reach the Workbench', e.message); else toast(esc(e.message)); });
   }
