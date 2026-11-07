@@ -73,9 +73,17 @@
       return api('POST', '/api/edges', { from: from, to: to }).then(function (r) { toast(r.message ? esc(r.message) : 'Dependency recorded by you'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
     },
     open: function (machine, path, line) {
+      // inside Rider the pane opens the file itself; elsewhere the Host on that machine does
+      if (window.QOTOBA_RIDER && window.QOTOBA_RIDER.open) { window.QOTOBA_RIDER.open(path, line); toast('Opening ' + esc(path.split(/[\\/]/).pop()) + ':' + line); return Promise.resolve(); }
       return api('POST', '/api/open', { machine: machine, file: path, line: line }).then(function (r) { toast(r.ok ? 'Opening ' + esc(path.split(/[\\/]/).pop()) + ':' + line + ' in Rider on ' + esc(machine) : 'The Host on ' + esc(machine) + ' could not open Rider'); }).catch(function (e) { toast(esc(e.message)); });
     }
   };
+
+  // an embedding host (the Rider pane) names the layout it wants once; the page remembers it like a user choice
+  try {
+    var qp = new URLSearchParams(location.search), lay = qp.get('layout');
+    if (lay && /^(phone|rider|desktop)$/.test(lay)) localStorage.setItem('qwb.layout', lay);
+  } catch (e) { }
 
   refresh();
   listen();

@@ -1,0 +1,24 @@
+<idea-plugin>
+  <id>qotoba.workbench.rider</id>
+  <name>Qotoba Workbench</name>
+  <vendor>Qotoba</vendor>
+  <description><![CDATA[
+    The Qotoba Workbench inside Rider: the inbox where the owner decides, the work tree, reports, files and sessions,
+    served live by the Workbench service on this machine. Open in Rider opens the file in this IDE.
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.jcef</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <toolWindow id="Workbench" anchor="right" icon="/icons/workbench.svg" factoryClass="qotoba.workbench.rider.WorkbenchToolWindowFactory" />
+    <applicationConfigurable parentId="tools" instance="qotoba.workbench.rider.WorkbenchConfigurable" id="qotoba.workbench.settings" displayName="Qotoba Workbench" />
+  </extensions>
+
+  <actions>
+    <action id="qotoba.workbench.open" class="qotoba.workbench.rider.OpenWorkbenchAction" text="Qotoba Workbench" description="Open the Workbench pane" icon="/icons/workbench.svg">
+      <add-to-group group-id="ToolsMenu" anchor="first" />
+      <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt W" />
+    </action>
+  </actions>
+</idea-plugin>

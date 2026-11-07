@@ -15,6 +15,14 @@ public static class ApiEndpoints
         var api = app.MapGroup("/api");
 
         api.MapGet("/health", () => Results.Ok(new { ok = true, at = DateTimeOffset.UtcNow }));
+        // the header meter as the add-ins show it: cards waiting and the minutes to clear them
+        api.MapGet("/meter", async (WorkbenchDb db, CancellationToken ct) =>
+        {
+            var waiting = await db.Cards.CountAsync(c => c.State == CardState.Open && c.Type != CardType.Info, ct);
+            var answered = await db.Cards.Where(c => c.AnsweredAt != null && c.Type != CardType.Info).Select(c => new { c.At, c.AnsweredAt }).ToListAsync(ct);
+            var secs = answered.Select(a => (a.AnsweredAt!.Value - a.At).TotalSeconds).Where(s => s > 0 && s < 600).DefaultIfEmpty(48).Average();
+            return Results.Ok(new { waiting, minutes = (int)Math.Ceiling(waiting * secs / 60.0) });
+        });
         api.MapGet("/snapshot", async (Snapshot snap, CancellationToken ct) => Results.Json(await snap.BuildAsync(ct), Json.Options));
         api.MapGet("/events", (HttpContext ctx, EventHub hub) => hub.StreamAsync(ctx));
 
