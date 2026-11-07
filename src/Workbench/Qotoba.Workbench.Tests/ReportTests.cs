@@ -1,11 +1,11 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Qotoba.Workbench.Contracts;
 using Qotoba.Workbench.Model;
+using Qotoba.Workbench.Store;
 
 namespace Qotoba.Workbench.Tests;
 
-/// <summary>Reports are information; their When implementing lines move only through a task's plan, cards and runs.</summary>
+/// <summary>FTR, BUG and PER: always raised by Claude, attached to an item or the project, moved on by Claude, pruned by the owner in chat.</summary>
 public class ReportTests : IDisposable
 {
     private readonly OpsFixture f = new();
@@ -13,170 +13,88 @@ public class ReportTests : IDisposable
 
     private static Dictionary<string, JsonElement> Sections(string json) => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-    private static List<ImplLineInput> Lines() =>
-    [
-        new("decision", "Which fix", null, null, null, [new("Fix 2: attach skipped tokens as trivia", true, "Low risk, regression check exists", "low", null), new("Fix 1: stop recovery at the comment", false, "Leaves a stray quote", "medium", null)]),
-        new("decision", "May recovery discard tokens?", null, null, null, [new("Never discard", true, "Every file prints back", "high, every recovery path", null), new("Discard and record a finding", false, "Simpler", "high", null)]),
-        new("proof", "The specimen with a trailing comment round-trips", null, null, null, null),
-        new("dependency", "Depends on the round-trip check", "fpb:FTR-1", "It proves the fix", null, null)
-    ];
-
-    private async Task<(Report bug, Item task)> BugTakenOnAsync()
+    private async Task LoginAsync()
     {
-        var ops = f.Ops();
-        await ops.AddReportAsync(new AddItemRequest("FTR", "Round-trip check for every file", "wb", null, null, null), Actor.Owner);
-        var bug = await ops.AddReportAsync(new AddItemRequest("BUG", "Recovery drops the trailing comment", "wb", null, null, null, null, "wrong result"), Actor.Owner);
-        await ops.HelloAsync("s1", null, null);
-        await ops.WriteReportAsync("s1", bug.Id, Sections("{\"symptom\":{\"text\":\"The comment after an unterminated string vanishes.\",\"expected\":\"It stays as trivia.\"}}"), Lines());
-        var task = await f.Ops().AddItemAsync(new AddItemRequest("task", "Keep comments when recovery skips a line", "wb", null, [bug.Id], null), Actor.Owner);
-        return (bug, task);
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Login screen", "wb", null, null, null), Actor.Owner);
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Form", "WB-1", null, null, null), Actor.Owner);
+        await f.SessionOnAsync("s1", "WB-1.1");
     }
 
     [Fact]
-    public async Task OwnerCreatesReportClaudeWritesSectionsAndLines()
+    public async Task AnFtrFromChatGetsTheOwnersIdSchemeAndAttachesToTheItem()
     {
-        var (bug, task) = await BugTakenOnAsync();
+        await LoginAsync();
+        var r = await f.Ops().RaiseReportAsync("s1", "FTR", "A custom style for the login button", null, "You want the button to take the app's accent and a rounded shape.", "chat", null, null, null);
+        Assert.Equal("WB-FTR-001", r.Id);
+        Assert.Equal("Open", r.State);
+        Assert.Equal("WB-1.1", r.AttachItemId);
+        Assert.Equal("chat", r.SourceType);
+        var second = await f.Ops().RaiseReportAsync("s1", "FTR", "Remember the last user name", "wb", null, "chat", null, null, null);
+        Assert.Equal("WB-FTR-002", second.Id);
+        Assert.Null(second.AttachItemId);
         using var db = f.Db();
-        var r = db.Reports.Single(x => x.Id == bug.Id);
-        Assert.Equal("BUG-1", r.Id);
-        Assert.Contains("\"author\":\"claude\"", r.SectionsJson);
-        Assert.Equal(4, db.ImplLines.Count(l => l.ReportId == bug.Id));
-        Assert.All(db.ImplLines, l => Assert.Equal(ImplStatus.Open, l.Status));
-        Assert.Contains("fpb:BUG-1", db.Items.Single(i => i.Id == task.Id).ImplementsJson);
-        await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().AddReportAsync(new AddItemRequest("BUG", "x", "wb", null, null, null), Actor.Claude));
+        Assert.Contains("[[fpb:WB-FTR-001]]", db.Items.Single(i => i.Id == "WB-1.1").HistoryJson);
+        Assert.Empty(db.Cards);
     }
 
     [Fact]
-    public async Task ReportNeverGetsACardOfItsOwn()
+    public async Task ABugReadFromCodeStartsAsVerifyFirstAndADuplicateIsRefused()
     {
-        var (bug, _) = await BugTakenOnAsync();
-        using var db = f.Db();
-        Assert.DoesNotContain(db.Cards, c => c.ReportId == bug.Id && c.Type != CardType.Info);
+        await LoginAsync();
+        var bug = await f.Ops().RaiseReportAsync("s1", "BUG", "The submit button stays disabled after a failed attempt, so a second try needs a reload", null, "Seen while wiring the form.", "read", Sections("""{"symptom":"Button disabled after failure","cause":{"text":"IsBusy never resets on the error path"}}"""), null, "serious");
+        Assert.Equal("WB-BUG-001", bug.Id);
+        Assert.Equal("Verify first", bug.State);
+        Assert.Equal(SeverityLevel.Serious, bug.Severity);
+        var ex = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().RaiseReportAsync("s1", "BUG", "the submit button stays disabled after a failed attempt, so a second try needs a reload", null, null, null, null, null, null));
+        Assert.Equal("report.dup", ex.Code);
+        Assert.Contains("WB-BUG-001", ex.Message);
     }
 
     [Fact]
-    public async Task PlanDrawsLowCostDecisionsAndDependenciesIntoTheSettlePassAndApprovalSettlesThem()
+    public async Task UpdateMovesTheStateRecordsWhatIsLeftAndWhoTookItOn()
     {
-        var (bug, task) = await BugTakenOnAsync();
-        await f.Ops().HelloAsync("s2", null, task.Id);
-        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "The file prints back with its comment.");
-        var pl = Json.Read(plan.PayloadJson, new PlanPayload());
-        Assert.Equal(2, pl.Settle.Count);                         // the low-cost decision and the dependency; the high-cost one waits for a card
-        Assert.All(pl.Settle, q => Assert.Equal("fpb:" + bug.Id, q.From));
+        await LoginAsync();
+        var bug = await f.Ops().RaiseReportAsync("s1", "BUG", "A six-digit colour reads past the end", null, null, "check", null, null, null);
+        await f.Ops().UpdateReportAsync("s1", bug.Id, "in progress", "the parser; the widget after it", "WB-1.1", null, null, null, null);
         using (var db = f.Db())
         {
-            var lines = db.ImplLines.Where(l => l.ReportId == bug.Id).OrderBy(l => l.Order).ToList();
-            Assert.Equal(ImplStatus.Scheduled, lines[0].Status);
-            Assert.Contains("settle pass", lines[0].Note);
-            Assert.Equal(ImplStatus.Scheduled, lines[1].Status);
-            Assert.Contains("Question Card", lines[1].Note);
-            Assert.Equal(ImplStatus.Scheduled, lines[2].Status);
-            Assert.Contains("proved by a run", lines[2].Note);
+            var r = db.Reports.Single();
+            Assert.Equal("In progress", r.State);
+            Assert.Equal("the parser; the widget after it", r.Left);
+            Assert.Equal("WB-1.1", r.TakenOnItemId);
         }
-        var r = await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
-        Assert.True(r.Ok, r.Message);
-        using (var db = f.Db())
-        {
-            var lines = db.ImplLines.Where(l => l.ReportId == bug.Id).OrderBy(l => l.Order).ToList();
-            Assert.Equal(ImplStatus.Settled, lines[0].Status);
-            Assert.Equal("card:" + plan.Id, lines[0].Ref);
-            Assert.Equal(ImplStatus.Settled, lines[3].Status);
-            Assert.Single(db.Edges.Where(e => e.From == "item:" + task.Id && e.To == "fpb:FTR-1" && e.Confirmed));
-            Assert.Equal(2, Json.ReadList<Decision>(db.Items.Single(i => i.Id == task.Id).DecisionsJson).Count);
-            Assert.Equal("fixing", db.Reports.Single(x => x.Id == bug.Id).State);
-        }
-    }
-
-    [Fact]
-    public async Task HighCostLineIsAskedOnACardAndSettledByTheAnswer()
-    {
-        var (bug, task) = await BugTakenOnAsync();
-        await f.Ops().HelloAsync("s2", null, task.Id);
-        var plan = await f.Ops().SubmitPlanAsync("s2", task.Id, [new("Attach the trivia", 40, null, "tests"), new("Round-trip specimen", 20, null, "round-trip")], null, "goal");
-        await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
-        string lineId;
-        using (var db = f.Db()) lineId = db.ImplLines.Single(l => l.ReportId == bug.Id && l.Text.StartsWith("May recovery")).Id;
-        var card = await f.Ops().AskAsync("s2", task.Id, 1, "May recovery discard the tokens it skips?", [new("Never discard", true, "Every file prints back", "high", null), new("Discard", false, "Simpler", "high", null)], null, null, null, null, default, lineId);
-        using (var db = f.Db())
-        {
-            var l = db.ImplLines.Single(x => x.Id == lineId);
-            Assert.Equal(ImplStatus.Asked, l.Status);
-            Assert.Equal("card:" + card.Id, l.Ref);
-            Assert.Equal(bug.Id, db.Cards.Single(c => c.Id == card.Id).ReportId);
-        }
-        await f.Ops().PressAsync(new PressRequest(card.Id, "recommended"));
-        using (var db = f.Db())
-        {
-            var l = db.ImplLines.Single(x => x.Id == lineId);
-            Assert.Equal(ImplStatus.Settled, l.Status);
-            Assert.Contains("Never discard", l.Note);
-        }
-    }
-
-    [Fact]
-    public async Task ProofLineIsProvedOnlyByAPassingRun()
-    {
-        var (bug, task) = await BugTakenOnAsync();
-        await f.Ops().HelloAsync("s2", null, task.Id);
-        string lineId;
-        using (var db = f.Db()) lineId = db.ImplLines.Single(l => l.ReportId == bug.Id && l.Kind == ImplKind.Proof).Id;
-        var fail = await f.Ops().RecordRunAsync(new RunReport("round-trip", task.Id, "s2", "test-pc", "fail", 0, 1, 1, "qwb check", "x", 1, 1, null, null, 2));
-        await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().ProveLineAsync("s2", lineId, fail.Id));
-        var pass = await f.Ops().RecordRunAsync(new RunReport("round-trip", task.Id, "s2", "test-pc", "pass", 1, 1, 1, "qwb check", "ok", 1, 0, null, null, 2));
-        await f.Ops().ProveLineAsync("s2", lineId, pass.Id);
+        await f.Ops().UpdateReportAsync("s1", bug.Id, "Won't do", "the owner: by design, not a defect", null, null, null, null, null);
         using var db2 = f.Db();
-        Assert.Equal(ImplStatus.Proved, db2.ImplLines.Single(x => x.Id == lineId).Status);
-        Assert.Equal("run:" + pass.Id, db2.ImplLines.Single(x => x.Id == lineId).Ref);
+        Assert.Equal("Won't do", db2.Reports.Single().State);
+        var ex = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().UpdateReportAsync("s1", bug.Id, "sort of done", null, null, null, null, null, null));
+        Assert.Equal("report.state", ex.Code);
     }
 
     [Fact]
-    public async Task OwnerSectionsAreNotOverwrittenAndFixesAreCapped()
+    public async Task LinksAreTypedInTheRegistersWords()
     {
-        var ops = f.Ops();
-        var bug = await ops.AddReportAsync(new AddItemRequest("BUG", "A bug", "wb", null, null, null), Actor.Owner);
-        await ops.PatchReportAsync(bug.Id, new ReportPatch(null, "serious", null, null, null, null));
-        await ops.HelloAsync("s1", null, null);
-        var four = "{\"fixes\":{\"rows\":[{\"t\":\"a\"},{\"t\":\"b\"},{\"t\":\"c\"},{\"t\":\"d\"}]}}";
-        var ex = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().WriteReportAsync("s1", bug.Id, Sections(four), null));
-        Assert.Equal("report.fixes", ex.Code);
-        using var db = f.Db();
-        var r = db.Reports.Single(x => x.Id == bug.Id);
-        Assert.Equal(SeverityLevel.Serious, r.Severity);
-        Assert.Equal(Author.Me, r.SeverityBy);
+        await LoginAsync();
+        var a = await f.Ops().RaiseReportAsync("s1", "FTR", "Universal values", null, null, null, null, null, null);
+        var b = await f.Ops().RaiseReportAsync("s1", "FTR", "Values without instances", null, null, null, null, [new(a.Id, "split from", "section 8")], null);
+        await f.Ops().LinkAsync("s1", "WB-1.1", b.Id, "needs", "the form binds to values");
+        var bad = await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().LinkAsync("s1", "WB-1.1", a.Id, "sort of", null));
+        Assert.Equal("edge.type", bad.Code);
+        var text = await f.Ops().ReportTextAsync(b.Id);
+        Assert.Contains($"fpb:{b.Id} split from fpb:{a.Id}", text);
+        Assert.Contains($"item:WB-1.1 needs fpb:{b.Id}", text);
+        var list = await f.Ops().ReportListAsync("WB-1", "open");
+        Assert.Contains(a.Id, list); Assert.Contains(b.Id, list);
     }
 
     [Fact]
-    public async Task FoundItemPromotesToAReportWithItsEvidence()
+    public async Task TheBriefNamesTheOpenFpbsOnTheItem()
     {
-        var ops = f.Ops();
-        await ops.AddItemAsync(new AddItemRequest("task", "Hello card", "wb", null, null, null), Actor.Owner);
-        await ops.HelloAsync("s1", null, "WB-1");
-        var found = await ops.FoundAsync("s1", "WB-1", "PER", "Tree query takes 400 ms", "Opening an item reloads the whole tree.", null, null);
-        var per = await f.Ops().AddReportAsync(new AddItemRequest("PER", found.Title, "WB-1", null, null, null, found.Id), Actor.Owner);
-        using var db = f.Db();
-        Assert.Equal("promoted", db.Reports.Single(x => x.Id == per.Id).SourceType);
-        Assert.Equal(FoundState.Promoted, db.Founds.Single().State);
-        Assert.Equal("fpb:" + per.Id, db.Founds.Single().PromotedTo);
-        Assert.Contains("headline", db.Reports.Single(x => x.Id == per.Id).SectionsJson);
-    }
-
-    [Fact]
-    public async Task DependencyProposalWaitsForTheSettlePass()
-    {
-        var ops = f.Ops();
-        await ops.AddItemAsync(new AddItemRequest("task", "A", "wb", null, null, null), Actor.Owner);
-        await ops.AddItemAsync(new AddItemRequest("task", "B", "wb", null, null, null), Actor.Owner);
-        await ops.HelloAsync("s1", null, "WB-2");
-        var e = await ops.ProposeEdgeAsync("s1", "WB-2", "WB-1", "needs", "B reads the table A creates", true);
-        Assert.False(e.Confirmed);
-        var plan = await f.Ops().SubmitPlanAsync("s1", "WB-2", [new("one", 30, null, null)], null, "g");
-        var pl = Json.Read(plan.PayloadJson, new PlanPayload());
-        Assert.Single(pl.Settle, q => q.Edge == e.Id);
-        await f.Ops().PressAsync(new PressRequest(plan.Id, "approve"));
-        using var db = f.Db();
-        Assert.True(db.Edges.Single().Confirmed);
-        var path = Store.Ops.WorkbenchOps.CriticalPath(db.Items.ToList(), db.Edges.ToList(), "wb");
-        Assert.Equal(["item:WB-1", "item:WB-2"], path);
+        await LoginAsync();
+        await f.Ops().RaiseReportAsync("s1", "BUG", "Validation runs twice on blur", null, null, "check", null, null, null);
+        await f.Ops().RaiseReportAsync("s1", "PER", "Every keystroke relays out the whole form", null, null, "check", null, null, null);
+        var brief = await f.Ops().BriefAsync("s1");
+        Assert.Contains("WB-BUG-001 · Open · Validation runs twice", brief);
+        Assert.Contains("WB-PER-001", brief);
     }
 
     [Fact]

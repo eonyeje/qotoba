@@ -2,91 +2,56 @@ using Qotoba.Workbench.Model;
 
 namespace Qotoba.Workbench.Tests;
 
-/// <summary>The invariants named in the design, one test each, so a change to a cap is a visible decision.</summary>
+/// <summary>The few shape checks left in code. None of them refuses the owner.</summary>
 public class RulesTests
 {
-    private static QuestionOption Opt(string t, bool rec = false) => new(t, rec, "because", "small", null);
-
-    [Fact]
-    public void ThirdOpenQuestionIsRefused()
-    {
-        Rules.QuestionMayBeAsked(0);
-        Rules.QuestionMayBeAsked(1);
-        var ex = Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionMayBeAsked(2));
-        Assert.Equal("questions.cap", ex.Code);
-    }
-
-    [Fact]
-    public void QuestionNeedsOneRecommendationAndReasons()
-    {
-        Rules.QuestionIsClosed([Opt("a", true), Opt("b")]);
-        Assert.Equal("questions.options", Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionIsClosed([Opt("a", true)])).Code);
-        Assert.Equal("questions.recommendation", Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionIsClosed([Opt("a"), Opt("b")])).Code);
-        Assert.Equal("questions.why", Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionIsClosed([Opt("a", true), new QuestionOption("b", false, "", null, null)])).Code);
-    }
-
-    [Fact]
-    public void QuestionIsBornFromAStep()
-    {
-        Rules.QuestionIsAnchored("WB-1", 2);
-        Assert.Equal("questions.anchor", Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionIsAnchored(null, 2)).Code);
-        Assert.Equal("questions.anchor", Assert.Throws<WorkbenchRuleException>(() => Rules.QuestionIsAnchored("WB-1", null)).Code);
-    }
-
-    [Fact]
-    public void PlanOfEightStepsIsRefused()
-    {
-        var seven = Enumerable.Range(1, 7).Select(n => new Step(n, "s" + n, 10, StepState.Todo, null, null, null)).ToList();
-        Rules.PlanFits(seven);
-        var eight = seven.Append(new Step(8, "s8", 10, StepState.Todo, null, null, null)).ToList();
-        Assert.Equal("plan.cap", Assert.Throws<WorkbenchRuleException>(() => Rules.PlanFits(eight)).Code);
-        Assert.Equal("plan.estimate", Assert.Throws<WorkbenchRuleException>(() => Rules.PlanFits([new Step(1, "s", 0, StepState.Todo, null, null, null)])).Code);
-    }
-
-    [Fact]
-    public void SixthFoundItemIsRefused()
-    {
-        Rules.FoundMayBeAdded(4);
-        Assert.Equal("found.cap", Assert.Throws<WorkbenchRuleException>(() => Rules.FoundMayBeAdded(5)).Code);
-    }
-
     [Fact]
     public void NoteOfThreeLinesIsRefused()
     {
         Rules.NoteFits("one\ntwo");
-        Assert.Equal("note.cap", Assert.Throws<WorkbenchRuleException>(() => Rules.NoteFits("one\ntwo\nthree")).Code);
+        var ex = Assert.Throws<WorkbenchRuleException>(() => Rules.NoteFits("one\ntwo\nthree"));
+        Assert.Equal("note.cap", ex.Code);
     }
 
     [Fact]
-    public void ClaudeCannotCreateItem()
+    public void StepsNeedAnEstimateEach()
     {
-        Rules.OnlyOwnerCreatesStructure(Actor.Owner, "task");
-        Assert.Equal("structure.owner", Assert.Throws<WorkbenchRuleException>(() => Rules.OnlyOwnerCreatesStructure(Actor.Claude, "task")).Code);
+        Rules.StepsHaveEstimates([new(1, "a", 10, StepState.Todo, null, null, null)]);
+        Assert.Equal("steps.empty", Assert.Throws<WorkbenchRuleException>(() => Rules.StepsHaveEstimates([])).Code);
+        Assert.Equal("steps.estimate", Assert.Throws<WorkbenchRuleException>(() => Rules.StepsHaveEstimates([new(1, "a", 0, StepState.Todo, null, null, null)])).Code);
     }
 
     [Fact]
-    public void OneHomeMachine()
+    public void OpeningBesideAnOpenSiblingNamesTheSiblingInsteadOfRefusing()
     {
-        Rules.OneHomeMachine(null, "laptop");
-        Rules.OneHomeMachine("laptop", "laptop");
-        Assert.Equal("machine.home", Assert.Throws<WorkbenchRuleException>(() => Rules.OneHomeMachine("desk-pc", "laptop")).Code);
+        var a = new Item { Id = "WB-1", ProjectId = "wb", Title = "Login screen", IsOpen = true };
+        var b = new Item { Id = "WB-2", ProjectId = "wb", Title = "Rendering" };
+        Assert.Same(a, Rules.OpenClash(b, [a, b]));
+        Assert.Null(Rules.OpenClash(b, [b]));
     }
 
     [Fact]
-    public void OneOpenNodePerLevel()
+    public void ADoneNodeDoesNotReopen()
     {
-        var a = new Item { Id = "WB-1", ProjectId = "wb", Title = "a", IsOpen = true };
-        var b = new Item { Id = "WB-2", ProjectId = "wb", Title = "b" };
-        Assert.Equal("open.one", Assert.Throws<WorkbenchRuleException>(() => Rules.MayOpen(b, [a, b])).Code);
-        a.IsOpen = false;
-        Rules.MayOpen(b, [a, b]);
-        Assert.Equal("open.done", Assert.Throws<WorkbenchRuleException>(() => Rules.MayOpen(new Item { Id = "x", ProjectId = "wb", Title = "x", State = ItemState.Done }, [])).Code);
+        var d = new Item { Id = "WB-1", ProjectId = "wb", Title = "Done", State = ItemState.Done };
+        Assert.Equal("open.done", Assert.Throws<WorkbenchRuleException>(() => Rules.OpenClash(d, [d])).Code);
     }
 
     [Fact]
-    public void ReportNeverWaitsOnOwner()
+    public void OnlyTheOwnerCreatesAProject()
     {
-        Assert.Equal("report.waits", Assert.Throws<WorkbenchRuleException>(() => Rules.ReportNeverWaits(new Card { Id = "q", Headline = "h", Type = CardType.Question, ReportId = "BUG-1" })).Code);
-        Rules.ReportNeverWaits(new Card { Id = "q", Headline = "h", Type = CardType.Question, ReportId = "BUG-1", ItemId = "WB-1" });
+        Rules.OnlyOwnerCreatesProjects(Actor.Owner);
+        Assert.Equal("structure.owner", Assert.Throws<WorkbenchRuleException>(() => Rules.OnlyOwnerCreatesProjects(Actor.Claude)).Code);
+    }
+
+    [Fact]
+    public void ReportStatesAreTheEightRegisterWords()
+    {
+        Assert.Equal("Won't do", ReportStates.Normalise("wont do"));
+        Assert.Equal("Verify first", ReportStates.Normalise("verify first"));
+        Assert.Equal("In progress", ReportStates.Normalise("in-progress"));
+        Assert.Null(ReportStates.Normalise("sort of done"));
+        Assert.True(ReportStates.IsClosed("Exists"));
+        Assert.False(ReportStates.IsClosed("Designed"));
     }
 }

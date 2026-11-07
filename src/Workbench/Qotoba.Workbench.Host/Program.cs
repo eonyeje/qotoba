@@ -67,26 +67,6 @@ app.MapGet("/branch", async (string checkout) =>
     return code == 0 ? Results.Text(output.Trim()) : Results.NotFound();
 });
 
-app.MapPost("/git", async (GitInstruction ins) =>
-{
-    var cwd = string.IsNullOrWhiteSpace(ins.Checkout) ? (checkouts.FirstOrDefault() ?? Environment.CurrentDirectory) : ins.Checkout;
-    if (!Directory.Exists(cwd)) return Results.Json(new GitResult(false, "No such checkout: " + cwd));
-    var log = new System.Text.StringBuilder();
-    foreach (var raw in ins.Lines)
-    {
-        var line = raw.Trim();
-        if (line.Length == 0 || line.StartsWith('#')) continue;
-        var mayFail = line.StartsWith("- ");           // "- git push origin main": allowed to fail (no remote yet)
-        if (mayFail) line = line[2..].Trim();
-        if (line.StartsWith("cd ", StringComparison.OrdinalIgnoreCase)) { var d = line[3..].Trim().Trim('"'); if (Directory.Exists(d)) cwd = d; else { log.AppendLine("no such folder: " + d); return Results.Json(new GitResult(false, log.ToString())); } continue; }
-        if (!line.StartsWith("git ", StringComparison.OrdinalIgnoreCase)) { log.AppendLine("refused (only git lines run here): " + line); return Results.Json(new GitResult(false, log.ToString())); }
-        var (code, output) = await RunAsync("git", line[4..], cwd, TimeSpan.FromMinutes(5));
-        log.AppendLine("$ " + line); log.AppendLine(output.Trim());
-        if (code != 0) { log.AppendLine($"exit {code}" + (mayFail ? " · allowed" : "")); if (!mayFail) return Results.Json(new GitResult(false, log.ToString())); }
-    }
-    return Results.Json(new GitResult(true, log.ToString()));
-});
-
 app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
 {
     var path = Path.IsPathRooted(file) ? file : Path.Combine(checkout, file);
@@ -95,26 +75,6 @@ app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
     from = Math.Max(1, from); to = Math.Min(lines.Length, Math.Max(from, to));
     if (to - from + 1 > 40) to = from + 39;
     return Results.Text(string.Join("\n", lines.Skip(from - 1).Take(to - from + 1)));
-});
-
-app.MapPost("/run", async (RunRequest req) =>
-{
-    var cwd = string.IsNullOrWhiteSpace(req.Checkout) ? (checkouts.FirstOrDefault() ?? Environment.CurrentDirectory) : req.Checkout;
-    var sw = Stopwatch.StartNew();
-    var parts = req.Command.Split(' ', 2);
-    var (code, output) = await RunAsync(parts[0], parts.Length > 1 ? parts[1] : "", cwd, TimeSpan.FromMinutes(20));
-    sw.Stop();
-    var lines = output.Replace("\r\n", "\n").Split('\n');
-    var tail = string.Join("\n", lines.TakeLast(40));
-    int passed = 0, total = 0;
-    foreach (var l in lines)
-    {
-        var m = System.Text.RegularExpressions.Regex.Match(l, @"Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*(\d+),\s*Total:\s*(\d+)");
-        if (m.Success) { passed = int.Parse(m.Groups[2].Value); total = int.Parse(m.Groups[4].Value); }
-    }
-    var report = new RunReport(req.Check, req.Item, req.Session, name, code == 0 ? "pass" : "fail", passed, total, Math.Round(sw.Elapsed.TotalSeconds, 1), req.Command, tail, 1, code, null, null, req.Step);
-    try { var r = await http.PostAsJsonAsync("api/runs", report); return Results.Json(new { ok = r.IsSuccessStatusCode, exit = code, passed, total, tail }); }
-    catch (Exception ex) { return Results.Json(new { ok = false, exit = code, error = ex.Message, tail }); }
 });
 
 app.MapGet("/open", (string file, int line) =>
@@ -200,4 +160,3 @@ static async Task<(int code, string output)> RunAsync(string file, string argume
     catch (Exception ex) { return (127, ex.Message); }
 }
 
-sealed record RunRequest(string Check, string Command, string? Checkout, string? Item, string? Session, int? Step);

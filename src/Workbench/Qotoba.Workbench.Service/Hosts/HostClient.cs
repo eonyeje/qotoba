@@ -25,17 +25,6 @@ public sealed class HostClient(HttpClient http, IServiceScopeFactory scopes, IOp
         return r;
     }
 
-    public async Task<GitResult> RunGitAsync(string machineId, GitInstruction instruction, CancellationToken ct = default)
-    {
-        try
-        {
-            using var res = await http.SendAsync(Req(HttpMethod.Post, await UrlFor(machineId, ct) + "/git", instruction), ct);
-            var body = await res.Content.ReadFromJsonAsync<GitResult>(ct);
-            return body ?? new GitResult(false, "The Host answered with nothing.");
-        }
-        catch (Exception ex) { return new GitResult(false, "The Host on " + machineId + " is not reachable: " + ex.Message); }
-    }
-
     public async Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default)
     {
         try

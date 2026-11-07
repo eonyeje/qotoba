@@ -6,25 +6,15 @@ namespace Qotoba.Workbench.Store.Ops;
 
 public sealed partial class WorkbenchOps
 {
-    /// <summary>The owner pressed something on a card. The only path by which anything is answered.</summary>
+    /// <summary>The owner pressed something on a card. Every card also takes the owner's own words with "write".</summary>
     public async Task<PressResult> PressAsync(PressRequest req, CancellationToken ct = default)
     {
         var card = await RequireCardAsync(req.Card, ct);
-        if (req.Action == "write" && card.Type != CardType.Question)
-        {
-            if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Write a line first.");
-            await TellSessionAsync(card, req.Text.Trim(), ct);
-            Audit(Actor.Owner, "write", "card", card.Id, req.Text);
-            await SaveAsync("card", card.Id, ct);
-            return new PressResult(true, card.SessionId is null ? "Noted" : $"Sent to session {Short(card.SessionId)}");
-        }
         var result = card.Type switch
         {
-            CardType.Question => await PressQuestionAsync(card, req, ct),
-            CardType.Packet => await PressPacketAsync(card, req, ct),
-            CardType.Plan => await PressPlanAsync(card, req, ct),
+            CardType.Page => await PressPageAsync(card, req, ct),
+            CardType.Deviation => await PressDeviationAsync(card, req, ct),
             CardType.Stuck => await PressStuckAsync(card, req, ct),
-            CardType.Proposals => await PressProposalsAsync(card, req, ct),
             CardType.Info => await PressInfoAsync(card, req, ct),
             _ => new PressResult(false, "Unknown card kind.")
         };
@@ -44,208 +34,96 @@ public sealed partial class WorkbenchOps
         { s.State = SessionState.Working; s.WaitingSince = null; s.Stuck = false; }
     }
 
-    private async Task<PressResult> PressQuestionAsync(Card card, PressRequest req, CancellationToken ct)
+    private async Task<PressResult> WriteAsync(Card card, string? text, string prefix, CancellationToken ct)
     {
-        var q = card.QuestionId is null ? null : await db.Questions.FindAsync([card.QuestionId], ct);
-        if (q is null) return new PressResult(false, "The card has no question.");
-        var opts = List<QuestionOption>(q.OptionsJson);
-        var s = await SessionOf(card, ct);
-        switch (req.Action)
-        {
-            case "pick":
-            case "recommended":
-            {
-                var idx = req.Action == "recommended" ? opts.FindIndex(o => o.Rec) : (req.Index ?? -1);
-                if (idx < 0 || idx >= opts.Count) return new PressResult(false, "Pick one of the options.");
-                return await AnswerAsync(card, q, opts[idx].T, req.Action == "recommended" ? "Assumed the recommended option" : "Picked", ct);
-            }
-            case "write":
-                if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Say it in your own words first.");
-                return await AnswerAsync(card, q, req.Text.Trim(), "Answered in your words", ct);
-            case "defer":
-                card.State = CardState.Deferred; card.DeferredUntil = Now.AddHours(24);
-                return new PressResult(true, $"Deferred for 24 hours · it comes back on {fmt.Day(Now.AddHours(24))}");
-            case "talk":
-                return new PressResult(true, "Talk opens a design chat with this card's brief. Chat never writes to the Workbench.");
-            default: return new PressResult(false, "Unknown action " + req.Action);
-        }
-
-        async Task<PressResult> AnswerAsync(Card c, Question qq, string answer, string how, CancellationToken k)
-        {
-            qq.State = QuestionState.Answered; qq.Answer = answer; qq.AnsweredAt = Now;
-            c.State = CardState.Answered; c.Answer = answer; c.AnsweredAt = Now;
-            var it = await db.Items.FindAsync([qq.ItemId], k);
-            if (it is not null && qq.StepN is int n)
-            {
-                var steps = List<Step>(it.StepsJson);
-                var i = steps.FindIndex(x => x.N == n);
-                if (i >= 0 && steps[i].State == StepState.Blocked) { steps[i] = steps[i] with { State = StepState.Current }; it.StepsJson = Json.Write(steps); }
-                if (it.State == ItemState.Blocked) it.State = ItemState.Building;
-                await HistoryAsync(it.Id, "question answered", $"[[question:{qq.Id}]]: {answer}", k);
-                var decisions = Json.ReadList<Decision>(it.DecisionsJson);
-                decisions.Add(new Decision(qq.Text, answer, "question", "card:" + c.Id, qq.ReportId is null ? null : "fpb:" + qq.ReportId, fmt.DayTime(Now), null));
-                it.DecisionsJson = Json.Write(decisions);
-            }
-            await LineAnsweredAsync(qq, answer, k);
-            await TellSessionAsync(c, $"Answer to {qq.Id} ({qq.Text}): {answer}", k);
-            return new PressResult(true, $"{how} · sent to session {(s is null ? "" : Short(s.Id))} on {s?.MachineId}");
-        }
+        if (string.IsNullOrWhiteSpace(text)) return new PressResult(false, "Write a line first.");
+        await TellSessionAsync(card, prefix + text.Trim(), ct);
+        card.State = CardState.Answered; card.Answer = text.Trim(); card.AnsweredAt = Now;
+        return new PressResult(true, card.SessionId is null ? "Noted" : $"Sent to session {Short(card.SessionId)}");
     }
 
-    private async Task<PressResult> PressPacketAsync(Card card, PressRequest req, CancellationToken ct)
+    private async Task<PressResult> PressPageAsync(Card card, PressRequest req, CancellationToken ct)
     {
-        var pk = Json.Read(card.PayloadJson, new PacketPayload());
+        var pg = Json.Read(card.PayloadJson, new PagePayload());
         var it = card.ItemId is null ? null : await db.Items.FindAsync([card.ItemId], ct);
         switch (req.Action)
         {
             case "approve":
             {
-                if (pk.Approved) return new PressResult(false, "Already approved.");
-                var machine = pk.Machine ?? options.MachineId;
-                var top = it is null ? null : await TopOfAsync(it, ct);
-                var closesTop = top is not null && it is not null && await TopFinishesWithAsync(top, it, ct);
-                var lines = top is null || it is null ? pk.Instruction : MergeInstruction(top, it, closesTop);
-                pk.Instruction = lines;
-                pk.Checkout ??= top?.Checkout;
-                var git = lines.Count == 0 ? new GitResult(true, "") : await host.RunGitAsync(machine, new GitInstruction(pk.Checkout ?? "", lines), ct);
-                pk.GitOutput = git.Output;
-                if (!git.Ok)
-                {
-                    card.PayloadJson = Json.Write(pk);
-                    if (it is not null) await HistoryAsync(it.Id, "approve failed", "The Host reported: " + Trim(git.Output, 200), ct);
-                    return new PressResult(false, "The Host could not run the instruction: " + Trim(git.Output, 160));
-                }
-                pk.Approved = true; pk.Merged = lines.Count > 0;
-                var shas = System.Text.RegularExpressions.Regex.Matches(git.Output, @"^[0-9a-f]{7,40}$", System.Text.RegularExpressions.RegexOptions.Multiline);
-                var sha = shas.Count > 0 ? shas[^1] : System.Text.RegularExpressions.Regex.Match(git.Output, @"\b[0-9a-f]{7,40}\b");
-                if (sha.Success)
-                {
-                    pk.MergedCommit = sha.Value[..Math.Min(7, sha.Value.Length)];
-                    if (await db.Commits.FindAsync([pk.MergedCommit], ct) is null)
-                        db.Commits.Add(new Commit { Id = pk.MergedCommit, Msg = "Merge " + (it?.Id ?? "") + " " + (it?.Title ?? ""), Date = Now, SessionId = card.SessionId, FilesJson = Json.Write(pk.Files), Plus = pk.Plus, Minus = pk.Minus, DiffJson = Json.Write(git.Output.Replace("\r\n", "\n").Split('\n').TakeLast(40).ToList()) });
-                }
-                card.PayloadJson = Json.Write(pk);
-                card.State = CardState.Approved; card.AnsweredAt = Now; card.Answer = "approved";
+                if (pg.Approved) return new PressResult(false, "Already approved.");
+                pg.Approved = true; pg.ApprovedAt = fmt.DayTime(Now);
+                card.PayloadJson = Json.Write(pg);
+                card.State = CardState.Approved; card.Answer = "approved"; card.AnsweredAt = Now;
                 if (it is not null)
                 {
-                    it.State = ItemState.Done; it.IsOpen = false; it.SoMin = Math.Max(it.SoMin, pk.ActualMin);
-                    var steps = List<Step>(it.StepsJson).Select(st => st.State == StepState.Done ? st : st with { State = StepState.Done }).ToList();
-                    it.StepsJson = Json.Write(steps);
-                    await HistoryAsync(it.Id, "packet approved", pk.MergedCommit is null ? (lines.Count == 0 ? "Closed; there was no branch to merge" : "Merged into main") : $"Merged as [[commit:{pk.MergedCommit}]]", ct);
-                    await RecomputeFactorAsync(it, pk, ct);
-                    await AdvanceReportsOfAsync(it, ct);
-                    if (closesTop && top is not null) await CloseTopAsync(top, ct);
+                    var decisions = Json.ReadList<Decision>(it.DecisionsJson);
+                    foreach (var (k, v) in pg.Answers) decisions.Add(new Decision(k, v, "page", "card:" + card.Id, null, fmt.DayTime(Now), null));
+                    it.DecisionsJson = Json.Write(decisions);
+                    if (it.State == ItemState.Coarse) it.State = ItemState.Planning;
+                    await HistoryAsync(it.Id, "page approved", $"[[card:{card.Id}]] {pg.Title}" + (pg.Answers.Count > 0 ? $" · {pg.Answers.Count} answers" : ""), ct);
                 }
-                await TellSessionAsync(card, "Packet approved and merged by the owner. Nothing further runs on this item.", ct);
-                return new PressResult(true, lines.Count == 0 ? $"{it?.Id} closed" : $"Merged into main on {machine}" + (pk.MergedCommit is null ? "" : $" as {pk.MergedCommit}") + (closesTop && top is not null ? $" · {top.Id} is finished, its branch is deleted" : ""));
+                var answers = pg.Answers.Count == 0 ? "" : "\nAnswers:\n" + string.Join("\n", pg.Answers.Select(a => $"- {a.Key}: {a.Value}"));
+                await TellSessionAsync(card, $"The owner approved the page \"{pg.Title}\". It is the agreed design." + answers, ct);
+                return new PressResult(true, $"Approved · {pg.Answers.Count} answer{(pg.Answers.Count == 1 ? "" : "s")} go with it");
             }
             case "changes":
-                if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Say what to change.");
-                await TellSessionAsync(card, "Changes asked on the packet: " + req.Text.Trim(), ct);
-                if (it is not null) { it.State = ItemState.Building; await HistoryAsync(it.Id, "changes asked", req.Text.Trim(), ct); }
-                card.State = CardState.Answered; card.Answer = "changes: " + req.Text.Trim(); card.AnsweredAt = Now;
-                return new PressResult(true, "Sent to the session; the packet comes back when it is ready");
-            case "all-fine":
+            case "write":
             {
-                var list = await db.Assumptions.Where(a => a.SessionId == card.SessionId && a.State == AssumptionState.Unreviewed).ToListAsync(ct);
-                foreach (var a in list) a.State = AssumptionState.Fine;
-                return new PressResult(true, $"All {list.Count} fine");
+                var answers = pg.Answers.Count == 0 ? "" : "\nAnswers so far:\n" + string.Join("\n", pg.Answers.Select(a => $"- {a.Key}: {a.Value}"));
+                var r = await WriteAsync(card, req.Text, $"Changes asked on the page \"{pg.Title}\": ", ct);
+                if (r.Ok && answers.Length > 0) { var s = await SessionOf(card, ct); if (s is not null) db.Messages.Add(new OwnerMessage { SessionId = s.Id, CardId = card.Id, Text = answers.TrimStart(), At = Now }); }
+                if (r.Ok && it is not null) await HistoryAsync(it.Id, "changes asked", req.Text!.Trim(), ct);
+                return r.Ok ? new PressResult(true, "Sent to the session; the page comes back changed") : r;
             }
-            case "flip":
-            {
-                var a = req.Target is null ? null : await db.Assumptions.FindAsync([req.Target], ct);
-                if (a is null) return new PressResult(false, "Which assumption?");
-                a.State = AssumptionState.Flipped;
-                await TellSessionAsync(card, "Assumption flipped by the owner (do the opposite): " + a.Text, ct);
-                return new PressResult(true, "Flipped · the session is told to do the opposite");
-            }
-            case "found-task":
-            case "found-later":
-            case "found-drop":
-            {
-                var f = req.Target is null ? null : await db.Founds.FindAsync([req.Target], ct);
-                if (f is null) return new PressResult(false, "Which found item?");
-                f.State = req.Action switch { "found-task" => FoundState.Task, "found-later" => FoundState.Later, _ => FoundState.Dropped };
-                return new PressResult(true, req.Action switch { "found-task" => "Add it where you want it in the tree", "found-later" => $"{f.Title} kept for later", _ => $"{f.Title} dropped" },
-                    req.Action == "found-task" ? "#/work?sheet=add&found=" + f.Id : null);
-            }
+            case "dismiss":
+                card.State = CardState.Dismissed; card.AnsweredAt = Now;
+                await TellSessionAsync(card, $"The owner dismissed the page \"{pg.Title}\" without approving it.", ct);
+                return new PressResult(true, "Dismissed");
             default: return new PressResult(false, "Unknown action " + req.Action);
         }
     }
 
-    private async Task RecomputeFactorAsync(Item it, PacketPayload pk, CancellationToken ct)
+    private async Task<PressResult> PressDeviationAsync(Card card, PressRequest req, CancellationToken ct)
     {
-        if (pk.EstMin <= 0 || pk.ActualMin <= 0) return;
-        var f = Math.Round(pk.ActualMin / (double)pk.EstMin, 2);
-        it.Factor = f;
-        var p = await ProjectOfAsync(it, ct);
-        var was = p.Factor;
-        p.Factor = was is null ? Math.Round(f, 1) : Math.Round((was.Value + f) / 2, 1);
-        if (was is not null && Math.Abs(p.Factor.Value - was.Value) >= 0.1)
-            await InfoAsync($"{p.Name} factor is now {p.Factor:0.0} (was {was:0.0})",
-                $"{it.Id} took {pk.ActualMin} minutes against {pk.EstMin} Claude-minutes. {p.Name} forecasts now use {p.Factor:0.0}.",
-                "project:" + p.Id, "Computed by the Workbench after the packet was approved", it.Id, null, null, ct);
-    }
-
-    private async Task<PressResult> PressPlanAsync(Card card, PressRequest req, CancellationToken ct)
-    {
-        var pl = Json.Read(card.PayloadJson, new PlanPayload());
+        var dv = Json.Read(card.PayloadJson, new DeviationPayload());
         var it = card.ItemId is null ? null : await db.Items.FindAsync([card.ItemId], ct);
-        if (it is null) return new PressResult(false, "The plan has no item.");
         switch (req.Action)
         {
-            case "settle-all":
-                foreach (var q in pl.Settle.ToList()) pl.Settle[pl.Settle.IndexOf(q)] = q with { Chosen = q.Rec };
-                pl.Settled = true;
-                card.PayloadJson = Json.Write(pl);
-                return new PressResult(true, $"{pl.Settle.Count} defaults accepted");
-            case "settle":
-            {
-                if (req.Target is null || req.Index is null) return new PressResult(false, "Which question and option?");
-                var i = pl.Settle.FindIndex(q => q.Id == req.Target);
-                if (i < 0) return new PressResult(false, "Unknown settle question.");
-                pl.Settle[i] = pl.Settle[i] with { Chosen = req.Index };
-                card.PayloadJson = Json.Write(pl);
-                return new PressResult(true, "Chosen");
-            }
-            case "approve":
-            {
-                if (pl.Approved) return new PressResult(false, "Already approved.");
-                foreach (var q in pl.Settle.ToList()) if (q.Chosen is null) pl.Settle[pl.Settle.IndexOf(q)] = q with { Chosen = q.Rec };
-                pl.Settled = true; pl.Approved = true; pl.ApprovedAt = fmt.DayTime(Now);
-                card.PayloadJson = Json.Write(pl);
-                card.State = CardState.Approved; card.Answer = "approved"; card.AnsweredAt = Now;
-                it.StepsJson = Json.Write(pl.Steps.Select((s, i) => new Step(i + 1, s.T, s.Est, i == 0 ? StepState.Current : StepState.Todo, s.Proof is { Length: > 0 } p && (p.StartsWith("run:") || p.StartsWith("nyw:")) ? p : null, s.Needs, null, s.Proof)).ToList());
-                it.EstMin = pl.Steps.Sum(s => s.Est);
-                it.Factor ??= pl.Factor;
-                it.State = ItemState.Building;
-                it.IsOpen = true;
-                var p = await ProjectOfAsync(it, ct);
-                if (p.State == ProjectState.Coarse) p.State = ProjectState.Open;
-                var top = await TopOfAsync(it, ct);
-                var planner = card.SessionId is null ? null : await db.Sessions.FindAsync([card.SessionId], ct);
-                var branchNote = await EnsureBranchAsync(top, pl.Machine ?? options.MachineId, planner?.Cwd, ct);
-                pl.Branch = top.Branch; pl.Checkout = top.Checkout; card.PayloadJson = Json.Write(pl);
-                var decisions = Json.ReadList<Decision>(it.DecisionsJson);
-                foreach (var q in pl.Settle)
+            case "allow":
+                dv.Decided = "allowed"; card.PayloadJson = Json.Write(dv);
+                card.State = CardState.Approved; card.Answer = "allowed"; card.AnsweredAt = Now;
+                if (it is not null)
                 {
-                    var choice = q.Chosen is int c && c >= 0 && c < q.Options.Count ? q.Options[c] : q.Options[q.Rec];
-                    await HistoryAsync(it.Id, "settled", $"{q.Q} → {choice}" + (q.From is null ? "" : $" (from [[{q.From}]])"), ct);
-                    decisions.Add(new Decision(q.Q, choice, "settle", "card:" + card.Id, q.From, fmt.DayTime(Now), null));
+                    var decisions = Json.ReadList<Decision>(it.DecisionsJson);
+                    decisions.Add(new Decision(dv.What, "allowed", "deviation", "card:" + card.Id, null, fmt.DayTime(Now), null));
+                    it.DecisionsJson = Json.Write(decisions);
+                    await HistoryAsync(it.Id, "deviation allowed", dv.What, ct);
                 }
-                it.DecisionsJson = Json.Write(decisions);
-                await SettleLinesAsync(it, card, pl.Settle, ct);
-                await SettleEdgesAsync(pl.Settle, ct);
-                await HistoryAsync(it.Id, "plan approved", $"{pl.Steps.Count} steps, {it.EstMin} Claude-min", ct);
-                var settled = string.Join("\n", pl.Settle.Select(q => $"- {q.Q}: {(q.Chosen is int c2 && c2 < q.Options.Count ? q.Options[c2] : q.Options[q.Rec])}"));
-                await TellSessionAsync(card, "Plan approved by the owner. Start step 1." + (settled.Length > 0 ? "\nSettled defaults:\n" + settled : ""), ct);
-                return new PressResult(true, $"Plan approved · {it.Id} opens · {branchNote}");
+                await TellSessionAsync(card, "Deviation allowed by the owner: " + dv.What, ct);
+                return new PressResult(true, "Allowed · the session carries on");
+            case "pick":
+            {
+                var idx = req.Index ?? -1;
+                if (idx < 0 || idx >= dv.Options.Count) return new PressResult(false, "Pick one of the options.");
+                dv.Decided = dv.Options[idx]; card.PayloadJson = Json.Write(dv);
+                card.State = CardState.Answered; card.Answer = dv.Decided; card.AnsweredAt = Now;
+                if (it is not null)
+                {
+                    var decisions = Json.ReadList<Decision>(it.DecisionsJson);
+                    decisions.Add(new Decision(dv.What, dv.Decided, "deviation", "card:" + card.Id, null, fmt.DayTime(Now), null));
+                    it.DecisionsJson = Json.Write(decisions);
+                    await HistoryAsync(it.Id, "deviation decided", $"{dv.What} → {dv.Decided}", ct);
+                }
+                await TellSessionAsync(card, $"On the deviation \"{dv.What}\" the owner chose: {dv.Decided}", ct);
+                return new PressResult(true, "Chosen · sent to the session");
             }
-            case "change":
-                if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Say what to change.");
-                await TellSessionAsync(card, "Change the plan: " + req.Text.Trim(), ct);
-                card.State = CardState.Answered; card.Answer = "change: " + req.Text.Trim(); card.AnsweredAt = Now;
-                return new PressResult(true, "Sent to the session; a new plan card comes back");
+            case "back":
+            case "write":
+            {
+                var r = await WriteAsync(card, req.Text, $"Sent back on the deviation \"{dv.What}\": ", ct);
+                if (r.Ok) { dv.Decided = "sent back"; card.PayloadJson = Json.Write(dv); if (it is not null) await HistoryAsync(it.Id, "deviation sent back", req.Text!.Trim(), ct); }
+                return r.Ok ? new PressResult(true, "Sent back to the session") : r;
+            }
             default: return new PressResult(false, "Unknown action " + req.Action);
         }
     }
@@ -261,8 +139,8 @@ public sealed partial class WorkbenchOps
                 it.HomeMachineId = req.Value;
                 card.State = CardState.Answered; card.Answer = "reassign " + req.Value; card.AnsweredAt = Now;
                 await TellSessionAsync(card, $"The owner moved {it.Id} to {req.Value}. Stop here; a session on {req.Value} continues.", ct);
-                await HistoryAsync(it.Id, "reassigned", $"You moved it to [[machine:{req.Value}]] (one home machine)", ct);
-                return new PressResult(true, $"{it.Id} moves to {req.Value}: its branch is checked out there next (one home machine)");
+                await HistoryAsync(it.Id, "reassigned", $"You moved it to [[machine:{req.Value}]]", ct);
+                return new PressResult(true, $"{it.Id} moves to {req.Value}");
             case "retry":
                 card.State = CardState.Answered; card.Answer = "retry"; card.AnsweredAt = Now;
                 if (it is not null && it.State == ItemState.Blocked) it.State = ItemState.Building;
@@ -280,37 +158,8 @@ public sealed partial class WorkbenchOps
                 }
                 await TellSessionAsync(card, $"Step {st.Step} is dropped by the owner. Move to the next step.", ct);
                 return new PressResult(true, $"Step {st.Step} dropped · the session moves on");
-            default: return new PressResult(false, "Unknown action " + req.Action);
-        }
-    }
-
-    private async Task<PressResult> PressProposalsAsync(Card card, PressRequest req, CancellationToken ct)
-    {
-        var props = await db.Proposals.Where(p => p.CardId == card.Id).OrderBy(p => p.Id).ToListAsync(ct);
-        switch (req.Action)
-        {
-            case "tick":
-            {
-                var p = props.FirstOrDefault(x => x.Id == req.Target);
-                if (p is null) return new PressResult(false, "Which line?");
-                p.Ticked = req.Value != "false";
-                return new PressResult(true, p.Ticked ? "Ticked" : "Unticked");
-            }
-            case "record":
-            {
-                var n = await db.Rulings.CountAsync(ct);
-                var made = 0;
-                foreach (var p in props.Where(x => x.Ticked && x.RulingId is null))
-                {
-                    var r = new Ruling { Id = Ids.Ruling(++n), ProjectId = card.ProjectId, Title = Trim(p.Text, 60), Text = p.Text, Date = Now, Origin = "from a chat proposal", ItemId = card.ItemId };
-                    db.Rulings.Add(r); p.RulingId = r.Id; made++;
-                }
-                card.State = CardState.Answered; card.Answer = $"recorded {made}"; card.AnsweredAt = Now;
-                return new PressResult(true, $"{made} ruling{(made == 1 ? "" : "s")} recorded in your words");
-            }
-            case "discard":
-                card.State = CardState.Dismissed; card.AnsweredAt = Now;
-                return new PressResult(true, "Batch discarded · the chat stays in claude.ai");
+            case "write":
+                return await WriteAsync(card, req.Text, "On the stuck step, the owner says: ", ct);
             default: return new PressResult(false, "Unknown action " + req.Action);
         }
     }
@@ -324,6 +173,7 @@ public sealed partial class WorkbenchOps
                 card.State = CardState.Dismissed; card.AnsweredAt = Now;
                 return new PressResult(true, "Dismissed");
             case "note":
+            case "write":
                 if (string.IsNullOrWhiteSpace(req.Text)) return new PressResult(false, "Write the note first.");
                 await TellSessionAsync(card, "Note from the owner: " + req.Text.Trim(), ct);
                 return new PressResult(true, card.SessionId is null ? "Noted" : "Sent to the session");
@@ -331,9 +181,7 @@ public sealed partial class WorkbenchOps
             {
                 var text = req.Text?.Trim() is { Length: > 0 } t ? t : info.Ruling;
                 if (string.IsNullOrWhiteSpace(text)) return new PressResult(false, "There is nothing to record.");
-                var n = await db.Rulings.CountAsync(ct) + 1;
-                var r = new Ruling { Id = Ids.Ruling(n), ProjectId = card.ProjectId, Title = Trim(text, 60), Text = text, Date = Now, Origin = "set by you", ItemId = card.ItemId };
-                db.Rulings.Add(r);
+                var r = await NewRulingAsync(text, card.ProjectId, card.ItemId, null, "set by you", ct);
                 card.RulingId = r.Id; card.State = CardState.Dismissed; card.AnsweredAt = Now;
                 return new PressResult(true, $"Recorded as {r.Id}", "#/ruling/" + r.Id);
             }
@@ -341,15 +189,50 @@ public sealed partial class WorkbenchOps
         }
     }
 
+    /* ---------------------------------------------------------------- decisions */
+
+    private async Task<Ruling> NewRulingAsync(string text, string? projectId, string? itemId, string? sessionId, string origin, CancellationToken ct)
+    {
+        var n = await db.Rulings.CountAsync(ct) + 1;
+        while (await db.Rulings.AnyAsync(r => r.Id == Ids.Ruling(n), ct)) n++;
+        var r = new Ruling { Id = Ids.Ruling(n), ProjectId = projectId, Title = Trim(text, 60), Text = text.Trim(), Date = Now, Origin = origin, ItemId = itemId, SessionId = sessionId };
+        db.Rulings.Add(r);
+        return r;
+    }
+
+    /// <summary>The owner typed a ruling on the Rulings screen.</summary>
     public async Task<Ruling> AddRulingAsync(RulingRequest req, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Text)) throw new WorkbenchRuleException("ruling.text", "A ruling is in your words.");
-        var n = await db.Rulings.CountAsync(ct) + 1;
-        var r = new Ruling { Id = Ids.Ruling(n), ProjectId = req.Project, Title = string.IsNullOrWhiteSpace(req.Title) ? Trim(req.Text, 60) : req.Title.Trim(), Text = req.Text.Trim(), Date = Now, Origin = "set by you" };
-        db.Rulings.Add(r);
+        var r = await NewRulingAsync(req.Text, req.Project, null, null, "set by you", ct);
+        if (!string.IsNullOrWhiteSpace(req.Title)) r.Title = req.Title.Trim();
         Audit(Actor.Owner, "add", "ruling", r.Id);
         await SaveAsync("ruling", r.Id, ct);
         return r;
+    }
+
+    /// <summary>A session heard a decision in chat and records it straight away, in the owner's words. The owner prunes in the ledger or in chat.</summary>
+    public async Task<Ruling> RecordDecisionAsync(string sessionId, string text, string? itemId, string? projectId, CancellationToken ct = default)
+    {
+        var s = await RequireSessionAsync(sessionId, ct);
+        if (string.IsNullOrWhiteSpace(text)) throw new WorkbenchRuleException("ruling.text", "Record the decision in the owner's own words.");
+        Rules.TextFits(text, "A decision");
+        var it = itemId is not null ? await RequireItemAsync(itemId, ct) : s.ItemId is null ? null : await db.Items.FindAsync([s.ItemId], ct);
+        var r = await NewRulingAsync(text, projectId ?? it?.ProjectId, it?.Id, s.Id, $"said in chat, recorded by session {Short(s.Id)}", ct);
+        if (it is not null) await HistoryAsync(it.Id, "decision", $"[[ruling:{r.Id}]] {r.Title}", ct);
+        await LedgerAsync(s, "decision", $"{r.Id} · {r.Title}");
+        Audit(Actor.Claude, "record", "ruling", r.Id, it?.Id);
+        await SaveAsync("ruling", r.Id, ct);
+        return r;
+    }
+
+    /// <summary>The owner overturns or withdraws a recorded decision.</summary>
+    public async Task WithdrawRulingAsync(string id, string? note, CancellationToken ct = default)
+    {
+        var r = await db.Rulings.FindAsync([id], ct) ?? throw new WorkbenchRuleException("ruling.unknown", $"There is no ruling {id}.");
+        r.NeverReopened = false; r.ReopenNote = string.IsNullOrWhiteSpace(note) ? $"Withdrawn by you on {fmt.Day(Now)}" : note.Trim();
+        Audit(Actor.Owner, "withdraw", "ruling", id);
+        await SaveAsync("ruling", id, ct);
     }
 
     public async Task MessageSessionAsync(string sessionId, string text, CancellationToken ct = default)

@@ -4,15 +4,19 @@ using Qotoba.Workbench.Model;
 
 namespace Qotoba.Workbench.Store.Ops;
 
+/// <summary>
+/// The work tree: a plain WBS. The owner shapes it, on the tree or by dictating in chat; Claude writes what the owner
+/// dictated. An item is a unit of development work at any depth, never an FTR, BUG or PER.
+/// </summary>
 public sealed partial class WorkbenchOps
 {
-    /* ---------------------------------------------------------------- owner structure controls */
+    /* ---------------------------------------------------------------- adding items */
 
     public async Task<Item> AddItemAsync(AddItemRequest req, Actor actor, CancellationToken ct = default)
     {
-        Rules.OnlyOwnerCreatesStructure(actor, "task");
-        if (!req.Kind.Equals("task", StringComparison.OrdinalIgnoreCase)) throw new WorkbenchRuleException("item.kind", "FTR, BUG and PER are reports: use the report endpoint.");
-        if (string.IsNullOrWhiteSpace(req.Title)) throw new WorkbenchRuleException("item.title", "A title, in your words.");
+        if (!req.Kind.Equals("task", StringComparison.OrdinalIgnoreCase) && !req.Kind.Equals("item", StringComparison.OrdinalIgnoreCase))
+            throw new WorkbenchRuleException("item.kind", "An item is a unit of work. An FTR, BUG or PER is raised by Claude from chat, never added here.");
+        if (string.IsNullOrWhiteSpace(req.Title)) throw new WorkbenchRuleException("item.title", "A title, in the owner's words.");
         Item? parent = null; Project? project = null;
         if (req.Place is { Length: > 0 } place)
         {
@@ -21,119 +25,174 @@ public sealed partial class WorkbenchOps
         }
         project ??= req.Project is null ? null : await db.Projects.FindAsync([req.Project], ct);
         project ??= await db.Projects.OrderBy(p => p.Order).FirstAsync(ct);
+        var it = await NewItemAsync(project, parent, req.Title, req.CoarseSize, actor, null, ct);
+        await SaveAsync("item", it.Id, ct);
+        return it;
+    }
 
+    private async Task<Item> NewItemAsync(Project project, Item? parent, string title, string? size, Actor actor, Session? s, CancellationToken ct)
+    {
         string id;
         if (parent is null) { id = Ids.Child(project.Code, null, project.NextItemNumber); project.NextItemNumber++; }
         else
         {
             var n = await db.Items.CountAsync(i => i.ParentId == parent.Id, ct) + 1;
-            while (await db.Items.AnyAsync(i => i.Id == Ids.Child(project.Code, parent.Id, n), ct)) n++;
+            while (await db.Items.AnyAsync(i => i.Id == Ids.Child(project.Code, parent.Id, n), ct) || db.Items.Local.Any(i => i.Id == Ids.Child(project.Code, parent.Id, n))) n++;
             id = Ids.Child(project.Code, parent.Id, n);
         }
         var order = parent is null
-            ? await db.Items.CountAsync(i => i.ProjectId == project.Id && i.ParentId == null, ct)
-            : await db.Items.CountAsync(i => i.ParentId == parent.Id, ct);
+            ? await db.Items.CountAsync(i => i.ProjectId == project.Id && i.ParentId == null, ct) + db.Items.Local.Count(i => i.ProjectId == project.Id && i.ParentId == null && db.Entry(i).State == EntityState.Added)
+            : await db.Items.CountAsync(i => i.ParentId == parent.Id, ct) + db.Items.Local.Count(i => i.ParentId == parent.Id && db.Entry(i).State == EntityState.Added);
         var it = new Item
         {
-            Id = id, ProjectId = project.Id, ParentId = parent?.Id, Order = order, Title = req.Title.Trim(),
-            State = ItemState.Coarse, CoarseSize = string.IsNullOrWhiteSpace(req.CoarseSize) ? "~1 week" : req.CoarseSize!, Created = Now,
-            ImplementsJson = Json.Write((req.Implements ?? []).Select(r => r.StartsWith("fpb:") ? r : "fpb:" + r).ToList())
+            Id = id, ProjectId = project.Id, ParentId = parent?.Id, Order = order, Title = title.Trim(),
+            State = ItemState.Coarse, CoarseSize = string.IsNullOrWhiteSpace(size) ? "~1 week" : size!, Created = Now
         };
-        it.HistoryJson = Json.Write(new List<HistoryLine> { new(fmt.DayTime(Now), "opened", parent is null ? $"You added the item under {project.Name}" : $"You added the item under [[item:{parent.Id}]]") });
+        var who = actor == Actor.Owner ? "You added the item" : $"Added from your chat by session {Short(s?.Id ?? "")}";
+        it.HistoryJson = Json.Write(new List<HistoryLine> { new(fmt.DayTime(Now), "added", parent is null ? $"{who} under {project.Name}" : $"{who} under [[item:{parent.Id}]]") });
         db.Items.Add(it);
-        if (req.FromFound is not null && await db.Founds.FindAsync([req.FromFound], ct) is { } found) { found.State = FoundState.Task; found.PromotedTo = "item:" + it.Id; }
-        Audit(Actor.Owner, "add", "item", it.Id, it.Title);
-        await SaveAsync("item", it.Id, ct);
+        Audit(actor, "add", "item", it.Id, it.Title);
         return it;
     }
 
-    public async Task<Item> PatchItemAsync(string id, ItemPatch patch, CancellationToken ct = default)
+    /// <summary>Claude writes the breakdown the owner dictated in chat: items under a parent, any depth, in one call.</summary>
+    public async Task<List<Item>> AddItemsAsync(string sessionId, string? parentId, List<ItemInput> items, CancellationToken ct = default)
+    {
+        var s = await RequireSessionAsync(sessionId, ct);
+        if (items.Count == 0) throw new WorkbenchRuleException("items.empty", "Nothing to add.");
+        Item? parent = null; Project? project = null;
+        if (parentId is { Length: > 0 })
+        {
+            parent = await db.Items.FindAsync([parentId], ct);
+            project = parent is null ? await db.Projects.FindAsync([parentId], ct) ?? await db.Projects.FirstOrDefaultAsync(p => p.Code == parentId.ToUpperInvariant(), ct) : await ProjectOfAsync(parent, ct);
+            if (project is null) throw new WorkbenchRuleException("item.parent", $"There is no item or project {parentId}.");
+        }
+        else if (s.ItemId is not null) { parent = await db.Items.FindAsync([s.ItemId], ct); project = parent is null ? null : await ProjectOfAsync(parent, ct); }
+        if (project is null) throw new WorkbenchRuleException("item.parent", "Say which item or project the new items go under.");
+        var made = new List<Item>();
+        async Task WalkAsync(Item? under, List<ItemInput> list)
+        {
+            foreach (var x in list)
+            {
+                if (string.IsNullOrWhiteSpace(x.Title)) throw new WorkbenchRuleException("item.title", "Every item has a title.");
+                var it = await NewItemAsync(project, under, x.Title, x.Size, Actor.Claude, s, ct);
+                made.Add(it);
+                if (x.Children is { Count: > 0 }) await WalkAsync(it, x.Children);
+            }
+        }
+        await WalkAsync(parent, items);
+        await LedgerAsync(s, "items", $"{made.Count} item{(made.Count == 1 ? "" : "s")} added under {parent?.Id ?? project.Code}");
+        if (parent is not null) await HistoryAsync(parent.Id, "broken down", $"{made.Count} item{(made.Count == 1 ? "" : "s")} added from your chat", ct);
+        await SaveAsync("item", made[0].Id, ct);
+        return made;
+    }
+
+    /* ---------------------------------------------------------------- owner structure controls */
+
+    public async Task<(Item item, string message)> PatchItemAsync(string id, ItemPatch patch, CancellationToken ct = default)
     {
         var it = await RequireItemAsync(id, ct);
-        if (patch.Title is { Length: > 0 } t && t != it.Title) { await HistoryAsync(id, "renamed", $"You renamed it from “{it.Title}”", ct); it.Title = t.Trim(); }
+        var message = "Saved";
+        if (patch.Title is { Length: > 0 } t && t != it.Title) { await HistoryAsync(id, "renamed", $"You renamed it from “{it.Title}”", ct); it.Title = t.Trim(); message = "Renamed"; }
         if (patch.ParentId is not null && patch.ParentId != it.ParentId)
         {
             var np = patch.ParentId == "" ? null : await RequireItemAsync(patch.ParentId, ct);
             it.ParentId = np?.Id;
             if (np is not null) it.ProjectId = np.ProjectId;
             await HistoryAsync(id, "moved", np is null ? "You moved it to the top level" : $"You moved it under [[item:{np.Id}]]", ct);
+            message = "Moved";
         }
-        if (patch.Open == true) await OpenNodeAsync(it, ct);
+        if (patch.Open == true) { var (opened, msg) = await OpenNodeAsync(it, ct); it = opened; message = msg; }
         Audit(Actor.Owner, "patch", "item", id);
         await SaveAsync("item", id, ct);
-        return it;
+        return (it, message);
     }
 
-    private async Task OpenNodeAsync(Item it, CancellationToken ct)
+    /// <summary>Opens a node. When a sibling is already open, that sibling is the one that opens: the owner is taken to it, nothing is refused.</summary>
+    private async Task<(Item item, string message)> OpenNodeAsync(Item it, CancellationToken ct)
     {
+        if (it.IsOpen) return (it, $"{it.Id} is already open");
         var siblings = await db.Items.Where(i => i.ParentId == it.ParentId && i.ProjectId == it.ProjectId).ToListAsync(ct);
-        Rules.MayOpen(it, siblings);
+        var clash = Rules.OpenClash(it, siblings);
+        if (clash is not null) return (clash, $"{clash.Title} is open at this level; opened it");
         it.IsOpen = true;
         if (it.State == ItemState.Coarse) it.State = ItemState.Planning;
         var p = await ProjectOfAsync(it, ct);
         if (p.State == ProjectState.Coarse) p.State = ProjectState.Open;
         await HistoryAsync(it.Id, "opened", "You opened the node", ct);
+        return (it, $"{it.Id} opened");
     }
 
-    /* ---------------------------------------------------------------- Claude's slots */
+    /* ---------------------------------------------------------------- what a session writes on its item */
 
-    public async Task<Card> SubmitPlanAsync(string sessionId, string itemId, List<StepInput> steps, List<SettleInput>? settle, string goal, CancellationToken ct = default)
+    /// <summary>Claude's own steps for the item: as many as it needs, each with an estimate. They give the item its progress; no card.</summary>
+    public async Task StepsWriteAsync(string sessionId, string itemId, List<StepInput> steps, string? goal, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
         var it = await RequireItemAsync(itemId, ct);
-        var modelSteps = steps.Select((x, i) => new Step(i + 1, x.Text, x.EstMin, StepState.Todo, x.Proof, x.Needs, null)).ToList();
-        Rules.PlanFits(modelSteps);
-        var p = await ProjectOfAsync(it, ct);
-        var factor = it.Factor ?? p.Factor ?? 1.2;
-        var own = (settle ?? []).Select((q, i) => new SettleQ("s" + (i + 1), q.Question, q.Options, q.Recommended, q.FromReport, null)).ToList();
-        var fromReports = await DrawSettleFromReportsAsync(it, own.Count, ct);
-        var fromEdges = await DrawSettleFromEdgesAsync(it, own.Count + fromReports.Count, ct);
-        var top = await TopOfAsync(it, ct);
-        var payload = new PlanPayload
+        var old = List<Step>(it.StepsJson);
+        var modelSteps = steps.Select((x, i) =>
         {
-            Steps = steps.Select(x => new PlanStep(x.Text, x.EstMin, x.Needs, x.Proof)).ToList(),
-            Settle = own.Concat(fromReports).Concat(fromEdges).ToList(),
-            Branch = top.Branch ?? BranchNameFor(p, top), Checkout = top.Checkout ?? s.Cwd, Factor = factor, Goal = goal, Machine = s.MachineId,
-            FactorNote = p.Factor is null ? "the programme default 1.2 applies" : null
-        };
-        var total = steps.Sum(x => x.EstMin);
-        var card = NewCard(CardType.Plan, $"Plan: {it.Title.ToLowerInvariant()}, {steps.Count} step{(steps.Count == 1 ? "" : "s")}", it.Id, s.Id);
-        card.ProjectId = it.ProjectId;
-        card.WeightMin = (int)Math.Round(total * factor);
-        card.Why = $"{total} Claude-min, about {Fmt.Minutes(card.WeightMin)} at factor {factor:0.0}." + (payload.Settle.Count > 0 ? $" {payload.Settle.Count} settle question{(payload.Settle.Count == 1 ? " has a default" : "s have defaults")}." : "");
-        card.OriginStep = "plan, before step 1";
-        card.OriginFromJson = Json.Write(new List<string> { "session:" + s.Id });
-        card.PayloadJson = Json.Write(payload);
-        db.Cards.Add(card);
-        it.PlanCardId = card.Id;
-        it.EstMin = total;
-        it.Goal = string.IsNullOrWhiteSpace(it.Goal) ? goal : it.Goal;
-        if (it.State == ItemState.Coarse) it.State = ItemState.Planning;
+            var prev = old.FirstOrDefault(o => string.Equals(o.Text.Trim(), x.Text.Trim(), StringComparison.OrdinalIgnoreCase));
+            return new Step(i + 1, x.Text.Trim(), x.EstMin, prev?.State ?? (i == 0 ? StepState.Current : StepState.Todo), null, x.Needs, prev?.Note, x.Proof);
+        }).ToList();
+        Rules.StepsHaveEstimates(modelSteps);
+        it.StepsJson = Json.Write(modelSteps);
+        it.EstMin = modelSteps.Sum(x => x.EstMin);
+        if (!string.IsNullOrWhiteSpace(goal)) it.Goal = goal.Trim();
+        if (it.State is ItemState.Coarse or ItemState.Planning or ItemState.Planned) it.State = ItemState.Building;
+        it.HomeMachineId ??= s.MachineId;
         s.ItemId ??= it.Id;
-        await LedgerAsync(s, "plan", $"Plan submitted · {steps.Count} steps · {card.Id}");
-        await HistoryAsync(it.Id, "plan submitted", $"[[card:{card.Id}]] by [[session:{s.Id}]]", ct);
-        Audit(Actor.Claude, "plan", "card", card.Id, it.Id);
-        await SaveAsync("card", card.Id, ct);
-        return card;
+        await LedgerAsync(s, "steps", $"{modelSteps.Count} steps · {it.EstMin} Claude-min");
+        await HistoryAsync(it.Id, old.Count == 0 ? "steps" : "steps revised", $"{modelSteps.Count} steps, {it.EstMin} Claude-min, by [[session:{s.Id}]]", ct);
+        Audit(Actor.Claude, "steps", "item", it.Id);
+        await SaveAsync("item", it.Id, ct);
     }
 
-    public async Task StepUpdateAsync(string sessionId, string itemId, int n, string state, string? proofRef, string? note, CancellationToken ct = default)
+    public async Task StepUpdateAsync(string sessionId, string itemId, int n, string state, string? note, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
         var it = await RequireItemAsync(itemId, ct);
         var steps = List<Step>(it.StepsJson);
         var i = steps.FindIndex(x => x.N == n);
-        if (i < 0) throw new WorkbenchRuleException("step.unknown", $"There is no step {n} on {itemId}. Steps come from the approved plan.");
+        if (i < 0) throw new WorkbenchRuleException("step.unknown", $"There is no step {n} on {itemId}. Write the steps first with steps_write.");
         if (!Enum.TryParse<StepState>(state, true, out var st)) throw new WorkbenchRuleException("step.state", "State is todo, current, done or blocked.");
-        if (st == StepState.Done && string.IsNullOrWhiteSpace(proofRef) && string.IsNullOrWhiteSpace(steps[i].ProofRef))
-            throw new WorkbenchRuleException("step.proof", "A step is done when a run proves it. Pass the run id as proof, or leave the step current.");
         if (st == StepState.Current) for (var k = 0; k < steps.Count; k++) if (steps[k].State == StepState.Current) steps[k] = steps[k] with { State = StepState.Todo };
-        steps[i] = steps[i] with { State = st, ProofRef = proofRef is null ? steps[i].ProofRef : NormaliseRunRef(proofRef), Note = note ?? steps[i].Note };
+        steps[i] = steps[i] with { State = st, Note = note ?? steps[i].Note };
         it.StepsJson = Json.Write(steps);
         if (st == StepState.Current) { s.StepN = n; s.StepMin = 0; }
-        if (it.State is ItemState.Planned or ItemState.Planning && st == StepState.Current) it.State = ItemState.Building;
+        if (it.State is ItemState.Planned or ItemState.Planning or ItemState.Coarse && st == StepState.Current) it.State = ItemState.Building;
+        if (it.State == ItemState.Blocked && st != StepState.Blocked && steps.All(x => x.State != StepState.Blocked)) it.State = ItemState.Building;
         await LedgerAsync(s, "step", $"Step {n} {st.ToString().ToLowerInvariant()}: {steps[i].Text}");
         await SaveAsync("item", it.Id, ct);
+    }
+
+    /// <summary>The session finished the item: what is now true, in one sentence. Done is data; nothing waits on the owner.</summary>
+    public async Task<string> ItemDoneAsync(string sessionId, string itemId, string outcome, string? note, CancellationToken ct = default)
+    {
+        var s = await RequireSessionAsync(sessionId, ct);
+        var it = await RequireItemAsync(itemId, ct);
+        Rules.TextFits(outcome, "The outcome");
+        var steps = List<Step>(it.StepsJson).Select(st => st.State == StepState.Done ? st : st with { State = StepState.Done }).ToList();
+        it.StepsJson = Json.Write(steps);
+        it.Outcome = outcome.Trim();
+        if (note is not null) { Rules.NoteFits(note); it.Note = note.Trim(); it.NoteAt = Now; it.NoteSessionId = s.Id; }
+        it.State = ItemState.Done; it.IsOpen = false;
+        it.SoMin = Math.Max(it.SoMin, await db.Sessions.Where(x => x.ItemId == it.Id).SumAsync(x => x.Minutes, ct));
+        var factorNote = "";
+        if (it.EstMin is int est && est > 0 && it.SoMin > 0)
+        {
+            it.Factor = Math.Round(it.SoMin / (double)est, 2);
+            var p = await ProjectOfAsync(it, ct);
+            var was = p.Factor;
+            p.Factor = was is null ? Math.Round(it.Factor.Value, 1) : Math.Round((was.Value + it.Factor.Value) / 2, 1);
+            factorNote = $" · {it.SoMin} min against {est} estimated";
+        }
+        await LedgerAsync(s, "done", $"{it.Id} done · {it.Outcome}");
+        await HistoryAsync(it.Id, "done", $"{it.Outcome}{factorNote} · by [[session:{s.Id}]]", ct);
+        Audit(Actor.Claude, "done", "item", it.Id);
+        await SaveAsync("item", it.Id, ct);
+        return $"{it.Id} is done{factorNote}";
     }
 
     public async Task NoteAsync(string sessionId, string itemId, string text, CancellationToken ct = default)
@@ -143,25 +202,6 @@ public sealed partial class WorkbenchOps
         Rules.NoteFits(text);
         it.Note = text.Trim(); it.NoteAt = Now; it.NoteSessionId = s.Id;
         await LedgerAsync(s, "note", $"Note written ({Json.LineCount(text)} line{(Json.LineCount(text) == 1 ? "" : "s")})");
-        await SaveAsync("item", it.Id, ct);
-    }
-
-    public async Task ClaimAsync(string sessionId, string itemId, string text, string? runId, CancellationToken ct = default)
-    {
-        var s = await RequireSessionAsync(sessionId, ct);
-        var it = await RequireItemAsync(itemId, ct);
-        Rules.TextFits(text, "A claim");
-        var claims = List<Claim>(it.ClaimsJson);
-        string? proof = null;
-        if (runId is not null)
-        {
-            var id = runId.Replace("run:", "");
-            if (!await db.Runs.AnyAsync(r => r.Id == id, ct)) throw new WorkbenchRuleException("run.unknown", $"No run {id} is recorded. Claims cite runs the Workbench saw.");
-            proof = "run:" + id;
-        }
-        claims.Add(new Claim(text.Trim(), proof));
-        it.ClaimsJson = Json.Write(claims);
-        await LedgerAsync(s, "claim", (proof is null ? "unverified: " : "") + text.Trim());
         await SaveAsync("item", it.Id, ct);
     }
 
@@ -177,37 +217,25 @@ public sealed partial class WorkbenchOps
         return a;
     }
 
-    public async Task<Found> FoundAsync(string sessionId, string itemId, string kind, string title, string why, string? evidenceRef, string? suggestItem, CancellationToken ct = default)
-    {
-        var s = await RequireSessionAsync(sessionId, ct);
-        var it = await RequireItemAsync(itemId, ct);
-        var count = await db.Founds.CountAsync(f => f.SessionId == s.Id, ct);
-        Rules.FoundMayBeAdded(count);
-        if (!Enum.TryParse<ReportKind>(kind, true, out var k)) throw new WorkbenchRuleException("found.kind", "Kind is FTR, BUG or PER.");
-        Rules.TextFits(why, "Why it matters");
-        var f = new Found { Id = "f-" + Ids.Short(), SessionId = s.Id, ItemId = it.Id, Kind = k, Title = title.Trim(), Why = why.Trim(), EvidenceRef = evidenceRef, SuggestItemId = suggestItem, At = Now };
-        db.Founds.Add(f);
-        await LedgerAsync(s, "found", $"{title.Trim()} · {f.Id}");
-        await SaveAsync("found", f.Id, ct);
-        return f;
-    }
+    /* ---------------------------------------------------------------- check results, per project */
 
-    public async Task<Run> RecordRunAsync(RunReport r, CancellationToken ct = default)
+    /// <summary>The last result of a check on a project, kept with the one before it so the next run can be compared. Tests run per project, never per item.</summary>
+    public async Task<CheckResult> RecordResultAsync(ResultReport r, CancellationToken ct = default)
     {
-        if (!Enum.TryParse<RunResult>(r.Result, true, out var res)) throw new WorkbenchRuleException("run.result", "Result is pass, fail or warn.");
-        var tail = r.OutputTail.Length > Caps.RunOutputBytes ? r.OutputTail[^Caps.RunOutputBytes..] : r.OutputTail;
-        var run = new Run
-        {
-            Id = Ids.Short(), Check = r.Check, ItemId = r.Item, SessionId = r.Session, MachineId = r.Machine, Result = res,
-            Passed = r.Passed, Total = r.Total, DurationSec = r.DurationSec, At = Now, Cmd = r.Cmd, OutputTail = tail,
-            Attempt = r.Attempt, ExitCode = r.ExitCode, Expected = r.Expected, Value = r.Value, StepN = r.Step
-        };
-        db.Runs.Add(run);
-        if (r.Session is not null && await db.Sessions.FindAsync([r.Session], ct) is { } s)
-            await LedgerAsync(s, "check", $"{r.Check} {res.ToString().ToLowerInvariant()}{(r.Total > 0 ? $" {r.Passed}/{r.Total}" : "")} · run {run.Id}");
-        await SaveAsync("run", run.Id, ct);
-        return run;
+        if (!Enum.TryParse<RunResult>(r.Result, true, out var res)) throw new WorkbenchRuleException("result.kind", "Result is pass, fail or warn.");
+        Session? s = r.Session is null ? null : await db.Sessions.FindAsync([r.Session], ct);
+        Item? it = (r.Item ?? s?.ItemId) is { } iid ? await db.Items.FindAsync([iid], ct) : null;
+        Project? p = r.Project is null ? null : await db.Projects.FindAsync([r.Project], ct) ?? await db.Projects.FirstOrDefaultAsync(x => x.Code == r.Project.ToUpperInvariant(), ct);
+        p ??= it is null ? null : await ProjectOfAsync(it, ct);
+        p ??= await db.Projects.OrderBy(x => x.Order).FirstAsync(ct);
+        var list = List<CheckResult>(p.ResultsJson);
+        var prev = list.FirstOrDefault(x => x.Check == r.Check);
+        var now = new CheckResult(r.Check, res.ToString().ToLowerInvariant(), r.Passed, r.Total, r.DurationSec, fmt.DayTime(Now), r.Cmd, s?.Id, it?.Id, prev is null ? null : prev with { Prev = null });
+        list.RemoveAll(x => x.Check == r.Check);
+        list.Insert(0, now);
+        p.ResultsJson = Json.Write(list);
+        if (s is not null) await LedgerAsync(s, "check", $"{r.Check} {now.Result}{(r.Total > 0 ? $" {r.Passed}/{r.Total}" : "")}" + (prev is null ? "" : $" (was {prev.Result}{(prev.Total > 0 ? $" {prev.Passed}/{prev.Total}" : "")})"));
+        await SaveAsync("project", p.Id, ct);
+        return now;
     }
-
-    private static string NormaliseRunRef(string r) => r.StartsWith("run:") || r.StartsWith("nyw:") ? r : "run:" + r;
 }

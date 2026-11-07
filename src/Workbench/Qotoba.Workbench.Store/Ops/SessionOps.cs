@@ -24,23 +24,6 @@ public sealed partial class WorkbenchOps
         if (e.SessionTitle is { Length: > 0 } t) s.Title = t;
         s.ItemId ??= await ItemForCwdAsync(machine, e.Cwd, ct);
         await LedgerAsync(s, "start", isNew ? $"Session started on {machine.Id} ({e.Source})" : $"Session resumed ({e.Source})");
-
-        if (isNew)
-        {
-            var card = NewCard(CardType.Info, $"Session {Short(s.Id)} started on {machine.Id}", null, s.Id);
-            card.ProjectId = s.ItemId is null ? null : (await db.Items.FindAsync([s.ItemId], ct))?.ProjectId;
-            card.ItemId = s.ItemId;
-            card.Why = "A new Claude Code session reached the Workbench through the SessionStart hook.";
-            card.PayloadJson = Json.Write(new InfoPayload
-            {
-                Body = s.ItemId is null
-                    ? $"Started in {e.Cwd}. Nothing is open in the tree for this checkout, so the session has no item. Open a node and start it again."
-                    : $"Working on {s.ItemId} from {e.Cwd}.",
-                Chip = "session:" + s.Id,
-                Origin = $"SessionStart hook from {machine.Id}"
-            });
-            db.Cards.Add(card);
-        }
         Audit(Actor.System, isNew ? "started" : "resumed", "session", s.Id, e.Cwd);
         await SaveAsync("session", s.Id, ct);
         return HookReply.Context("SessionStart", await BriefAsync(s.Id, ct));
@@ -65,7 +48,7 @@ public sealed partial class WorkbenchOps
             s.ItemId = it.Id;
             it.HomeMachineId ??= machine.Id;
         }
-        s.ItemId ??= await ItemForCwdAsync(machine, cwd, ct);
+        s.ItemId ??= await ItemForCwdAsync(machine, cwd ?? s.Cwd, ct);
         await SaveAsync("session", s.Id, ct);
         return await BriefAsync(s.Id, ct);
     }
@@ -88,20 +71,13 @@ public sealed partial class WorkbenchOps
         await SaveAsync("session", s.Id, ct);
     }
 
-    /// <summary>PreToolUse: a session never merges or pushes to main; the Workbench does that when the owner approves a packet. Everything else passes.</summary>
+    /// <summary>PreToolUse: the Workbench only writes down what the session runs. It never refuses anything; what the owner says in chat stands.</summary>
     public async Task<HookReply> SessionPreToolAsync(HookEvent e, CancellationToken ct = default)
     {
         if (e.ToolName != "Bash" || e.ToolInput is null) return HookReply.Ok();
         var cmd = e.ToolInput.Value.TryGetProperty("command", out var c) ? c.GetString() ?? "" : "";
-        var lower = cmd.ToLowerInvariant();
-        if (lower.Contains("git push") && (lower.Contains(" main") || lower.Contains(" master")))
-            return HookReply.Deny("A session never pushes to main. The Workbench pushes when the owner approves a packet. Submit a packet instead.");
-        if (lower.Contains("git merge") || lower.Contains("git rebase"))
-            return HookReply.Deny("A session never merges. The Host merges when the owner approves the packet. Submit a packet instead.");
-        if (lower.Contains("git push --force") || lower.Contains("git push -f"))
-            return HookReply.Deny("Force pushes are never run by a session.");
         var s = await db.Sessions.FindAsync([e.SessionId], ct);
-        if (s is not null) { await LedgerAsync(s, "tool", "bash: " + (cmd.Length > 70 ? cmd[..70] + "…" : cmd)); await SaveAsync("session", s.Id, ct); }
+        if (s is not null && cmd.Contains("git ")) { await LedgerAsync(s, "git", cmd.Length > 90 ? cmd[..90] + "…" : cmd); await SaveAsync("session", s.Id, ct); }
         return HookReply.Ok();
     }
 
@@ -114,8 +90,8 @@ public sealed partial class WorkbenchOps
         if (e.ToolName == "Bash" && e.ToolInput is { } input && input.TryGetProperty("command", out var c))
         {
             var cmd = c.GetString() ?? "";
-            if (cmd.Contains("dotnet test") || cmd.Contains("dotnet build"))
-                await RunFromBashAsync(s, cmd, e, failed, ct);
+            if (cmd.Contains("dotnet test") || cmd.Contains("dotnet build")) await ResultFromBashAsync(s, cmd, e, failed, ct);
+            else if (cmd.Contains("git push") || cmd.Contains("git merge") || cmd.Contains("git commit")) await GitFromBashAsync(s, cmd, failed, ct);
         }
         else if (e.ToolName is "Edit" or "Write" or "MultiEdit")
         {
@@ -164,7 +140,7 @@ public sealed partial class WorkbenchOps
         await SaveAsync("session", s.Id, ct);
     }
 
-    /// <summary>What a session needs to start: item, goal, steps, rulings, open cards, how to work.</summary>
+    /// <summary>What a session needs to start: its item, the decisions that apply, the three ways to reach the owner.</summary>
     public async Task<string> BriefAsync(string sessionId, CancellationToken ct = default)
     {
         var s = await db.Sessions.FindAsync([sessionId], ct);
@@ -173,20 +149,20 @@ public sealed partial class WorkbenchOps
         sb.AppendLine($"Your session id is `{sessionId}`. Call the MCP tool `session_hello` with it before any other Workbench tool, and pass it as `session` to every tool.");
         sb.AppendLine();
         Item? it = s?.ItemId is null ? null : await db.Items.FindAsync([s.ItemId], ct);
+        Project? p = it is null ? null : await ProjectOfAsync(it, ct);
         if (it is null)
         {
-            sb.AppendLine("No item is attached to this session: nothing is open in the tree for this checkout. Only the owner creates and opens items. Call `session_hello` without an item; if the owner has opened a node since, you get it.");
+            sb.AppendLine("No item is attached to this session: nothing is open in the tree for this checkout. When the owner names the work in chat, write it into the tree with `items_write` and call `session_hello` again; if they open a node meanwhile, `session_hello` picks it up.");
         }
         else
         {
-            var p = await ProjectOfAsync(it, ct);
             sb.AppendLine($"## Item {it.Id} · {it.Title}");
-            sb.AppendLine($"Project {p.Name} ({p.Code}) · state {it.State.ToString().ToLowerInvariant()} · home machine {it.HomeMachineId ?? "not set"}");
+            sb.AppendLine($"Project {p!.Name} ({p.Code}) · state {it.State.ToString().ToLowerInvariant()}" + (it.HomeMachineId is null ? "" : $" · home machine {it.HomeMachineId}"));
             var top = await TopOfAsync(it, ct);
             if (top.Id != it.Id) sb.AppendLine($"Under {top.Id} · {top.Title}");
             sb.AppendLine(top.Branch is null
-                ? "Branch: none yet; it is created in your checkout when the plan is approved."
-                : $"Branch: {top.Branch} in {top.Checkout} (shared by everything under {top.Id}). Commit there; never merge or push to main.");
+                ? $"Branch: none recorded yet. The convention: the opened top item has one branch, `{BranchNameFor(p, top)}`, that everything under it shares; create or check it out yourself and record it with `branch_note`."
+                : $"Branch: {top.Branch}" + (top.Checkout is null ? "" : $" in {top.Checkout}") + $", shared by everything under {top.Id}.");
             if (!string.IsNullOrWhiteSpace(it.Goal)) sb.AppendLine("Goal: " + it.Goal);
             var steps = List<Step>(it.StepsJson);
             if (steps.Count > 0)
@@ -194,35 +170,47 @@ public sealed partial class WorkbenchOps
                 sb.AppendLine("Steps:");
                 foreach (var st in steps) sb.AppendLine($"  {st.N}. [{st.State.ToString().ToLowerInvariant()}] {st.Text} · {st.EstMin} Claude-min");
             }
-            else sb.AppendLine("No plan yet: submit one with `plan_submit` (at most 7 steps, each with an estimate).");
+            else sb.AppendLine("No steps yet: write yours with `steps_write` once you know them. They give the item its progress; nobody approves them.");
+            var fpbs = await db.Reports.Where(r => (r.AttachItemId == it.Id || r.TakenOnItemId == it.Id) && r.State != "Done" && r.State != "Exists" && r.State != "Won't do").ToListAsync(ct);
+            if (fpbs.Count > 0)
+            {
+                sb.AppendLine("Open FPBs on this item:");
+                foreach (var r in fpbs) sb.AppendLine($"  {r.Id} · {r.State} · {r.Title}");
+            }
             var open = await db.Cards.Where(c => c.ItemId == it.Id && c.State == CardState.Open && c.Type != CardType.Info).ToListAsync(ct);
             if (open.Count > 0)
             {
                 sb.AppendLine("Open cards on this item (wait for them with `card_wait`):");
                 foreach (var c in open) sb.AppendLine($"  {c.Id} · {c.Type.ToString().ToLowerInvariant()} · {c.Headline}");
             }
-            var notes = await db.Messages.Where(m => m.SessionId == sessionId && m.DeliveredAt == null).ToListAsync(ct);
-            if (notes.Count > 0)
+            var decided = List<Decision>(it.DecisionsJson);
+            if (decided.Count > 0)
             {
-                sb.AppendLine("Messages from the owner:");
-                foreach (var m in notes) { sb.AppendLine("  " + m.Text); m.DeliveredAt = Now; m.Via = "hello"; }
-                await db.SaveChangesAsync(ct);
+                sb.AppendLine("Decided on this item:");
+                foreach (var d in decided.TakeLast(12)) sb.AppendLine($"  - {d.T}: {d.A} ({d.How}, {d.Date})");
             }
         }
-        var rulings = await db.Rulings.OrderByDescending(r => r.Date).Take(12).ToListAsync(ct);
+        var notes = s is null ? [] : await db.Messages.Where(m => m.SessionId == sessionId && m.DeliveredAt == null).ToListAsync(ct);
+        if (notes.Count > 0)
+        {
+            sb.AppendLine("Messages from the owner:");
+            foreach (var m in notes) { sb.AppendLine("  " + m.Text); m.DeliveredAt = Now; m.Via = "hello"; }
+            await db.SaveChangesAsync(ct);
+        }
+        var rulings = await db.Rulings.Where(r => r.NeverReopened && (p == null || r.ProjectId == null || r.ProjectId == p.Id)).OrderByDescending(r => r.Date).Take(15).ToListAsync(ct);
         if (rulings.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("## Rulings (search more with `rulings_search`)");
-            foreach (var r in rulings) sb.AppendLine($"- {r.Id} {r.Title}: {r.Text}");
+            sb.AppendLine("## Decisions that apply (search more with `rulings_search`)");
+            foreach (var r in rulings) sb.AppendLine($"- {r.Id} {r.Text}");
         }
         sb.AppendLine();
         sb.AppendLine("## How to work");
-        sb.AppendLine($"- You never create projects or items. You fill capped slots on your item: a plan (≤{Caps.PlanSteps} steps), questions (≤{Caps.OpenQuestionsPerItem} open), assumptions, found items (≤{Caps.FoundPerSession}), a note (≤{Caps.NoteLines} lines), claims with runs, and a packet at the end.");
-        sb.AppendLine("- Ask a question only when a step is blocked; give 2 to 4 options, each with a reason and a cost to change, and recommend one. Otherwise assume the recommended answer with `assume` and carry on.");
-        sb.AppendLine("- Never say tests passed: run them, and the Workbench records the run. A claim without a run shows as unverified.");
-        sb.AppendLine("- Git: commit on your item's branch; never merge or push to main. Submit a packet with `packet_submit`; the owner's Approve runs the git instruction.");
-        sb.AppendLine("- When stuck after three attempts on a check, call `stuck_report` and stop.");
+        sb.AppendLine("- The owner directs you in chat. The Workbench writes down what you do; it never refuses anything the owner says. Commit, merge and push when the owner says so, on the item's branch, and never otherwise.");
+        sb.AppendLine("- Write what the owner dictates: items with `items_write`, an FTR with `fpb_raise` when they ask for a feature or change, a decision with `decision_record` the moment they state a rule. A BUG or PER you raise yourself, from your own checks, never for code you have not committed yet.");
+        sb.AppendLine("- Three things reach the owner's inbox, nothing else: a page (`page_submit`) for a change that has no designer, so they can answer on it and approve it; `deviation_report` when you must leave the agreed design or did something they asked to be told about (a helper type, a static); `stuck_report` after three failed attempts on one check. A small blocked question is not a card: take the recommended answer, record it with `assume`, carry on.");
+        sb.AppendLine("- Never say tests passed: run them. The hooks record dotnet test and build on the project. Report done with `item_done` in one sentence of what is now true.");
+        sb.AppendLine("- Every id you mention in chat comes with its blurb. Keep notes to two lines.");
         return sb.ToString();
     }
 
@@ -241,12 +229,10 @@ public sealed partial class WorkbenchOps
         ? "Windows " + Environment.OSVersion.Version.Major
         : Environment.OSVersion.VersionString;
 
-
-    private async Task RunFromBashAsync(Session s, string cmd, HookEvent e, bool failed, CancellationToken ct)
+    private async Task ResultFromBashAsync(Session s, string cmd, HookEvent e, bool failed, CancellationToken ct)
     {
         var text = e.ToolResponse?.ToString() ?? "";
         var lines = text.Replace("\r\n", "\n").Split('\n');
-        var tail = string.Join("\n", lines.TakeLast(Caps.RunTailLines));
         var passed = 0; var total = 0; var fail = failed;
         foreach (var l in lines)
         {
@@ -255,15 +241,18 @@ public sealed partial class WorkbenchOps
             if (l.Contains("Build FAILED") || l.Contains("error CS")) fail = true;
         }
         var check = cmd.Contains("dotnet test") ? "tests" : "build";
-        var run = new Run
-        {
-            Id = Ids.Short(), Check = check, ItemId = s.ItemId, SessionId = s.Id, MachineId = s.MachineId,
-            Result = fail ? RunResult.Fail : RunResult.Pass, Passed = passed, Total = total,
-            DurationSec = Math.Round((e.DurationMs ?? 0) / 1000.0, 1), At = Now, Cmd = cmd, OutputTail = tail, ExitCode = fail ? 1 : 0
-        };
-        db.Runs.Add(run);
-        await LedgerAsync(s, "check", $"{check} {(fail ? "failed" : "passed")}{(total > 0 ? $" {passed}/{total}" : "")} · run {run.Id}");
-        notify.Changed("run", run.Id);
+        var scope = System.Text.RegularExpressions.Regex.Match(cmd, @"(?:--project\s+|dotnet (?:test|build)\s+)([^\s]+\.(?:csproj|slnx|sln))");
+        if (scope.Success) check += " · " + Path.GetFileNameWithoutExtension(scope.Groups[1].Value);
+        await RecordResultAsync(new ResultReport(check, null, s.ItemId, s.Id, fail ? "fail" : "pass", passed, total, Math.Round((e.DurationMs ?? 0) / 1000.0, 1), cmd), ct);
+    }
+
+    /// <summary>A commit, merge or push the session ran on the owner's word is written against its item. Nothing is checked or refused.</summary>
+    private async Task GitFromBashAsync(Session s, string cmd, bool failed, CancellationToken ct)
+    {
+        var verb = cmd.Contains("git push") ? "pushed" : cmd.Contains("git merge") ? "merged" : "committed";
+        if (failed) verb += " (failed)";
+        await LedgerAsync(s, "git", $"{verb}: {(cmd.Length > 80 ? cmd[..80] + "…" : cmd)}");
+        if (s.ItemId is not null) await HistoryAsync(s.ItemId, verb, $"By [[session:{s.Id}]] on your word", ct);
     }
 
     private static string Short(string id) => id.Length > 4 ? id[..4] : id;

@@ -422,7 +422,7 @@
     }
     return { html: '' };
   }
-  function cardKindLabel(c) { if (c.type === 'proposals') return 'Record'; if (c.type === 'question' && c.answered) return 'Question · answered'; if (c.type === 'plan' && c.approved) return 'Plan · approved'; return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
+  function cardKindLabel(c) { if (c.type === 'page') return c.approved ? 'Page · approved' : c.answered ? 'Page · changes asked' : 'Page'; if (c.type === 'deviation') return c.approved || c.answered ? 'Deviation · decided' : 'Deviation'; if (c.type === 'proposals') return 'Record'; if (c.type === 'question' && c.answered) return 'Question · answered'; if (c.type === 'plan' && c.approved) return 'Plan · approved'; return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
 
   /* ================================================================ shared fragments */
   function budgetQ(itemId) {
@@ -441,7 +441,7 @@
     var to = s ? (s.state === 'ended' ? 'the Host on ' + s.machine + ' (session ' + c.session + ' resumes to read it)' : 'session ' + c.session + ' on ' + s.machine) : (c && c.type === 'info' ? 'your notes on this card' : 'the item, read when a session next opens it');
     return '<div class="reply" id="reply-' + id + '"' + (open ? '' : ' hidden') + '><input type="text" placeholder="Say it in your own words" aria-label="Your message" data-act="reply-input" data-card="' + id + '"><button class="btn primary" data-act="send-reply" data-card="' + id + '" data-to="' + esc(to) + '">Send</button><p class="small muted">Goes to ' + esc(to) + ' instead of the buttons above.</p></div>';
   }
-  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type === 'proposals' ? 'plan' : c.type; }
+  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type === 'proposals' || c.type === 'page' ? 'plan' : c.type === 'deviation' ? 'question' : c.type; }
   function ago(c) { return c.waiting ? 'waiting ' + c.waiting : c.age ? c.age + ' ago' : ''; }
   function plainList(items) { return '<ul class="plain">' + items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
 
@@ -475,6 +475,8 @@
   function vCard(id, q) {
     var c = D.cards[id];
     if (!c) return head(null) + '<div class="pane">' + empty('No such card', 'The card may have been cleared.') + '</div>';
+    if (c.type === 'page') return vPage(id, q);
+    if (c.type === 'deviation') return vDeviation(id);
     if (c.type === 'question') return vQuestion(id);
     if (c.type === 'packet') return vPacket(id, q);
     if (c.type === 'plan') return vPlan(id, q);
@@ -598,19 +600,64 @@
     return h + '</div>';
   }
 
+  /* ================================================================ 4b. Page: a custom page with its own answers */
+  function vPage(id, qs) {
+    var c = D.cards[id], pg = D.pages[id];
+    if (!pg) return cardHead(c) + '<div class="pane">' + empty('No page', 'The page body is missing.') + '</div>';
+    var h = cardHead(c) + '<div class="pane page-pane">';
+    h += dhead(pg.approved ? 'Page · approved' : pg.state === 'changes asked' ? 'Page · changes asked' : 'Page', 'plan', pg.approved ? 'approved ' + esc(pg.approved) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(pg.title), (pg.item ? itemLink(pg.item) + ' · ' : '') + esc(pg.purpose || 'A change with no designer: answer on it, then approve.'));
+    h += whyLine(id);
+    window.WB_PAGE_CARD = id;
+    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html)) + '"></iframe></div>';
+    var keys_ = keys(pg.answers || {});
+    if (pg.approved) h += '<div class="answered"><p><span class="done-line">Approved ' + esc(pg.approved) + '</span> · ' + plural(keys_.length, 'answer') + ' went with it as the agreed design</p></div>';
+    else if (pg.state === 'changes asked') h += '<div class="answered"><p><span class="done-line">Changes asked ' + esc(c.answered) + '</span></p><p>' + esc(c.answer || '') + '</p></div>';
+    else h += '<div class="actions"><button class="btn primary" data-act="approve" data-card="' + id + '">Approve</button><button class="btn" data-act="reply" data-card="' + id + '">Ask for changes</button><span class="spacer"></span><button class="btn text" data-act="dismiss" data-card="' + id + '">Dismiss</button></div>' + replyBox(id, qs && qs.changes);
+    h += drills([
+      drill('Your answers', keys_.length ? plural(keys_.length, 'answer') + (pg.answersAt ? ' · last ' + esc(pg.answersAt) : '') : 'none yet', keys_.length ? '<dl class="kv">' + keys_.map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(pg.answers[k]) + '</dd>'; }).join('') + '</dl>' : empty('Nothing answered yet', 'Answer on the page itself; every answer is kept here with the card.'), { open: keys_.length > 0 }),
+      drill('From', 'session ' + esc(c.session || '') + (pg.machine ? ' on ' + esc(pg.machine) : '') + ' · ' + esc(c.at), chips(['session:' + c.session].concat(pg.machine ? ['machine:' + pg.machine] : [])))
+    ], 'Go deeper');
+    return h + '</div>';
+  }
+  function pageDoc(html) {
+    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);})();<\/script>';
+    var base = '<style>body{font:15px/1.5 system-ui,sans-serif;margin:16px;color:#1d2430;background:#fff}details{border-top:1px solid #ddd;padding:8px 0}summary{cursor:pointer;font-weight:600}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}button[data-answer]{font:inherit;padding:5px 12px;border-radius:8px;border:1px solid #c9c9c9;background:#fff;cursor:pointer;margin:2px}button[data-answer][aria-pressed=true]{background:#274a78;color:#fff;border-color:#274a78}@media (prefers-color-scheme:dark){body{background:#1d2129;color:#eceef2}td,th{border-color:#343a46}button[data-answer]{background:#262b35;color:#eceef2;border-color:#444}}</style>';
+    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + '</head>');
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + '</head><body>' + html + '</body></html>';
+  }
+
+  /* ================================================================ 4c. Deviation */
+  function vDeviation(id) {
+    var c = D.cards[id], dv = D.deviations[id] || {};
+    var h = cardHead(c) + '<div class="pane">';
+    h += dhead(dv.decided ? 'Deviation · decided' : 'Deviation', 'question', dv.decided ? esc(dv.decided) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(dv.what || c.headline), (dv.item ? itemLink(dv.item) + ' · ' : '') + 'the session must leave the agreed design, or did something you asked to be told about');
+    h += whyLine(id);
+    h += '<blockquote class="quote"><span class="muted small">Why</span><span class="rich">' + rich(dv.why || '') + '</span></blockquote>';
+    if (dv.agreed || dv.instead) h += '<dl class="kv">' + (dv.agreed ? '<dt>Agreed</dt><dd>' + esc(dv.agreed) + '</dd>' : '') + (dv.instead ? '<dt>Instead</dt><dd>' + esc(dv.instead) + '</dd>' : '') + '</dl>';
+    if (dv.decided) h += '<div class="answered"><p><span class="done-line">' + esc(dv.decided === 'allowed' ? 'Allowed' : dv.decided === 'sent back' ? 'Sent back' : 'Chosen: ' + dv.decided) + ' ' + esc(c.approved || c.answered || '') + '</span></p>' + (c.answer && dv.decided === 'sent back' ? '<p>' + esc(c.answer) + '</p>' : '') + '</div>';
+    else {
+      h += '<div class="actions">';
+      if ((dv.options || []).length) h += dv.options.map(function (o, i) { return '<button class="btn' + (i === 0 ? ' primary' : '') + '" data-act="dev-pick" data-card="' + id + '" data-i="' + i + '">' + esc(o) + '</button>'; }).join('');
+      else h += '<button class="btn primary" data-act="dev-allow" data-card="' + id + '">Allow</button>';
+      h += '<button class="btn" data-act="reply" data-card="' + id + '">Send back</button><span class="spacer"></span></div>' + replyBox(id);
+    }
+    h += drills([drill('From', 'session ' + esc(c.session || '') + (dv.machine ? ' on ' + esc(dv.machine) : '') + ' · ' + esc(c.at), chips(['session:' + c.session].concat(dv.machine ? ['machine:' + dv.machine] : [])))], 'Go deeper');
+    return h + '</div>';
+  }
+
   /* ================================================================ 5. Stuck */
   function vStuck(id) {
-    var c = D.cards[id], st = D.stucks[id], run = D.runs[parseRef(st.check).id];
+    var c = D.cards[id], st = D.stucks[id], out = (st.lastOutput || (st.attempts.length ? st.attempts[st.attempts.length - 1].output : '') || '').split('\n');
     var h = cardHead(c) + '<div class="pane">';
     h += dhead('Stuck', 'stuck', 'unblocks about ' + fmtMin(c.weight), 'A check failed three times', itemLink(st.item) + ' · ' + esc(st.step) + ' · the session stopped instead of trying again');
     h += whyLine(id);
-    h += '<p class="glance-line"><span class="gl-k">Last failure</span><code>' + esc(run.out[0]) + '</code></p>';
+    if (out[0]) h += '<p class="glance-line"><span class="gl-k">Last failure</span><code>' + esc(out[0]) + '</code></p>';
     h += '<blockquote class="quote"><span class="muted small">The session’s diagnosis</span><span class="rich">' + rich(st.diagnosis) + '</span></blockquote>';
     h += '<div class="actions"><button class="btn" data-act="reassign" data-card="' + id + '">Reassign</button><button class="btn" data-act="stuck-retry" data-card="' + id + '">Retry once more</button><button class="btn" data-act="stuck-drop" data-card="' + id + '">Drop the step</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
-      drill('Last failure', esc(st.checkName.replace('tests · ', '')), '<pre class="instr">' + esc(run.out.slice(0, 6).join('\n')) + '</pre><p class="small"><a href="#/run/' + parseRef(st.check).id + '">Full output</a></p>'),
-      drill('Three attempts', esc(attemptsSeq(st.attempts)), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span>' + chip(a.run) + '</div>'; }).join('') + '</div>'),
-      drill('Where', 'session ' + st.session + ' on ' + st.machine + ' · since ' + esc(c.at), chips(['session:' + st.session, 'machine:' + st.machine, st.check]))
+      drill('Last failure', esc(st.checkName.replace('tests · ', '')), '<pre class="instr">' + esc(out.slice(0, 12).join('\n')) + '</pre>'),
+      drill('Three attempts', esc(attemptsSeq(st.attempts)), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span></div>'; }).join('') + '</div>'),
+      drill('Where', 'session ' + st.session + ' on ' + st.machine + ' · since ' + esc(c.at), chips(['session:' + st.session, 'machine:' + st.machine]))
     ], 'Go deeper');
     return h + '</div>';
   }
@@ -648,13 +695,11 @@
     if (it.preview) return { ok: false, why: 'Language is closed. These four appear as real items when an approved plan opens it.' };
     if (it.unscheduled) return { ok: false, why: 'Unscheduled: no open parent path. Dope must open first.' };
     if (it.isOpen) return { ok: false, why: 'Already open.' };
-    if (it.state === 'done') return { ok: false, why: 'Done items do not reopen; add a BUG under it instead.' };
-    if (it.state === 'review') return { ok: false, why: 'In review: approve or ask for changes on its packet.' };
+    if (it.state === 'done') return { ok: false, why: 'Done items do not reopen.' };
     if (it.plan) return { ok: true, why: 'Opens through its plan.', go: '#/card/' + parseRef(it.plan).id };
     var sibs = keys(D.items).filter(function (k) { var x = D.items[k]; return k !== id && x.parent === it.parent && x.project === it.project && x.isOpen; });
     if (!sibs.length) return { ok: true, why: 'Nothing is open at this level; opening it starts planning.', go: '#/item/' + id, open: true };
-    var sib = sibs.join(' and ') + (sibs.length === 1 ? ' is' : ' are') + ' open at this level';
-    return { ok: false, why: sib + '. One open node per level.' };
+    return { ok: true, why: esc(itemTitle(sibs[0])) + ' is open at this level; opening it.', go: '#/item/' + sibs[0] };
   }
   function nodeTitle(id) { if (id === 'root') return D.meta.programme + ' programme'; var p = projOf(id); return p ? p.name : itemTitle(id); }
   function matchesFilter(id) {
@@ -799,20 +844,19 @@
     var cur = st.filter(function (s) { return s.state === 'current' || s.state === 'blocked'; })[0];
     var left = it.time && it.time.forecast != null && it.state !== 'done' ? fmtMin(Math.max(0, it.time.forecast - it.time.so)) + ' left' : it.state === 'done' ? 'done in ' + fmtMin(it.time.so) : 'not started';
     var leftRef = it.time && it.time.forecast != null && it.state !== 'done' ? 'of ' + fmtMin(it.time.forecast) + ' forecast' : it.state === 'done' && it.time ? 'against an estimate of ' + fmtMin(it.time.est) : '';
-    var h = '<div class="status"><div><p class="bignum">' + esc(left) + (leftRef ? ' <span class="bignum-ref">' + esc(leftRef) + '</span>' : '') + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + plural(st.length, 'step') + ' done' + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + '</p></div></div>';
+    var h = '<div class="status"><div><p class="bignum">' + esc(left) + (leftRef ? ' <span class="bignum-ref">' + esc(leftRef) + '</span>' : '') + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + plural(st.length, 'step') + ' done' + (it.progress != null ? ' · ' + it.progress + '%' : '') + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + (it.outcome ? ' · ' + esc(it.outcome) : '') + '</p></div></div>';
     var oqHere = openQuestions(id).length, oqKids = ids.slice(1).reduce(function (a, k) { return a + openQuestions(k).length; }, 0);
     var as = itemAssumptions(ids), asUn = as.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length, fd = itemFound(ids).length;
     var cc = commentCounts(it.commentScope);
     var blockedN = st.filter(function (x) { return x.state === 'blocked'; }).length, unseenN = ch.files.filter(function (f) { return !D.files[parseRef(f[0]).id].seen; }).length;
     var runs = it.checks || [], failing = runs.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length;
-    var stepsBody = st.length ? stepsList(it) : (it.plan ? '<p>The plan waits for you: ' + chip(it.plan) + '</p>' : '<p class="muted">' + (it.unscheduled ? 'Unscheduled until Dope opens.' : 'A plan is drawn when the node opens.') + '</p>');
+    var stepsBody = st.length ? stepsList(it) : '<p class="muted">Claude writes its steps when it starts the item.</p>';
     h += drills([
       drill('Steps', st.length ? (blockedN ? plural(blockedN, 'step') + ' blocked' : NU) : 'no plan yet', stepsBody, { open: openSec === 'steps', attn: blockedN > 0 }),
-      drill('Checks', runs.length ? (failing ? plural(failing, 'check') + ' not passing' : NU) : 'no runs yet', runs.length ? chips(runs, { meta: true }) : empty('No runs', 'Checks appear when a session runs one.'), { attn: failing > 0 }),
       drill('Changed', ch.files.length ? (unseenN ? plural(unseenN, 'file') + ' new to you' : NU) : 'nothing yet', ch.files.length ? chips(ch.files.map(function (f) { return f[0]; })) + '<p class="small" style="margin-top:12px"><a href="#/item/' + id + '/changes">See every change</a></p>' : empty('Nothing changed', 'Files git reports on the branch appear here.'), { attn: unseenN > 0 }),
       drill('Time', it.time && it.state === 'done' ? fmtMin(it.time.so) + ' in all, against an estimate of ' + fmtMin(it.time.est) : it.time && it.time.factor ? fmtMin(it.time.so) + ' so far of ' + fmtMin(it.time.forecast) + ' forecast' : it.time ? 'estimate ' + fmtMin(it.time.est) + ' · not started' : esc(it.coarse), it.time ? '<dl class="kv"><dt>So far</dt><dd>' + fmtMin(it.time.so) + ', measured from hooks</dd><dt>Estimate</dt><dd>' + fmtMin(it.time.est) + ' Claude-minutes</dd><dt>Factor</dt><dd>' + (it.time.factor ? it.time.factor + ', actual over estimate' : 'not measured') + '</dd><dt>Forecast</dt><dd>' + fmtMin(it.time.forecast) + ', the estimate times the factor</dd></dl>' : ''),
       drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + plural((it.needs || []).filter(function (n) { return n.note !== 'done'; }).length, 'item') : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? 'about ' + fmtMin(b.min) + ' of work behind it' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
-      drill('Open', [oqHere + oqKids ? plural(oqHere + oqKids, 'question') + ' open' : '', asUn ? plural(asUn, 'assumption') + ' to review' : '', fd ? plural(fd, 'found item') + ' to sort' : ''].filter(Boolean).join(' · ') || NU, '<p>' + budgetQ(id) + '</p>' + (oqKids ? '<p class="small">' + oqKids + ' more open in children.</p>' : '') + '<p class="small"><a href="#/item/' + id + '/decisions">Questions, assumptions and found items</a>' + (asUn ? ' · ' + asUn + ' assumptions to review' : '') + '</p>', { attn: asUn > 0 }),
+      drill('Assumptions', as.length ? plural(as.length, 'assumption') + ' Claude proceeded on' : 'none', as.length ? '<ul class="plain">' + as.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What a session proceeded on without asking appears here.')),
       drill('Issues', fpbsUnder(id).length ? fpbCountLabel(fpbsUnder(id)) + ' raised here' : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems raised on this task appear here.'), {}),
       drill('Comments in scope', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
       drill('Claude’s note', it.note ? esc(trunc(it.note.text, 56)) : 'none', it.note ? '<p>' + esc(it.note.text) + '</p><p class="small muted">' + (it.note.session ? 'Session ' + parseRef(it.note.session).id : 'Seed import') + ' · ' + esc(it.note.date) + '</p>' + (it.claims ? '<p class="small muted" style="margin-top:12px">Claims</p>' + claimsList(it.claims) : '') : ''),
@@ -823,7 +867,7 @@
   }
   function stepsList(it) {
     return '<ol class="steps-simple">' + it.steps.map(function (s) {
-      return '<li class="' + s.state + '"><span class="tick">' + (s.state === 'done' ? '✓' : s.state === 'blocked' ? '!' : '') + '</span><span class="st-t">' + esc(s.t) + (s.state === 'current' ? ' <span class="marker">now</span>' : s.state === 'blocked' ? ' <span class="marker bad">blocked</span>' : '') + '</span>' + chip(s.item || s.proof) + '</li>';
+      return '<li class="' + s.state + '"><span class="tick">' + (s.state === 'done' ? '✓' : s.state === 'blocked' ? '!' : '') + '</span><span class="st-t">' + esc(s.t) + (s.state === 'current' ? ' <span class="marker">now</span>' : s.state === 'blocked' ? ' <span class="marker bad">blocked</span>' : '') + '</span>' + (s.item ? chip(s.item) : '<span class="muted small">' + s.est + ' min</span>') + '</li>';
     }).join('') + '</ol>';
   }
   function accList(list) { return claimsList(list); }
@@ -871,12 +915,11 @@
   }
   function tabPlan(id) {
     var it = work(id);
-    if (!(it.steps || []).length) return it.plan ? '<p class="lead-p">The plan waits for your approval.</p><div class="actions"><a class="btn primary" href="#/card/' + parseRef(it.plan).id + '">Review the plan</a></div>' : empty('No plan yet', 'An approved plan of up to 7 steps, each with an estimate and the check that proves it, appears here.');
+    if (!(it.steps || []).length) return empty('No steps yet', 'Claude writes its own steps, each with an estimate, when it starts the item. They give the item its progress.');
     var total = it.steps.reduce(function (a, s) { return a + s.est; }, 0);
-    var approved = (it.history || []).filter(function (e) { return e[1] === 'plan approved'; })[0];
-    var h = '<p class="muted small" style="margin-bottom:16px">Approved by you' + (approved ? ' ' + esc(approved[0]) : '') + ' · ' + it.steps.length + ' steps of the ' + D.budgets[2].value + ' allowed · ' + total + ' Claude-min estimated' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + '</p>';
+    var h = '<p class="muted small" style="margin-bottom:16px">Claude\'s own steps · ' + plural(it.steps.length, 'step') + ' · ' + total + ' Claude-min estimated' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + (it.progress != null ? ' · ' + it.progress + '% done' : '') + '</p>';
     h += '<div class="drills">' + it.steps.map(function (s, i) {
-      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv"><dt>Proof</dt><dd>' + chip(s.proof, { meta: true }) + '</dd>' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
+      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv">' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
     }).join('') + '</div>';
     if (D.fpbs[id]) h += '<p class="small" style="margin-top:16px"><a href="#/fpb/' + id + '/report">Back to the report</a></p>';
     return h;
@@ -942,7 +985,7 @@
     return '<div class="mi-h">' + esc(nodeTitle(id)) + '</div>' +
       (it ? '<a class="mi" href="#/item/' + id + '" data-act="close-after">' + ic('open') + 'Open item page</a>' : '<a class="mi" href="#/project/' + id + '" data-act="close-after">' + ic('open') + 'Open project page</a>') +
       '<button class="mi' + (co.ok ? '' : ' dis') + '" data-act="opennode" data-node="' + id + '">' + ic('work') + '<span>Open this node<span class="why">' + esc(co.why) + '</span></span></button>' +
-      '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">Owner only · FTR, BUG, PER or task</span></span></button>' +
+      '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">An item of work under this one</span></span></button>' +
       '<button class="mi" data-act="move" data-node="' + id + '">' + ic('move') + 'Move…</button>' +
       '<button class="mi" data-act="rename" data-node="' + id + '">' + ic('edit') + 'Rename…</button>' +
       '<button class="mi" data-act="summary" data-node="' + id + '">' + ic('projects') + 'Show summary</button>';
@@ -993,11 +1036,7 @@
     h += '<div class="actions"><button class="btn" data-act="message" data-session="' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Message</button><button class="btn" data-act="session-stop" data-session="' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Stop</button><button class="btn" data-toast="Resume runs through the Host in a later slice"' + (s.state === 'working' ? ' disabled' : '') + '>Resume</button></div>';
     h += drills([
       drill('Effort', fmtMin(s.minutes) + ' · ' + plural(s.turns, 'turn') + ' · ' + plural(s.tools, 'tool call'), '<dl class="kv"><dt>Started</dt><dd>' + esc(s.started) + '</dd>' + (s.ended ? '<dt>Ended</dt><dd>' + esc(s.ended) + '</dd>' : '') + '<dt>Session time</dt><dd>' + fmtMin(s.minutes) + '</dd><dt>Turns</dt><dd>' + plural(s.turns, 'turn') + '</dd><dt>Tool calls</dt><dd>' + plural(s.tools, 'call') + '</dd></dl>'),
-      drill('Checks run', s.checks.length ? (function () { var bad = s.checks.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : NU; })() : 'none', s.checks.length ? runsTable(s.checks.map(function (r) { return parseRef(r).id; })) : empty('No checks yet', 'Runs reported by the hook for this session appear here.')),
-      drill('Questions asked', s.questions.length ? (function () { var op = s.questions.filter(function (q) { var x = D.questions[parseRef(q).id]; return x && x.state === 'open'; }).length; return op ? plural(op, 'question') + ' still open' : NU; })() : 'none', s.questions.length ? chips(s.questions, { meta: true }) : empty('No questions', 'Questions this session asked appear here.')),
-      drill('Assumptions', s.assumptions.length ? (function () { var un = s.assumptions.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length; return un ? plural(un, 'assumption') + ' to review' : NU; })() : 'none', s.assumptions.length ? assumptionBatch(s.assumptions, true) : empty('No assumptions', 'Assumptions this session made appear here.')),
-      drill('Found items', s.found.length ? s.found.length + ' of the ' + D.budgets[1].value + ' allowed' : 'none', s.found.length ? chips(s.found) : empty('None found', 'At most five per session; they go to the item\'s tray.')),
-      s.packet ? drill('Packet', esc(D.cards[parseRef(s.packet).id].headline), chip(s.packet, { meta: true })) : '',
+      drill('Assumptions', s.assumptions.length ? plural(s.assumptions.length, 'assumption') + ' proceeded on' : 'none', s.assumptions.length ? '<ul class="plain">' + s.assumptions.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What this session proceeded on without asking appears here.')),
       drill('Turn ledger', plural(s.ledger.length, 'entry', 'entries'), '<div class="list">' + s.ledger.map(function (l) { return '<div class="li"><span class="li-meta mono" style="min-width:44px">' + esc(l[0]) + '</span><span class="li-main">' + esc(l[2]) + '</span></div>'; }).join('') + '</div>'),
       drill('Machine', esc(s.machine), chip('machine:' + s.machine, { meta: true }) + (D.lanes[s.lane] ? chip('lane:' + s.lane, { meta: true }) : ''))
     ], 'Go deeper');
@@ -1126,7 +1165,14 @@
     var line = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' ');
     return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Measured hours left: ' + v.join(', ') + '"><path class="a" d="' + line + ' L' + pts[pts.length - 1][0] + ' ' + (H - 12) + ' L5 ' + (H - 12) + ' Z"/><path class="l" d="' + line + '"/><circle cx="' + pts[pts.length - 1][0] + '" cy="' + pts[pts.length - 1][1] + '" r="3"/><text x="5" y="' + (H - 1) + '">' + p.burnDays[0] + ' · ' + v[0] + ' h</text><text x="' + (W - 5) + '" y="' + (H - 1) + '" text-anchor="end">' + p.burnDays[p.burnDays.length - 1] + ' · ' + v[v.length - 1] + ' h</text></svg>';
   }
-  function kindCounts(pid) { var c = { FTR: 0, BUG: 0, PER: 0, task: 0 }; keys(D.items).forEach(function (i) { var it = D.items[i]; if (it.project === pid && !it.preview) c[it.kind]++; }); return c; }
+  function kindCounts(pid) { var c = { FTR: 0, BUG: 0, PER: 0, task: 0 }; keys(D.items).forEach(function (i) { var it = D.items[i]; if (it.project === pid && !it.preview) c.task++; }); return c; }
+  function resultsTable(list) {
+    return '<div class="tw"><table class="plain-table"><thead><tr><th>Check</th><th>Last</th><th>Before</th><th>When</th></tr></thead><tbody>' + list.map(function (r) {
+      var now = (r.result === 'pass' ? '<span class="tone-good">passed</span>' : '<span class="tone-bad">' + esc(r.result) + '</span>') + (r.total ? ' ' + r.passed + '/' + r.total : '') + (r.dur ? ' · ' + fmtSec(Math.round(r.dur)) : '');
+      var was = r.prev ? (r.prev.result === 'pass' ? 'passed' : esc(r.prev.result)) + (r.prev.total ? ' ' + r.prev.passed + '/' + r.prev.total : '') + (r.prev.dur ? ' · ' + fmtSec(Math.round(r.prev.dur)) : '') : '—';
+      return '<tr><td>' + esc(r.check) + '</td><td>' + now + '</td><td class="muted">' + was + '</td><td class="muted">' + esc(r.at) + (r.session ? ' · ' + chip('session:' + r.session, { nometa: true }) : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
   function projectCard(p) {
     var bo = blockedOnYou(p.id);
     return '<article class="pcard" data-act="pfilter-go" data-p="' + p.id + '" style="--pc:var(--' + p.color + ')"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
@@ -1149,7 +1195,8 @@
     h += '<div class="actions"><button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>';
     h += drills([
       p.burn && p.burn.length ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
-      drill('Items', items.length ? items.length + ' · ' + ['FTR', 'BUG', 'PER', 'task'].filter(function (k) { return kc[k]; }).map(function (k) { return kc[k] + ' ' + k; }).join(', ') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
+      (p.results && p.results.length) ? drill('Last results', (function () { var bad = p.results.filter(function (r) { return r.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : 'all ' + plural(p.results.length, 'check') + ' passing'; })(), resultsTable(p.results), { attn: p.results.some(function (r) { return r.result !== 'pass'; }) }) : '',
+      drill('Items', items.length ? plural(items.length, 'item') + (p.done != null ? ' · ' + p.done + ' done' : '') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
       '',
@@ -1635,7 +1682,7 @@
   /* issues per task, on the item page */
   function tabIssues(id) {
     var list = fpbsUnder(id);
-    var h = '<div class="actions" style="margin-bottom:20px"><button class="btn small" data-act="add-issue" data-node="' + id + '">' + ic('plus') + 'Add an issue to this task</button><a class="btn small text" href="#/issues">All issues</a></div>';
+    var h = '<div class="actions" style="margin-bottom:20px"><a class="btn small text" href="#/issues">All issues</a></div>';
     if (!list.length) return h + empty('No issues on this task', 'Features, bugs and performance problems raised while building this task are attached here, separate from its plan.');
     return h + '<div class="slist">' + list.map(function (i) { return issueRow(i); }).join('') + '</div>';
   }
@@ -2108,12 +2155,11 @@
       '<button class="btn primary dis" disabled title="Not live in the prototype">Open chat in claude.ai</button><button class="btn" data-act="close">Close</button>');
   }
   function addItemSheet(node, pre) {
-    pre = pre || {}; var kinds = ['FTR', 'BUG', 'PER', 'task'], kOn = kinds.indexOf(pre.kind || 'task'), impl = pre.implements || [];
-    openSheet('Add item', (pre.from ? '<p class="notice soft small">Prefilled from found item ' + chip(pre.from) + ', sorted as Task on its packet card. It enters the tree only when you add it here.</p>' : '') + '<p class="small">Only you add items; Claude never creates structure.</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="ai-kind">' + kinds.map(function (k, i) { return '<button class="' + (i === kOn ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai-title" type="text" style="width:100%" placeholder="e.g. Runs page keeps its scroll position" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Implements</h3></div><div class="impl-pick" id="ai-impl">' + fpbList().map(function (f) { return '<label class="tick-row"><input type="checkbox" data-f="' + f + '"' + (impl.indexOf(f) >= 0 ? ' checked' : '') + '><span><b>' + f + '</b> ' + esc(D.fpbs[f].title) + ((D.fpbs[f].takenOnBy || []).length ? ' <span class="small muted">· taken on by ' + D.fpbs[f].takenOnBy.join(', ') + '</span>' : '') + '</span></label>'; }).join('') + '</div><p class="tiny" style="margin-top:6px">Optional. A task may implement several reports, and a report may be split across tasks. Its plan draws from each report\'s When implementing lines.</p></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select id="ai-place" style="width:100%" aria-label="Place">' + placeOptions(node) + '</select><p class="tiny" style="margin-top:6px">It arrives closed, as one line with a coarse size, until a plan opens it.</p></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Coarse size</h3></div><div class="seg big" id="ai-size">' + ['~half a day', '~3 days', '~1 week', '~3 weeks'].map(function (s, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + s + '</button>'; }).join('') + '</div></div>',
+    pre = pre || {};
+    openSheet('Add item', '<p class="small">An item is a unit of development work. You can also just say it in chat and Claude writes it here.</p>' +
+      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai-title" type="text" style="width:100%" placeholder="e.g. Login screen" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select id="ai-place" style="width:100%" aria-label="Place">' + placeOptions(node) + '</select></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Size</h3></div><div class="seg big" id="ai-size">' + ['~half a day', '~3 days', '~1 week', '~3 weeks'].map(function (s, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + s + '</button>'; }).join('') + '</div></div>',
       '<button class="btn primary" data-act="additem-save" data-node="' + node + '">Add</button><button class="btn" data-act="close">Cancel</button>');
   }
 
@@ -2172,6 +2218,8 @@
       case 'defer': WBAPI.press(dv.card, 'defer'); return true;
       case 'plan-approve': WBAPI.press(dv.card, 'approve'); return true;
       case 'stuck-retry': WBAPI.press(dv.card, 'retry'); return true;
+      case 'dev-allow': WBAPI.press(dv.card, 'allow'); return true;
+      case 'dev-pick': WBAPI.press(dv.card, 'pick', { index: +dv.i }); return true;
       case 'stuck-drop': WBAPI.press(dv.card, 'drop'); return true;
       case 'stuck-reassign': closeLayers(); WBAPI.press(dv.card, 'reassign', { value: dv.v }); return true;
       case 'all-fine': if (dv.card) WBAPI.press(dv.card, 'all-fine'); else toast('Reviewed on the packet card when it arrives'); return true;
@@ -2179,7 +2227,7 @@
       case 'found-drop': var fd = D.found[dv.f]; var pkd = D.sessions[fd.session] && D.sessions[fd.session].packet; if (pkd) WBAPI.press(parseRef(pkd).id, 'found-drop', { target: dv.f }); else toast(esc(fd.title) + ' dropped'); return true;
       case 'proposals-discard': WBAPI.press(dv.card, 'discard'); return true;
       case 'ruling-save': var rlt = document.getElementById('rl-text').value.trim(); closeLayers(); WBAPI.press(dv.card, 'make-ruling', { text: rlt }); return true;
-      case 'additem-save': var aik = document.querySelector('#ai-kind .on'), ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aii = [].slice.call(document.querySelectorAll('#ai-impl input:checked')).map(function (x) { return x.getAttribute('data-f'); }); var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); var kindv = aik ? aik.textContent.trim() : 'task'; closeLayers(); WBAPI.addItem({ kind: kindv, title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days', implements: aii }); return true;
+      case 'additem-save': var ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); closeLayers(); WBAPI.addItem({ kind: 'task', title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days' }); return true;
       case 'rename-save': var rnv = document.getElementById('rn-title').value.trim(); closeLayers(); if (rnv) WBAPI.patchItem(dv.node, { title: rnv }); return true;
       case 'move-save': var mvv = document.getElementById('mv-place').value; closeLayers(); WBAPI.patchItem(dv.node, { parentId: D.items[mvv] ? mvv : '' }); return true;
       case 'message-send': var mtv = document.getElementById('msg-text').value.trim(); closeLayers(); if (mtv) WBAPI.message(dv.session, mtv); return true;
@@ -2203,7 +2251,7 @@
       case 'wfilter': openMenu(el, filterMenu()); return true;
       case 'go': location.hash = dv.href; return true;
       case 'reply': var rb = document.getElementById('reply-' + dv.card); if (rb) { rb.hidden = false; var ri = rb.querySelector('input'); ri && ri.focus(); } return true;
-      case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'question' ? 'write' : cty === 'packet' ? 'changes' : cty === 'plan' ? 'change' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
+      case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'page' ? 'changes' : cty === 'deviation' ? 'back' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
       case 'iss-kind': S.iss.kind = dv.k; render(true); return true;
       case 'edge': var eg = D.edges.filter(function (x) { return x.id === dv.edge; })[0]; openMenu(el, '<div class="mi-h">' + esc(chipInfo(eg.from).title) + ' ' + (eg.type === 'needs' ? 'needs' : eg.type) + ' ' + esc(chipInfo(eg.to).title) + '</div><p class="small muted" style="padding:0 12px 8px">' + esc(eg.reason) + '</p><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="confirmed">' + ic('run') + '<span>Confirm<span class="why">' + (eg.min ? '~' + fmtMin(eg.min) + ' of work waits behind it' : 'keeps the link') + '</span></span></button><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="removed">' + ic('close') + '<span>Remove<span class="why">Claude proposed it; nothing waits on it then</span></span></button>'); return true;
       case 'edge-set': S.edgeState[dv.edge] = dv.v; closeLayers(); WBAPI.edge(dv.edge, dv.v === 'confirmed'); return true;

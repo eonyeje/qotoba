@@ -10,21 +10,15 @@ public enum ReportKind { FTR, BUG, PER }
 
 public enum Author { Me, Claude, Machine }
 
-public enum ImplKind { Decision, Proof, Dependency, Precondition }
+/// <summary>Typed links between items and FPBs, in the words the Quanta registers used.</summary>
+public enum EdgeType { Needs, Related, Duplicate, SplitFrom, ReplacedBy, CarriedBy, FoundIn }
 
-public enum ImplStatus { Open, Scheduled, Asked, Settled, Proved, Dropped }
-
-public enum EdgeType { Needs, Related, Duplicate }
-
-public enum CardType { Question, Packet, Plan, Stuck, Info, Proposals }
+/// <summary>What reaches the inbox: a custom page with its own state, a stuck session, a deviation that must be reported. Info is the quiet "for you to know" list.</summary>
+public enum CardType { Page, Stuck, Deviation, Info }
 
 public enum CardState { Open, Answered, Approved, Deferred, Dismissed, Preview }
 
-public enum QuestionState { Open, Answered, NotAsked }
-
 public enum AssumptionState { Unreviewed, Fine, Flipped }
-
-public enum FoundState { InTray, Task, Later, Dropped, Promoted }
 
 public enum SessionState { Working, Waiting, Ended }
 

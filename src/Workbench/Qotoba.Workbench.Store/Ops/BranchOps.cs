@@ -1,15 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using Qotoba.Workbench.Contracts;
 using Qotoba.Workbench.Model;
 
 namespace Qotoba.Workbench.Store.Ops;
 
 /// <summary>
-/// The branch belongs to the opened top-level item. It is created in the owner's checkout when the item's first plan
-/// is approved; the items under it share it; every approved packet merges it into main and it carries on; when the
-/// top item is finished the branch is deleted and the checkout is back on main. A session finds its item from the
+/// The branch belongs to the opened top-level item and the items under it share it. That is a convention Claude keeps
+/// itself, on the owner's word; the Workbench only records which branch an item is on. A session finds its item from the
 /// checkout it starts in: the checkout's bound item, else its branch, else the one open top item; then the open node
-/// under it. The owner never names an item to a session.
+/// under it. Nobody types an id.
 /// </summary>
 public sealed partial class WorkbenchOps
 {
@@ -33,7 +31,7 @@ public sealed partial class WorkbenchOps
         return $"{p.Code.ToLowerInvariant()}/{number}" + (slug.Length == 0 ? "" : "-" + slug);
     }
 
-    /// <summary>The deepest open node under a top item: the task a session works.</summary>
+    /// <summary>The deepest open node under a top item: the item a session works.</summary>
     public async Task<Item> DeepestOpenAsync(Item top, CancellationToken ct = default)
     {
         var node = top;
@@ -79,91 +77,25 @@ public sealed partial class WorkbenchOps
         return (await DeepestOpenAsync(top, ct)).Id;
     }
 
-    /// <summary>
-    /// Makes sure the top item has its branch checked out on the machine. Runs git through the Host; never fails the
-    /// caller. Returns one line for the owner's toast and the item's history.
-    /// </summary>
-    public async Task<string> EnsureBranchAsync(Item top, string machineId, string? cwdHint, CancellationToken ct = default)
+    /// <summary>A session says which branch the opened top item is on, after it created or checked it out itself. Recorded, never acted on.</summary>
+    public async Task<string> BranchNoteAsync(string sessionId, string itemId, string branch, string? checkout, CancellationToken ct = default)
     {
-        var p = await ProjectOfAsync(top, ct);
-        var branch = top.Branch ?? BranchNameFor(p, top);
-        var m = await db.Machines.FindAsync([machineId], ct);
-        var checkouts = m is null ? [] : List<Checkout>(m.CheckoutsJson);
-        var mine = checkouts.FirstOrDefault(c => c.ItemId == top.Id)
-                   ?? (top.Checkout is null ? null : checkouts.FirstOrDefault(c => c.Path.Equals(top.Checkout, StringComparison.OrdinalIgnoreCase)))
-                   ?? CheckoutHolding(m ?? new Machine { Id = machineId }, cwdHint)
-                   ?? checkouts.FirstOrDefault(c => c.ItemId is null);
-        var path = mine?.Path ?? top.Checkout ?? cwdHint;
-        if (path is null)
+        var s = await RequireSessionAsync(sessionId, ct);
+        var it = await RequireItemAsync(itemId, ct);
+        var top = await TopOfAsync(it, ct);
+        top.Branch = branch.Trim();
+        top.Checkout = checkout ?? s.Cwd ?? top.Checkout;
+        top.HomeMachineId ??= s.MachineId;
+        if (s.MachineId is not null && await db.Machines.FindAsync([s.MachineId], ct) is { } m && top.Checkout is not null)
         {
-            await HistoryAsync(top.Id, "no checkout", $"No checkout is known on {machineId}; the branch {branch} is not created yet", ct);
-            return $"no checkout known on {machineId}, branch not created";
-        }
-        if (top.Branch == branch && top.Checkout is not null && top.HomeMachineId == machineId && mine?.ItemId == top.Id)
-            return $"on branch {branch}";
-
-        var git = await host.RunGitAsync(machineId, new GitInstruction(path, [$"git checkout {branch}"]), ct);
-        if (!git.Ok) git = await host.RunGitAsync(machineId, new GitInstruction(path, ["git checkout main", $"git checkout -b {branch}"]), ct);
-        if (!git.Ok)
-        {
-            await HistoryAsync(top.Id, "branch not created", "The Host reported: " + Trim(git.Output, 200), ct);
-            return "branch not created: " + Trim(git.Output, 120);
-        }
-        top.Branch = branch; top.Checkout = path; top.HomeMachineId ??= machineId;
-        if (m is not null)
-        {
-            var list = checkouts.Select(c => c.Path.Equals(path, StringComparison.OrdinalIgnoreCase) ? c with { Branch = branch, ItemId = top.Id } : c).ToList();
-            if (!list.Any(c => c.Path.Equals(path, StringComparison.OrdinalIgnoreCase))) list.Add(new Checkout(path, branch, top.Id, false, null));
+            var list = List<Checkout>(m.CheckoutsJson);
+            var i = list.FindIndex(c => c.Path.Equals(top.Checkout, StringComparison.OrdinalIgnoreCase));
+            if (i >= 0) list[i] = list[i] with { Branch = top.Branch, ItemId = top.Id }; else list.Add(new Checkout(top.Checkout, top.Branch, top.Id, false, null));
             m.CheckoutsJson = Json.Write(list);
         }
-        await HistoryAsync(top.Id, "branch", $"{branch} checked out in {path} on {machineId}", ct);
-        Audit(Actor.System, "branch", "item", top.Id, branch);
-        return $"branch {branch} checked out on {machineId}";
-    }
-
-    /// <summary>True when approving this item's packet finishes its top item: every other node under the top is done and the top has no work of its own left.</summary>
-    public async Task<bool> TopFinishesWithAsync(Item top, Item it, CancellationToken ct = default)
-    {
-        var all = await db.Items.Where(i => i.ProjectId == top.ProjectId).ToListAsync(ct);
-        var under = new List<Item>();
-        var frontier = new Queue<string>([top.Id]);
-        while (frontier.Count > 0)
-        {
-            var id = frontier.Dequeue();
-            foreach (var c in all.Where(i => i.ParentId == id)) { under.Add(c); frontier.Enqueue(c.Id); }
-        }
-        if (under.Any(c => c.Id != it.Id && c.State != ItemState.Done)) return false;
-        if (it.Id == top.Id) return true;
-        var ownSteps = List<Step>(top.StepsJson);
-        return ownSteps.Count == 0 || ownSteps.All(s => s.State == StepState.Done);
-    }
-
-    /// <summary>The git lines the Host runs when a packet is approved. Lines starting with "- " may fail without stopping the rest.</summary>
-    public static List<string> MergeInstruction(Item top, Item it, bool closesTop)
-    {
-        if (top.Branch is null) return [];
-        var title = it.Title.Replace('"', '\'');
-        var lines = new List<string>
-        {
-            "git checkout main",
-            $"git merge --no-ff {top.Branch} -m \"Merge {it.Id}: {title}\"",
-            "git rev-parse --short HEAD",
-            "- git push origin main"
-        };
-        if (closesTop) { lines.Add($"git branch -d {top.Branch}"); lines.Add($"- git push origin --delete {top.Branch}"); }
-        else { lines.Add($"git checkout {top.Branch}"); lines.Add("git merge main"); }
-        return lines;
-    }
-
-    /// <summary>The top item is finished: closed, its branch gone, its checkout free.</summary>
-    public async Task CloseTopAsync(Item top, CancellationToken ct = default)
-    {
-        var branch = top.Branch;
-        top.State = ItemState.Done; top.IsOpen = false; top.Branch = null;
-        if (top.HomeMachineId is not null && await db.Machines.FindAsync([top.HomeMachineId], ct) is { } m)
-            m.CheckoutsJson = Json.Write(List<Checkout>(m.CheckoutsJson).Select(c => c.ItemId == top.Id ? c with { Branch = "main", ItemId = null } : c).ToList());
-        top.Checkout = null;
-        await HistoryAsync(top.Id, "closed", branch is null ? "Everything under it is done" : $"Everything under it is done; branch {branch} deleted, the checkout is on main", ct);
-        Audit(Actor.System, "closed", "item", top.Id, branch);
+        await HistoryAsync(top.Id, "branch", $"On {top.Branch}" + (top.Checkout is null ? "" : $" in {top.Checkout}"), ct);
+        await LedgerAsync(s, "branch", $"{top.Id} on {top.Branch}");
+        await SaveAsync("item", top.Id, ct);
+        return $"{top.Id} is on {top.Branch}";
     }
 }

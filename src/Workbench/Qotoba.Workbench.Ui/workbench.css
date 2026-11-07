@@ -1025,3 +1025,8 @@ details.drill > summary { padding: 12px 2px; }
 
 /* list rows with a second line use the full width of their section */
 .list > .li.col { align-self: stretch; width: 100%; }
+
+/* a page card renders Claude's HTML in a sandboxed frame that grows with the pane */
+.page-frame{margin:16px 0;border:1px solid var(--rule,#d9d5ca);border-radius:10px;overflow:hidden;background:#fff}
+.page-frame iframe{display:block;width:100%;height:min(70vh,760px);border:0}
+.plain-table th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:.7}
