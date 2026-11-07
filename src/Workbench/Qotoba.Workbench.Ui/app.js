@@ -986,6 +986,7 @@
       (it ? '<a class="mi" href="#/item/' + id + '" data-act="close-after">' + ic('open') + 'Open item page</a>' : '<a class="mi" href="#/project/' + id + '" data-act="close-after">' + ic('open') + 'Open project page</a>') +
       '<button class="mi' + (co.ok ? '' : ' dis') + '" data-act="opennode" data-node="' + id + '">' + ic('work') + '<span>Open this node<span class="why">' + esc(co.why) + '</span></span></button>' +
       '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">An item of work under this one</span></span></button>' +
+      (it ? '<button class="mi" data-act="openwindow" data-node="' + id + '">' + ic('rider') + '<span>Open in a new Rider window<span class="why">Its branch in a second folder; this window stays as it is</span></span></button>' : '') +
       '<button class="mi" data-act="move" data-node="' + id + '">' + ic('move') + 'Move…</button>' +
       '<button class="mi" data-act="rename" data-node="' + id + '">' + ic('edit') + 'Rename…</button>' +
       '<button class="mi" data-act="summary" data-node="' + id + '">' + ic('projects') + 'Show summary</button>';
@@ -2258,6 +2259,7 @@
       case 'rowmenu': openMenu(el, rowMenu(dv.node)); return true;
       case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
       case 'additem': addItemSheet(dv.node); return true;
+      case 'openwindow': closeLayers(); toast('Preparing a second folder on the item\'s branch…'); WBAPI.window(dv.node); return true;
       case 'found-task': var fx = D.found[dv.f]; var pkf = D.sessions[fx.session] && D.sessions[fx.session].packet; if (pkf) WBAPI.press(parseRef(pkf).id, 'found-task', { target: dv.f }); toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;
       case 'report-edit': openMenu(el, reportEditMenu(dv.fpb)); return true;
       case 'report-edit-x': closeLayers(); reportEditSheet(dv.fpb, dv.v); return true;

@@ -57,6 +57,16 @@ public sealed class HostClient(HttpClient http, IServiceScopeFactory scopes, IOp
         catch { return null; }
     }
 
+    public async Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default)
+    {
+        try
+        {
+            using var res = await http.SendAsync(Req(HttpMethod.Post, await UrlFor(machineId, ct) + "/worktree", req), ct);
+            return await res.Content.ReadFromJsonAsync<WorktreeResult>(ct) ?? new WorktreeResult(false, req.Folder, req.Branch, false, "The Host answered with nothing.");
+        }
+        catch (Exception ex) { return new WorktreeResult(false, req.Folder, req.Branch, false, "The Host on " + machineId + " is not reachable: " + ex.Message); }
+    }
+
     public async Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default)
     {
         try

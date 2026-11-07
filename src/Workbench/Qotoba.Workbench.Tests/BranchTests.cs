@@ -92,6 +92,29 @@ public class BranchTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenInANewWindowMakesAWorktreeOnTheItemsBranchAndOpensTheNode()
+    {
+        await RegisterCheckoutAsync();
+        var top = await f.Ops().AddItemAsync(new AddItemRequest("task", "Rendering engine", "wb", null, null, null), Actor.Owner);
+        var (opened, folder, branch, msg) = await f.Ops().OpenInWindowAsync(top.Id);
+        Assert.Equal(top.Id, opened.Id);
+        Assert.True(opened.IsOpen);
+        Assert.Equal("wb/1-rendering-engine", branch);
+        Assert.Equal("D:" + Path.DirectorySeparatorChar + "repo-1-rendering-engine", folder);
+        Assert.Contains("new folder", msg);
+        var req = Assert.Single(f.Host.Worktrees);
+        Assert.Equal("D:" + Path.DirectorySeparatorChar + "repo", req.Checkout);
+        using var db = f.Db();
+        var t = db.Items.Single(i => i.Id == top.Id);
+        Assert.Equal(folder, t.Checkout); Assert.Equal(branch, t.Branch);
+        var cos = Json.ReadList<Checkout>(db.Machines.Single().CheckoutsJson);
+        Assert.Contains(cos, c => c.Path == folder && c.ItemId == top.Id && c.Worktree);
+        // a session started in that folder belongs to the item
+        var s = await f.Ops().SessionStartedAsync(Start("s9", folder + Path.DirectorySeparatorChar + "src"));
+        Assert.Contains("Rendering engine", s.HookSpecificOutput!.AdditionalContext);
+    }
+
+    [Fact]
     public void BranchNamesAreProjectCodeNumberAndSlug()
     {
         var p = new Project { Id = "lng", Code = "LNG", Name = "Language" };

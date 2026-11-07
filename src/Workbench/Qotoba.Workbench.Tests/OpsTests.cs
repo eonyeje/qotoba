@@ -46,6 +46,8 @@ public sealed class FakeHost : IHostClient
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(true);
     public string? Branch { get; set; }
     public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult(Branch);
+    public List<WorktreeRequest> Worktrees { get; } = [];
+    public Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default) { Worktrees.Add(req); return Task.FromResult(new WorktreeResult(true, req.Folder, req.Branch, true, "ok")); }
 }
 
 public class OpsTests : IDisposable

@@ -19,6 +19,8 @@ public interface IHostClient
     Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default);
     /// <summary>The branch a checkout is on right now, or null when the Host cannot say.</summary>
     Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default);
+    /// <summary>On the owner's click: a worktree of the checkout on the item's branch, so a second Rider window can work that item.</summary>
+    Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default);
 }
 
 public sealed class NoHost : IHostClient
@@ -27,6 +29,7 @@ public sealed class NoHost : IHostClient
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(false);
     public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    public Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default) => Task.FromResult(new WorktreeResult(false, req.Folder, req.Branch, false, "No Host is registered for " + machineId + "."));
 }
 
 public sealed class OpsOptions

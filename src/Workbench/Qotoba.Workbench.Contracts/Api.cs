@@ -21,5 +21,9 @@ public sealed record PageAnswer(string Key, string Value);
 public sealed record MachineRegistration(string Id, string Os, string HostVersion, string Kind, string HostUrl, List<CheckoutInfo> Checkouts, DateTimeOffset Clock);
 public sealed record CheckoutInfo(string Path, string Branch, string? Item, bool Worktree, string? Note);
 
+/// <summary>The owner asked for an item in a new Rider window: the Host checks the item's branch out as a worktree beside the main checkout.</summary>
+public sealed record WorktreeRequest(string Checkout, string Branch, string Folder);
+public sealed record WorktreeResult(bool Ok, string Folder, string Branch, bool Created, string Output);
+
 /// <summary>A check result a session reports itself (the hooks report dotnet test and build on their own).</summary>
 public sealed record ResultReport(string Check, string? Project, string? Item, string? Session, string Result, int Passed, int Total, double DurationSec, string Cmd);

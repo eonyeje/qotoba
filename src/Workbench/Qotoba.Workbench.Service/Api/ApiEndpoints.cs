@@ -34,6 +34,11 @@ public static class ApiEndpoints
             var (it, message) = await ops.PatchItemAsync(id, patch, ct);
             return Results.Json(new { id = it.Id, message, navigate = it.Id == id ? null : "#/item/" + it.Id }, Json.Options);
         }));
+        api.MapPost("/items/{id}/window", async (string id, WorkbenchOps ops, CancellationToken ct) => await Guard(async () =>
+        {
+            var (it, folder, branch, message) = await ops.OpenInWindowAsync(id, ct);
+            return Results.Json(new { id = it.Id, folder, branch, message }, Json.Options);
+        }));
         api.MapPatch("/reports/{id}", async (string id, ReportPatch patch, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.PatchReportAsync(id, patch, ct)).Id }, Json.Options)));
         api.MapPatch("/edges/{id}", async (string id, EdgePatch patch, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { await ops.PatchEdgeAsync(id, patch, ct); return Results.Ok(new { ok = true }); }));
         api.MapPost("/edges", async (EdgeBody body, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.AddEdgeAsync(body.From, body.To, ct)).Id }, Json.Options)));

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Qotoba.Workbench.Contracts;
 using Qotoba.Workbench.Model;
 
 namespace Qotoba.Workbench.Store.Ops;
@@ -76,6 +77,38 @@ public sealed partial class WorkbenchOps
         if (top is null) return null;
         return (await DeepestOpenAsync(top, ct)).Id;
     }
+
+    /// <summary>
+    /// The owner asked for an item in a new Rider window. The Host checks the item's top branch out as a worktree beside
+    /// the main checkout; the node opens; the add-in then opens that folder as a new window of the running Rider.
+    /// </summary>
+    public async Task<(Item item, string folder, string branch, string message)> OpenInWindowAsync(string itemId, CancellationToken ct = default)
+    {
+        var it = await RequireItemAsync(itemId, ct);
+        var top = await TopOfAsync(it, ct);
+        var p = await ProjectOfAsync(top, ct);
+        var branch = top.Branch ?? BranchNameFor(p, top);
+        var machines = await db.Machines.Where(m => m.Online).ToListAsync(ct);
+        var machine = machines.FirstOrDefault(m => m.Id == top.HomeMachineId) ?? machines.FirstOrDefault(m => m.Id == options.MachineId) ?? machines.FirstOrDefault()
+            ?? throw new WorkbenchRuleException("machine.none", "No Host is online to prepare the folder.");
+        var checkouts = List<Checkout>(machine.CheckoutsJson);
+        var root = checkouts.FirstOrDefault(c => !c.Worktree) ?? checkouts.FirstOrDefault() ?? throw new WorkbenchRuleException("checkout.none", $"The Host on {machine.Id} knows no checkout.");
+        var folder = checkouts.FirstOrDefault(c => c.Branch == branch && c.Path != root.Path)?.Path
+            ?? Path.Combine(Path.GetDirectoryName(root.Path.TrimEnd('\\', '/')) ?? root.Path, Path.GetFileName(root.Path.TrimEnd('\\', '/')) + "-" + BranchSlug(branch));
+        var wt = await host.WorktreeAsync(machine.Id, new WorktreeRequest(root.Path, branch, folder), ct);
+        if (!wt.Ok) throw new WorkbenchRuleException("worktree", "The Host could not prepare the folder: " + Trim(wt.Output, 200));
+        top.Branch = branch; top.Checkout = wt.Folder; top.HomeMachineId ??= machine.Id;
+        var list = checkouts.Where(c => !c.Path.Equals(wt.Folder, StringComparison.OrdinalIgnoreCase)).ToList();
+        list.Add(new Checkout(wt.Folder, branch, top.Id, true, "opened in a new Rider window"));
+        machine.CheckoutsJson = Json.Write(list);
+        var (opened, msg) = it.IsOpen ? (it, $"{it.Id} is already open") : await OpenNodeAsync(it, ct);
+        await HistoryAsync(top.Id, "new window", $"{branch} checked out in {wt.Folder} on {machine.Id}" + (wt.Created ? "" : " (already there)"), ct);
+        Audit(Actor.Owner, "window", "item", opened.Id, wt.Folder);
+        await SaveAsync("item", top.Id, ct);
+        return (opened, wt.Folder, branch, msg + (wt.Created ? $" · {branch} checked out in a new folder" : $" · folder already on {wt.Branch}"));
+    }
+
+    private static string BranchSlug(string branch) { var i = branch.IndexOf('/'); return i < 0 ? branch : branch[(i + 1)..]; }
 
     /// <summary>A session says which branch the opened top item is on, after it created or checked it out itself. Recorded, never acted on.</summary>
     public async Task<string> BranchNoteAsync(string sessionId, string itemId, string branch, string? checkout, CancellationToken ct = default)

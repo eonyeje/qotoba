@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -9,8 +9,9 @@ using Qotoba.Workbench.Contracts;
 
 /*
  * qotoba-host · the only process that touches a disk for the Workbench.
- * Registers this machine with the Service, heartbeats, runs the git lines of an approved packet,
- * reads file lines for pulled code, and runs checks on request. Everything else lives in the Service.
+ * Registers this machine with the Service, heartbeats, says which branch a checkout is on, reads file lines for
+ * pulled code, opens a file in Rider, indexes //+ comments, and on the owner's click makes a worktree for a second
+ * Rider window. It runs no git on its own and no tests. Everything else lives in the Service.
  *
  *   qotoba-host serve [--workbench http://localhost:5290] [--port 5291] [--name <machine>] [--checkout <path>]...
  *   qotoba-host register ...   (same flags; registers once and exits)
@@ -23,6 +24,7 @@ var port = int.TryParse(Arg("--port"), out var p) ? p : 5291;
 var name = Arg("--name") ?? Environment.GetEnvironmentVariable("QOTOBA_WB_MACHINE") ?? Environment.MachineName.ToLowerInvariant();
 var checkouts = Args("--checkout");
 if (checkouts.Count == 0 && Directory.Exists(Path.Combine(Environment.CurrentDirectory, ".git"))) checkouts.Add(Environment.CurrentDirectory);
+await DiscoverWorktreesAsync();
 var tokenPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qotoba-workbench", "token");
 var token = Environment.GetEnvironmentVariable("QOTOBA_WB_TOKEN") ?? (File.Exists(tokenPath) ? File.ReadAllText(tokenPath).Trim() : "");
 const string Version = "0.1.0";
@@ -65,6 +67,27 @@ app.MapGet("/branch", async (string checkout) =>
     if (!Directory.Exists(checkout)) return Results.NotFound();
     var (code, output) = await RunAsync("git", "rev-parse --abbrev-ref HEAD", checkout, TimeSpan.FromSeconds(10));
     return code == 0 ? Results.Text(output.Trim()) : Results.NotFound();
+});
+
+// the owner asked for an item in a new Rider window: check its branch out as a worktree beside the main checkout
+app.MapPost("/worktree", async (WorktreeRequest req) =>
+{
+    if (!Directory.Exists(req.Checkout)) return Results.Json(new WorktreeResult(false, req.Folder, req.Branch, false, "No such checkout: " + req.Checkout));
+    var folder = Path.GetFullPath(req.Folder);
+    if (Directory.Exists(folder))
+    {
+        var (c0, b0) = await RunAsync("git", "rev-parse --abbrev-ref HEAD", folder, TimeSpan.FromSeconds(10));
+        if (c0 == 0) { if (!checkouts.Contains(folder, StringComparer.OrdinalIgnoreCase)) checkouts.Add(folder); _ = RegisterAsync(); return Results.Json(new WorktreeResult(true, folder, b0.Trim(), false, "already there, on " + b0.Trim())); }
+        return Results.Json(new WorktreeResult(false, folder, req.Branch, false, "The folder exists and is not a checkout: " + folder));
+    }
+    var (has, _) = await RunAsync("git", "rev-parse --verify --quiet refs/heads/" + req.Branch, req.Checkout, TimeSpan.FromSeconds(10));
+    var (code, output) = has == 0
+        ? await RunAsync("git", $"worktree add \"{folder}\" {req.Branch}", req.Checkout, TimeSpan.FromMinutes(2))
+        : await RunAsync("git", $"worktree add -b {req.Branch} \"{folder}\" main", req.Checkout, TimeSpan.FromMinutes(2));
+    if (code != 0) return Results.Json(new WorktreeResult(false, folder, req.Branch, false, output.Trim()));
+    checkouts.Add(folder);
+    _ = RegisterAsync();
+    return Results.Json(new WorktreeResult(true, folder, req.Branch, true, output.Trim()));
 });
 
 app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
@@ -131,6 +154,22 @@ string? Arg(string flag) { var i = Array.IndexOf(args0, flag); return i >= 0 && 
 List<string> Args(string flag) { var l = new List<string>(); for (var i = 0; i < args0.Length - 1; i++) if (args0[i] == flag) l.Add(args0[i + 1]); return l; }
 
 static string OsName() => OperatingSystem.IsWindows() ? "Windows " + Environment.OSVersion.Version.Build switch { >= 26100 => "11 24H2", >= 22000 => "11", _ => "10" } : Environment.OSVersion.VersionString;
+
+/// the worktrees that already hang off a checkout are checkouts too: a second Rider window may be open on one
+async Task DiscoverWorktreesAsync()
+{
+    foreach (var c in checkouts.ToList())
+    {
+        var (code, output) = await RunAsync("git", "worktree list --porcelain", c, TimeSpan.FromSeconds(10));
+        if (code != 0) continue;
+        foreach (var line in output.Split('\n'))
+        {
+            if (!line.StartsWith("worktree ")) continue;
+            var path = Path.GetFullPath(line[9..].Trim());
+            if (Directory.Exists(path) && !checkouts.Contains(path, StringComparer.OrdinalIgnoreCase)) checkouts.Add(path);
+        }
+    }
+}
 
 async Task<List<CheckoutInfo>> DescribeCheckoutsAsync()
 {
