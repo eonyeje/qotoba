@@ -1182,13 +1182,13 @@
   }
   function projectCard(p) {
     var bo = blockedOnYou(p.id);
-    return '<article class="pcard" data-act="pfilter-go" data-p="' + p.id + '" style="--pc:var(--' + p.color + ')"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
+    return '<article class="pcard" data-act="go" data-href="#/project/' + p.id + '" style="--pc:var(--' + p.color + ');cursor:pointer" role="link" tabindex="0" aria-label="Open ' + esc(p.name) + '"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
       (p.total ? '<p class="pc-num">' + p.pct + '%<span class="muted small"> · ' + p.done + ' of ' + plural(p.total, 'item') + ' done</span></p>' : '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small"> · not started</span></p>') +
       '<div class="wbar"><span class="m" style="width:' + (p.total ? p.pct : 0) + '%"></span><span class="c"></span></div>' +
       (p.total ? '<p class="small muted">' + leftText(p) + (p.sessionsNow && p.sessionsNow.length ? ' · ' + plural(p.sessionsNow.length, 'session') + ' now' : '') + '</p>' : '') +
       (p.burn && p.burn.length ? spark(p) : '') +
       '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting on you' : esc(trunc(p.closedWhy, 70))) + '</p>' +
-      '<a class="btn small text" href="#/project/' + p.id + '">Project page</a></article>';
+      '</article>';
   }
   function vProjects() {
     return '<div class="pane wide-pane"><div class="lhead flush"><h2>Projects</h2><p class="muted">' + (function () { var t = D.projects.reduce(function (a, p) { return a + (p.total || 0); }, 0), d = D.projects.reduce(function (a, p) { return a + (p.done || 0); }, 0), w = D.projects.reduce(function (a, p) { return a + (p.waiting ? p.waiting.length : 0); }, 0); return t ? d + ' of ' + plural(t, 'item') + ' done across the programme' + (w ? ' · ' + plural(w, 'decision') + ' waiting on you' : ' · nothing waiting on you') : 'Nothing started yet. About ' + D.meta.workLeft.coarseWeeks + ' weeks of work, coarse.'; })() + '</p></div><div class="pgrid">' + D.projects.map(projectCard).join('') + '</div></div>';
@@ -2311,7 +2311,7 @@
       case 'psearch': openSearchOverlay(); return true;
       case 'moremenu': openMenu(el, '<div class="mi-h">Project</div><div class="menu-sec">' + projectSelect() + '</div><div class="mi-h">More</div>' + MORE.map(function (x) { return '<a class="mi" href="' + x[2] + '" data-act="close-after">' + ic(x[0]) + x[1] + '</a>'; }).join('') + ''); return true;
       case 'wfilter': openMenu(el, filterMenu()); return true;
-      case 'go': location.hash = dv.href; return true;
+      case 'go': if (ev && ev.target && ev.target.closest && ev.target.closest('a,button,[data-ref]') && ev.target.closest('a,button,[data-ref]') !== el) return false; location.hash = dv.href; return true;
       case 'reply': var rb = document.getElementById('reply-' + dv.card); if (rb) { rb.hidden = false; var ri = rb.querySelector('input'); ri && ri.focus(); } return true;
       case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'page' ? 'changes' : cty === 'deviation' ? 'back' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
       case 'iss-kind': S.iss.kind = dv.k; render(true); return true;
