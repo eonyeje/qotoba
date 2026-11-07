@@ -57,7 +57,7 @@ The script only talks to the service when the session's folder is inside a check
 3. The session reads its brief, writes its steps, and works. The branch is a convention it keeps itself: one branch per opened top item (`wb/1-login-screen`), shared by everything under it, recorded with `branch_note`.
 4. A design that spans several classes, a concept, a data change, a review: the session writes a page and the owner answers on it and approves; the answers are the agreed design. Small blocked questions are not cards: the session takes the recommended answer and records an assumption.
 5. A rule the owner states in chat is recorded as a decision there and then. A feature the owner asks for is an FTR; a defect or a slow path the session finds is a BUG or a PER, raised by the session, attached to the item.
-6. The session reports done in one sentence. Commit, merge and push happen when the owner says so, and are written against the item.
+6. Nothing closes, merges or pushes on its own. When the work is finished the session advises in chat (tests green, FPBs fixed, ready to merge, push and mark done) and the owner decides. Then the session does what was said and records done in one sentence, written against the item.
 
 There is no concept called a lane (ruling R-1). The opened item is the thing.
 
