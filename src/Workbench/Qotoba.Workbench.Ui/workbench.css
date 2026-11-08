@@ -591,7 +591,7 @@ html:not([data-layout="desktop"]) .menu { left: 0 !important; right: 0; bottom: 
 .mi { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 8px 12px; border: 0; background: transparent; text-align: left; border-radius: 9px; cursor: pointer; font-size: 14.5px; color: var(--ink); }
 .mi:hover { background: var(--sunk); text-decoration: none; }
 .mi svg { width: 17px; height: 17px; color: var(--ink3); flex: none; }
-.mi .why { display: block; font-size: 12.5px; color: var(--ink3); }
+.mi .why { display: block; margin: 2px 0 0; font-size: 12.5px; color: var(--ink3); }
 .mi.dis { opacity: .55; cursor: not-allowed; }
 .mi-h { font-family: var(--display); font-size: 12px; color: var(--ink3); padding: 10px 12px 4px; font-weight: 700; }
 .chat-box { border-radius: 10px; padding: 12px; background: var(--sunk); }
