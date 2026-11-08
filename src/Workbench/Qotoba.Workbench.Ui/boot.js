@@ -52,7 +52,21 @@
       return api('POST', '/api/items', body).then(function (r) { if (r.message) { toast(esc(r.message)); return r; } toast('Added ' + esc(r.id) + ', closed, coarse'); refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
     },
     patchItem: function (id, body) {
-      return api('PATCH', '/api/items/' + encodeURIComponent(id), body).then(function (r) { if (r.message) toast(esc(r.message)); refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
+      return api('PATCH', '/api/items/' + encodeURIComponent(id), body).then(function (r) { if (r.message) toast(esc(r.message)); if (r.navigate) location.hash = r.navigate; refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
+    window: function (item) {
+      return api('POST', '/api/items/' + encodeURIComponent(item) + '/window', {}).then(function (r) {
+        if (r.message && !r.folder) { toast(esc(r.message)); return r; }
+        if (window.QOTOBA_RIDER && window.QOTOBA_RIDER.openProject) { window.QOTOBA_RIDER.openProject(r.folder); toast('Opening ' + esc(r.folder) + ' in a new Rider window · ' + esc(r.message || '')); }
+        else toast('Ready on ' + esc(r.branch) + ' in ' + esc(r.folder) + ' · open that folder in Rider (File › Open, new window)');
+        refresh(); return r;
+      }).catch(function (e) { toast(esc(e.message)); });
+    },
+    openProject: function (id) {
+      return api('PATCH', '/api/projects/' + encodeURIComponent(id), { open: true }).then(function (r) { if (r.message) toast(esc(r.message)); refresh(); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
+    pageAnswer: function (card, key, value) {
+      return api('POST', '/api/cards/' + encodeURIComponent(card) + '/answers', { key: key, value: value }).then(function (r) { if (!r.ok) toast(esc(r.message)); return r; }).catch(function (e) { toast(esc(e.message)); });
     },
     message: function (session, text) {
       return api('POST', '/api/sessions/' + encodeURIComponent(session) + '/message', { text: text }).then(function () { toast('Queued for session ' + esc(session) + '; it is read at the next stop'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
@@ -100,6 +114,12 @@
   applyAutoLayout(true);
   var resizeTimer = null;
   window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { applyAutoLayout(false); }, 200); });
+
+  // a page card's frame posts the owner's answers; the Workbench keeps them with the card
+  window.addEventListener('message', function (ev) {
+    var d = ev.data; if (!d || d.type !== 'wb-answer' || !window.WB_PAGE_CARD) return;
+    window.WBAPI.pageAnswer(window.WB_PAGE_CARD, String(d.key || ''), String(d.value == null ? '' : d.value));
+  });
 
   refresh();
   listen();

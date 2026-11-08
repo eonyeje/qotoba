@@ -7,6 +7,8 @@ public class Session
     public string Title { get; set; } = "";
     public string? MachineId { get; set; }
     public string? ItemId { get; set; }
+    /// <summary>The project the session belongs to when the owner opened a project but no item under it yet.</summary>
+    public string? ProjectId { get; set; }
     public SessionState State { get; set; } = SessionState.Working;
     public bool Stuck { get; set; }
     public DateTimeOffset Started { get; set; }
@@ -22,39 +24,15 @@ public class Session
     public DateTimeOffset? WaitingSince { get; set; }
     public string? Cwd { get; set; }
     public string? TranscriptPath { get; set; }
-    public string? PacketCardId { get; set; }
     public string LedgerJson { get; set; } = "[]";
     public bool Hello { get; set; }
 }
 
 public sealed record LedgerLine(string At, string Kind, string Text);
 
-public class Run
-{
-    public required string Id { get; set; }
-    public required string Check { get; set; }
-    public string? ItemId { get; set; }
-    public string? SessionId { get; set; }
-    public string? MachineId { get; set; }
-    public string? Also { get; set; }
-    public RunResult Result { get; set; }
-    public int Passed { get; set; }
-    public int Total { get; set; }
-    public double DurationSec { get; set; }
-    public DateTimeOffset At { get; set; }
-    public string Cmd { get; set; } = "";
-    public string OutputTail { get; set; } = "";
-    public int Attempt { get; set; } = 1;
-    public int? ExitCode { get; set; }
-    public string? Expected { get; set; }
-    public string? Value { get; set; }
-    public string? Seed { get; set; }
-    public int? StepN { get; set; }
-}
-
 public class Machine
 {
-    public required string Id { get; set; }          // "desk-pc"
+    public required string Id { get; set; }
     public string Os { get; set; } = "";
     public string HostVersion { get; set; } = "";
     public bool Online { get; set; }

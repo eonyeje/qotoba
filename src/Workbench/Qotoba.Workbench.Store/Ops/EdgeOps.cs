@@ -4,31 +4,54 @@ using Qotoba.Workbench.Model;
 
 namespace Qotoba.Workbench.Store.Ops;
 
-/// <summary>Dependencies: Claude proposes, the owner confirms through the plan's settle pass (or removes).</summary>
+/// <summary>Typed links between items and FPBs, in the register's words. Claude records them; the owner removes one in chat or on the page.</summary>
 public sealed partial class WorkbenchOps
 {
-    public async Task<Edge> ProposeEdgeAsync(string sessionId, string from, string to, string type, string reason, bool hard, CancellationToken ct = default)
+    public async Task<Edge> LinkAsync(string sessionId, string from, string to, string type, string? reason, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
-        if (!Enum.TryParse<EdgeType>(type, true, out var et)) throw new WorkbenchRuleException("edge.type", "Type is needs, related or duplicate.");
-        from = NormaliseRef(from); to = NormaliseRef(to);
-        if (!await RefExistsAsync(from, ct) || !await RefExistsAsync(to, ct)) throw new WorkbenchRuleException("edge.ref", "Both ends must be an existing item (item:WB-1) or report (fpb:BUG-1).");
-        if (from == to) throw new WorkbenchRuleException("edge.self", "A thing does not depend on itself.");
-        if (await db.Edges.AnyAsync(e => e.From == from && e.To == to && e.Type == et, ct)) throw new WorkbenchRuleException("edge.dup", "That link already exists.");
-        Rules.TextFits(reason, "The reason");
-        var e = new Edge { Id = "e-" + Ids.Short(), From = from, To = to, Type = et, Hard = hard, Reason = reason.Trim(), By = Actor.Claude, SessionId = s.Id, Confirmed = false };
-        if (et == EdgeType.Needs && from.StartsWith("item:") && await db.Items.FindAsync([from[5..]], ct) is { } blocked) e.Min = await WorkBehindAsync(blocked, null, ct);
-        db.Edges.Add(e);
-        await LedgerAsync(s, "edge", $"{from} {et.ToString().ToLowerInvariant()} {to}");
+        var e = await LinkCoreAsync(s, from, to, type, reason, ct);
         await SaveAsync("edge", e.Id, ct);
         return e;
     }
 
-    /// <summary>The owner links two things directly; no confirmation is needed since it is theirs.</summary>
+    private async Task<Edge> LinkCoreAsync(Session s, string from, string to, string type, string? reason, CancellationToken ct)
+    {
+        var et = ParseLinkType(type);
+        from = NormaliseRef(from); to = NormaliseRef(to);
+        if (!await RefExistsAsync(from, ct) || !await RefExistsAsync(to, ct)) throw new WorkbenchRuleException("edge.ref", $"Both ends must be an existing item or FPB: {from}, {to}.");
+        if (from == to) throw new WorkbenchRuleException("edge.self", "A thing does not link to itself.");
+        var existing = await db.Edges.FirstOrDefaultAsync(e => e.From == from && e.To == to && e.Type == et, ct);
+        if (existing is not null) { if (reason is not null) existing.Reason = reason.Trim(); return existing; }
+        if (reason is not null) Rules.TextFits(reason, "The reason");
+        var e = new Edge { Id = "e-" + Ids.Short(), From = from, To = to, Type = et, Reason = reason?.Trim(), By = Actor.Claude, SessionId = s.Id, Confirmed = true };
+        if (et == EdgeType.Needs && from.StartsWith("item:") && await db.Items.FindAsync([from[5..]], ct) is { } blocked) e.Min = await WorkBehindAsync(blocked, null, ct);
+        db.Edges.Add(e);
+        await LedgerAsync(s, "link", $"{from} {LinkWord(et)} {to}");
+        return e;
+    }
+
+    private static EdgeType ParseLinkType(string type)
+    {
+        var t = type.Trim().ToLowerInvariant().Replace(" ", "").Replace("-", "").Replace("_", "");
+        return t switch
+        {
+            "needs" or "waitson" or "dependson" or "blockedby" => EdgeType.Needs,
+            "splitfrom" => EdgeType.SplitFrom,
+            "replacedby" or "supersededby" => EdgeType.ReplacedBy,
+            "carriedby" or "absorbedby" => EdgeType.CarriedBy,
+            "foundin" or "raisedby" or "foundbuilding" or "founddesigning" => EdgeType.FoundIn,
+            "duplicate" or "duplicates" or "duplicateof" => EdgeType.Duplicate,
+            "related" or "relatesto" or "seealso" => EdgeType.Related,
+            _ => throw new WorkbenchRuleException("edge.type", "Type is needs, split from, replaced by, carried by, found in, duplicate or related.")
+        };
+    }
+
+    /// <summary>The owner links two things on the tree.</summary>
     public async Task<Edge> AddEdgeAsync(string from, string to, CancellationToken ct = default)
     {
         from = NormaliseRef(from); to = NormaliseRef(to);
-        if (!await RefExistsAsync(from, ct) || !await RefExistsAsync(to, ct)) throw new WorkbenchRuleException("edge.ref", "Name an existing item (WB-2.3) or report (BUG-1).");
+        if (!await RefExistsAsync(from, ct) || !await RefExistsAsync(to, ct)) throw new WorkbenchRuleException("edge.ref", "Name an existing item or FPB.");
         if (from == to) throw new WorkbenchRuleException("edge.self", "A thing does not depend on itself.");
         var e = await db.Edges.FirstOrDefaultAsync(x => x.From == from && x.To == to && x.Type == EdgeType.Needs, ct);
         if (e is null) { e = new Edge { Id = "e-" + Ids.Short(), From = from, To = to, Type = EdgeType.Needs, By = Actor.Owner, Confirmed = true, Reason = "set by you" }; db.Edges.Add(e); }
@@ -47,52 +70,29 @@ public sealed partial class WorkbenchOps
         await SaveAsync("edge", id, ct);
     }
 
-    private async Task<List<SettleQ>> DrawSettleFromEdgesAsync(Item it, int startIndex, CancellationToken ct)
+    private static string NormaliseRef(string r)
     {
-        var refId = "item:" + it.Id;
-        var pending = await db.Edges.Where(e => e.From == refId && !e.Confirmed && e.Type == EdgeType.Needs).ToListAsync(ct);
-        var n = startIndex;
-        var list = new List<SettleQ>();
-        foreach (var e in pending)
-        {
-            var title = await TitleOfAsync(e.To, ct);
-            list.Add(new SettleQ("s" + (++n), $"Depends on {title}" + (e.Reason is null ? "" : $": {e.Reason}"), ["Accept", "Remove"], 0, null, null, null, e.Id));
-        }
-        return list;
+        if (r.Contains(':')) return r;
+        var u = r.ToUpperInvariant();
+        return u.Contains("-FTR-") || u.Contains("-BUG-") || u.Contains("-PER-") || u.StartsWith("FTR-") || u.StartsWith("BUG-") || u.StartsWith("PER-") ? "fpb:" + r : "item:" + r;
     }
-
-    private async Task SettleEdgesAsync(List<SettleQ> settle, CancellationToken ct)
-    {
-        foreach (var q in settle.Where(q => q.Edge is not null))
-        {
-            var e = await db.Edges.FindAsync([q.Edge!], ct);
-            if (e is null) continue;
-            var choice = q.Chosen is int c && c >= 0 && c < q.Options.Count ? q.Options[c] : q.Options[q.Rec];
-            if (choice == "Accept") { e.Confirmed = true; e.By = Actor.Owner; } else db.Edges.Remove(e);
-        }
-    }
-
-    private static string NormaliseRef(string r) => r.Contains(':') ? r : (r.StartsWith("FTR-") || r.StartsWith("BUG-") || r.StartsWith("PER-") ? "fpb:" + r : "item:" + r);
 
     private async Task<bool> RefExistsAsync(string r, CancellationToken ct) =>
-        r.StartsWith("item:") ? await db.Items.AnyAsync(i => i.Id == r.Substring(5), ct) : r.StartsWith("fpb:") && await db.Reports.AnyAsync(x => x.Id == r.Substring(4), ct);
+        r.StartsWith("item:") ? await db.Items.AnyAsync(i => i.Id == r.Substring(5), ct) || db.Items.Local.Any(i => i.Id == r.Substring(5))
+        : r.StartsWith("fpb:") && (await db.Reports.AnyAsync(x => x.Id == r.Substring(4), ct) || db.Reports.Local.Any(x => x.Id == r.Substring(4)));
 
-    private async Task<string> TitleOfAsync(string r, CancellationToken ct) =>
-        r.StartsWith("item:") ? (await db.Items.FindAsync([r[5..]], ct))?.Title ?? r : (await db.Reports.FindAsync([r[4..]], ct))?.Title ?? r;
-
-    /// <summary>Longest chain of unfinished work through confirmed needs edges and the open path, as item refs.</summary>
+    /// <summary>Longest chain of unfinished work through needs edges and the open path, as item refs.</summary>
     public static List<string> CriticalPath(List<Item> items, List<Edge> edges, string projectId)
     {
         var mine = items.Where(i => i.ProjectId == projectId && i.State != ItemState.Done && !i.Preview).ToDictionary(i => i.Id);
         if (mine.Count == 0) return [];
         int Weight(Item i) => Math.Max(1, (int)Math.Round(((i.EstMin ?? 0) - i.SoMin) * (i.Factor ?? 1.2)));
-        var blockedBy = new Dictionary<string, List<string>>();      // to (prerequisite) -> froms (dependants)
-        foreach (var e in edges.Where(e => e.Type == EdgeType.Needs && e.Confirmed && e.From.StartsWith("item:") && e.To.StartsWith("item:")))
+        var blockedBy = new Dictionary<string, List<string>>();
+        foreach (var e in edges.Where(e => e.Type == EdgeType.Needs && e.From.StartsWith("item:") && e.To.StartsWith("item:")))
         {
             var a = e.To[5..]; var b = e.From[5..];
             if (mine.ContainsKey(a) && mine.ContainsKey(b)) (blockedBy[a] = blockedBy.GetValueOrDefault(a) ?? []).Add(b);
         }
-        // children run inside their parent: an open parent's current child precedes its later siblings
         foreach (var g in mine.Values.Where(i => i.ParentId is not null).GroupBy(i => i.ParentId!))
         {
             var ordered = g.OrderBy(i => i.Order).ToList();

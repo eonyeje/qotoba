@@ -184,9 +184,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("ProjectId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("QuestionId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ReportId")
                         .HasColumnType("TEXT");
 
@@ -465,117 +462,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.ToTable("Files");
                 });
 
-            modelBuilder.Entity("Qotoba.Workbench.Model.Found", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("At")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EvidenceRef")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ItemId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PromotedTo")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SessionId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SuggestItemId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Why")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SessionId");
-
-                    b.ToTable("Founds");
-                });
-
-            modelBuilder.Entity("Qotoba.Workbench.Model.ImplLine", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Cost")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Date")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ItemId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OptionsJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("QuestionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Rec")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Ref")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ReportId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Via")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Why")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId");
-
-                    b.ToTable("ImplLines");
-                });
-
             modelBuilder.Entity("Qotoba.Workbench.Model.Item", b =>
                 {
                     b.Property<string>("Id")
@@ -585,10 +471,6 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Checkout")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ClaimsJson")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CoarseSize")
@@ -620,10 +502,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("HomeMachineId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ImplementsJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsOpen")
                         .HasColumnType("INTEGER");
 
@@ -639,13 +517,10 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("PacketCardId")
+                    b.Property<string>("Outcome")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ParentId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PlanCardId")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("Preview")
@@ -786,6 +661,12 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Branch")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Checkout")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ClosedWhy")
                         .HasColumnType("TEXT");
 
@@ -807,6 +688,12 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<double?>("Factor")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("HomeMachineId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsOpen")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -824,6 +711,10 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Repo")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ResultsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("State")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -836,124 +727,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.ToTable("Projects");
                 });
 
-            modelBuilder.Entity("Qotoba.Workbench.Model.Proposal", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("At")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CardId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ChatTitle")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RulingId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SessionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Ticked")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CardId");
-
-                    b.ToTable("Proposals");
-                });
-
-            modelBuilder.Entity("Qotoba.Workbench.Model.Question", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Answer")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AnsweredAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Asked")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CardId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CodeRef")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CommentId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Context")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Cost")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ItemId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OptionsJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ReportId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RulingId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SessionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Shape")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Short")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("StepN")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TriedJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UnblockMin")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("UnseenFile")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.ToTable("Questions");
-                });
-
             modelBuilder.Entity("Qotoba.Workbench.Model.Report", b =>
                 {
                     b.Property<string>("Id")
@@ -962,8 +735,8 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("AttachItemId")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ChosenFix")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Changed")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Created")
                         .IsRequired()
@@ -983,8 +756,8 @@ namespace Qotoba.Workbench.Store.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("NextLine")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Left")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ProjectId")
                         .IsRequired()
@@ -1004,9 +777,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("SeverityReason")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SourceFoundId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("SourceSessionId")
                         .HasColumnType("TEXT");
 
@@ -1021,7 +791,7 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Subtype")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TargetJson")
+                    b.Property<string>("TakenOnItemId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -1029,6 +799,8 @@ namespace Qotoba.Workbench.Store.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AttachItemId");
 
                     b.HasIndex("ProjectId");
 
@@ -1057,14 +829,14 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("ProjectId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("QuestionId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("RelatedJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ReopenNote")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Text")
@@ -1080,79 +852,6 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("Rulings");
-                });
-
-            modelBuilder.Entity("Qotoba.Workbench.Model.Run", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Also")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("At")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Attempt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Check")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Cmd")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("DurationSec")
-                        .HasColumnType("REAL");
-
-                    b.Property<int?>("ExitCode")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Expected")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ItemId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MachineId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OutputTail")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Passed")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Result")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Seed")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SessionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("StepN")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Total")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("SessionId");
-
-                    b.ToTable("Runs");
                 });
 
             modelBuilder.Entity("Qotoba.Workbench.Model.Session", b =>
@@ -1188,7 +887,7 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<int>("Minutes")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("PacketCardId")
+                    b.Property<string>("ProjectId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Started")

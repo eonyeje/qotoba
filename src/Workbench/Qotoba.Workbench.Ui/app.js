@@ -91,7 +91,7 @@
 
   /* ================================================================ references */
   var COLL = { fpb: 'fpbs', reg: 'register', ruling: 'rulings', item: 'items', question: 'questions', assumption: 'assumptions', found: 'found', file: 'files', type: 'types', run: 'runs', session: 'sessions', machine: 'machines', comment: 'comments', claudemd: 'claudemd', commit: 'commits', branch: 'branches', card: 'cards', lane: 'lanes', nyw: 'nyw' };
-  var KIND_LABEL = { fpb: 'Issue', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
+  var KIND_LABEL = { fpb: 'FPB', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
   var REF_RE = /\b(fpb|reg|ruling|item|question|assumption|found|file|type|run|session|machine|comment|claudemd|commit|branch|project|card|lane|nyw):([A-Za-z0-9][A-Za-z0-9._\-]*(?::\d+(?:-\d+)?)?)/g;
 
   function parseRef(ref) {
@@ -422,7 +422,7 @@
     }
     return { html: '' };
   }
-  function cardKindLabel(c) { if (c.type === 'proposals') return 'Record'; if (c.type === 'question' && c.answered) return 'Question · answered'; if (c.type === 'plan' && c.approved) return 'Plan · approved'; return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
+  function cardKindLabel(c) { if (c.type === 'page') return c.approved ? 'Page · approved' : c.answered ? 'Page · changes asked' : 'Page'; if (c.type === 'deviation') return c.approved || c.answered ? 'Deviation · decided' : 'Deviation'; if (c.type === 'proposals') return 'Record'; if (c.type === 'question' && c.answered) return 'Question · answered'; if (c.type === 'plan' && c.approved) return 'Plan · approved'; return c.type === 'question' ? 'Question' : c.type === 'packet' ? (c.approved ? 'Approved' : c.preview ? 'Approve · preview' : 'Approve') : c.type === 'plan' ? 'Plan' : c.type === 'stuck' ? 'Stuck' : 'Info'; }
 
   /* ================================================================ shared fragments */
   function budgetQ(itemId) {
@@ -441,7 +441,7 @@
     var to = s ? (s.state === 'ended' ? 'the Host on ' + s.machine + ' (session ' + c.session + ' resumes to read it)' : 'session ' + c.session + ' on ' + s.machine) : (c && c.type === 'info' ? 'your notes on this card' : 'the item, read when a session next opens it');
     return '<div class="reply" id="reply-' + id + '"' + (open ? '' : ' hidden') + '><input type="text" placeholder="Say it in your own words" aria-label="Your message" data-act="reply-input" data-card="' + id + '"><button class="btn primary" data-act="send-reply" data-card="' + id + '" data-to="' + esc(to) + '">Send</button><p class="small muted">Goes to ' + esc(to) + ' instead of the buttons above.</p></div>';
   }
-  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type === 'proposals' ? 'plan' : c.type; }
+  function kindClass(c) { return c.type === 'packet' ? 'approve' : c.type === 'proposals' || c.type === 'page' ? 'plan' : c.type === 'deviation' ? 'question' : c.type; }
   function ago(c) { return c.waiting ? 'waiting ' + c.waiting : c.age ? c.age + ' ago' : ''; }
   function plainList(items) { return '<ul class="plain">' + items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
 
@@ -475,6 +475,8 @@
   function vCard(id, q) {
     var c = D.cards[id];
     if (!c) return head(null) + '<div class="pane">' + empty('No such card', 'The card may have been cleared.') + '</div>';
+    if (c.type === 'page') return vPage(id, q);
+    if (c.type === 'deviation') return vDeviation(id);
     if (c.type === 'question') return vQuestion(id);
     if (c.type === 'packet') return vPacket(id, q);
     if (c.type === 'plan') return vPlan(id, q);
@@ -598,19 +600,64 @@
     return h + '</div>';
   }
 
+  /* ================================================================ 4b. Page: a custom page with its own answers */
+  function vPage(id, qs) {
+    var c = D.cards[id], pg = D.pages[id];
+    if (!pg) return cardHead(c) + '<div class="pane">' + empty('No page', 'The page body is missing.') + '</div>';
+    var h = cardHead(c) + '<div class="pane page-pane">';
+    h += dhead(pg.approved ? 'Page · approved' : pg.state === 'changes asked' ? 'Page · changes asked' : 'Page', 'plan', pg.approved ? 'approved ' + esc(pg.approved) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(pg.title), (pg.item ? itemLink(pg.item) + ' · ' : '') + esc(pg.purpose || 'A change with no designer: answer on it, then approve.'));
+    h += whyLine(id);
+    window.WB_PAGE_CARD = id;
+    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html)) + '"></iframe></div>';
+    var keys_ = keys(pg.answers || {});
+    if (pg.approved) h += '<div class="answered"><p><span class="done-line">Approved ' + esc(pg.approved) + '</span> · ' + plural(keys_.length, 'answer') + ' went with it as the agreed design</p></div>';
+    else if (pg.state === 'changes asked') h += '<div class="answered"><p><span class="done-line">Changes asked ' + esc(c.answered) + '</span></p><p>' + esc(c.answer || '') + '</p></div>';
+    else h += '<div class="actions"><button class="btn primary" data-act="approve" data-card="' + id + '">Approve</button><button class="btn" data-act="reply" data-card="' + id + '">Ask for changes</button><span class="spacer"></span><button class="btn text" data-act="dismiss" data-card="' + id + '">Dismiss</button></div>' + replyBox(id, qs && qs.changes);
+    h += drills([
+      drill('Your answers', keys_.length ? plural(keys_.length, 'answer') + (pg.answersAt ? ' · last ' + esc(pg.answersAt) : '') : 'none yet', keys_.length ? '<dl class="kv">' + keys_.map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(pg.answers[k]) + '</dd>'; }).join('') + '</dl>' : empty('Nothing answered yet', 'Answer on the page itself; every answer is kept here with the card.'), { open: keys_.length > 0 }),
+      drill('From', 'session ' + esc(c.session || '') + (pg.machine ? ' on ' + esc(pg.machine) : '') + ' · ' + esc(c.at), chips(['session:' + c.session].concat(pg.machine ? ['machine:' + pg.machine] : [])))
+    ], 'Go deeper');
+    return h + '</div>';
+  }
+  function pageDoc(html) {
+    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);})();<\/script>';
+    var base = '<style>body{font:15px/1.5 system-ui,sans-serif;margin:16px;color:#1d2430;background:#fff}details{border-top:1px solid #ddd;padding:8px 0}summary{cursor:pointer;font-weight:600}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}button[data-answer]{font:inherit;padding:5px 12px;border-radius:8px;border:1px solid #c9c9c9;background:#fff;cursor:pointer;margin:2px}button[data-answer][aria-pressed=true]{background:#274a78;color:#fff;border-color:#274a78}@media (prefers-color-scheme:dark){body{background:#1d2129;color:#eceef2}td,th{border-color:#343a46}button[data-answer]{background:#262b35;color:#eceef2;border-color:#444}}</style>';
+    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + '</head>');
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + '</head><body>' + html + '</body></html>';
+  }
+
+  /* ================================================================ 4c. Deviation */
+  function vDeviation(id) {
+    var c = D.cards[id], dv = D.deviations[id] || {};
+    var h = cardHead(c) + '<div class="pane">';
+    h += dhead(dv.decided ? 'Deviation · decided' : 'Deviation', 'question', dv.decided ? esc(dv.decided) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(dv.what || c.headline), (dv.item ? itemLink(dv.item) + ' · ' : '') + 'the session must leave the agreed design, or did something you asked to be told about');
+    h += whyLine(id);
+    h += '<blockquote class="quote"><span class="muted small">Why</span><span class="rich">' + rich(dv.why || '') + '</span></blockquote>';
+    if (dv.agreed || dv.instead) h += '<dl class="kv">' + (dv.agreed ? '<dt>Agreed</dt><dd>' + esc(dv.agreed) + '</dd>' : '') + (dv.instead ? '<dt>Instead</dt><dd>' + esc(dv.instead) + '</dd>' : '') + '</dl>';
+    if (dv.decided) h += '<div class="answered"><p><span class="done-line">' + esc(dv.decided === 'allowed' ? 'Allowed' : dv.decided === 'sent back' ? 'Sent back' : 'Chosen: ' + dv.decided) + ' ' + esc(c.approved || c.answered || '') + '</span></p>' + (c.answer && dv.decided === 'sent back' ? '<p>' + esc(c.answer) + '</p>' : '') + '</div>';
+    else {
+      h += '<div class="actions">';
+      if ((dv.options || []).length) h += dv.options.map(function (o, i) { return '<button class="btn' + (i === 0 ? ' primary' : '') + '" data-act="dev-pick" data-card="' + id + '" data-i="' + i + '">' + esc(o) + '</button>'; }).join('');
+      else h += '<button class="btn primary" data-act="dev-allow" data-card="' + id + '">Allow</button>';
+      h += '<button class="btn" data-act="reply" data-card="' + id + '">Send back</button><span class="spacer"></span></div>' + replyBox(id);
+    }
+    h += drills([drill('From', 'session ' + esc(c.session || '') + (dv.machine ? ' on ' + esc(dv.machine) : '') + ' · ' + esc(c.at), chips(['session:' + c.session].concat(dv.machine ? ['machine:' + dv.machine] : [])))], 'Go deeper');
+    return h + '</div>';
+  }
+
   /* ================================================================ 5. Stuck */
   function vStuck(id) {
-    var c = D.cards[id], st = D.stucks[id], run = D.runs[parseRef(st.check).id];
+    var c = D.cards[id], st = D.stucks[id], out = (st.lastOutput || (st.attempts.length ? st.attempts[st.attempts.length - 1].output : '') || '').split('\n');
     var h = cardHead(c) + '<div class="pane">';
     h += dhead('Stuck', 'stuck', 'unblocks about ' + fmtMin(c.weight), 'A check failed three times', itemLink(st.item) + ' · ' + esc(st.step) + ' · the session stopped instead of trying again');
     h += whyLine(id);
-    h += '<p class="glance-line"><span class="gl-k">Last failure</span><code>' + esc(run.out[0]) + '</code></p>';
+    if (out[0]) h += '<p class="glance-line"><span class="gl-k">Last failure</span><code>' + esc(out[0]) + '</code></p>';
     h += '<blockquote class="quote"><span class="muted small">The session’s diagnosis</span><span class="rich">' + rich(st.diagnosis) + '</span></blockquote>';
     h += '<div class="actions"><button class="btn" data-act="reassign" data-card="' + id + '">Reassign</button><button class="btn" data-act="stuck-retry" data-card="' + id + '">Retry once more</button><button class="btn" data-act="stuck-drop" data-card="' + id + '">Drop the step</button><span class="spacer"></span>' + replyBtn(id) + talkBtn('card:' + id) + '</div>' + replyBox(id);
     h += drills([
-      drill('Last failure', esc(st.checkName.replace('tests · ', '')), '<pre class="instr">' + esc(run.out.slice(0, 6).join('\n')) + '</pre><p class="small"><a href="#/run/' + parseRef(st.check).id + '">Full output</a></p>'),
-      drill('Three attempts', esc(attemptsSeq(st.attempts)), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span>' + chip(a.run) + '</div>'; }).join('') + '</div>'),
-      drill('Where', 'session ' + st.session + ' on ' + st.machine + ' · since ' + esc(c.at), chips(['session:' + st.session, 'machine:' + st.machine, st.check]))
+      drill('Last failure', esc(st.checkName.replace('tests · ', '')), '<pre class="instr">' + esc(out.slice(0, 12).join('\n')) + '</pre>'),
+      drill('Three attempts', esc(attemptsSeq(st.attempts)), '<div class="list">' + st.attempts.map(function (a, i) { return '<div class="li"><span class="li-main"><b>' + (i + 1) + '.</b> ' + esc(a.t) + '</span><span class="li-meta tone-bad">' + esc(a.result) + '</span></div>'; }).join('') + '</div>'),
+      drill('Where', 'session ' + st.session + ' on ' + st.machine + ' · since ' + esc(c.at), chips(['session:' + st.session, 'machine:' + st.machine]))
     ], 'Go deeper');
     return h + '</div>';
   }
@@ -643,18 +690,13 @@
   function canOpen(id) {
     if (id === 'root') return { ok: false, why: 'The programme is always open.' };
     var p = projOf(id);
-    if (p) return p.state === 'open' ? { ok: false, why: 'Already open.' } : { ok: false, why: 'A project opens when an approved plan opens one of its items.' };
+    if (p) return p.isOpen ? { ok: false, why: 'Already open as a whole on ' + p.branch + '.' } : { ok: true, why: 'Opens the whole project: one branch, ' + p.branch + ', that everything in it shares; sessions in this checkout belong to it until you open an item under it.', go: '#/project/' + id, openProject: true };
     var it = D.items[id];
-    if (it.preview) return { ok: false, why: 'Language is closed. These four appear as real items when an approved plan opens it.' };
-    if (it.unscheduled) return { ok: false, why: 'Unscheduled: no open parent path. Dope must open first.' };
     if (it.isOpen) return { ok: false, why: 'Already open.' };
-    if (it.state === 'done') return { ok: false, why: 'Done items do not reopen; add a BUG under it instead.' };
-    if (it.state === 'review') return { ok: false, why: 'In review: approve or ask for changes on its packet.' };
-    if (it.plan) return { ok: true, why: 'Opens through its plan.', go: '#/card/' + parseRef(it.plan).id };
+    if (it.state === 'done') return { ok: false, why: 'Done items do not reopen.' };
     var sibs = keys(D.items).filter(function (k) { var x = D.items[k]; return k !== id && x.parent === it.parent && x.project === it.project && x.isOpen; });
-    if (!sibs.length) return { ok: true, why: 'Nothing is open at this level; opening it starts planning.', go: '#/item/' + id, open: true };
-    var sib = sibs.join(' and ') + (sibs.length === 1 ? ' is' : ' are') + ' open at this level';
-    return { ok: false, why: sib + '. One open node per level.' };
+    if (!sibs.length) return { ok: true, why: 'Nothing else is open at this level. Opening it makes it the node that sessions in this checkout work on.', go: '#/item/' + id, open: true };
+    return { ok: true, why: esc(itemTitle(sibs[0])) + ' is open at this level; opening it.', go: '#/item/' + sibs[0] };
   }
   function nodeTitle(id) { if (id === 'root') return D.meta.programme + ' programme'; var p = projOf(id); return p ? p.name : itemTitle(id); }
   function matchesFilter(id) {
@@ -677,16 +719,16 @@
   function nodeMeta(id) {
     var p = projOf(id), it = D.items[id];
     if (id === 'root') return '8 projects';
-    if (p) return p.state === 'open' ? 'open · ~' + p.coarseWeeks + ' weeks' : '~' + p.coarseWeeks + ' weeks';
+    if (p) return p.isOpen ? 'open on ' + p.branch : '~' + p.coarseWeeks + ' weeks';
     if (it.preview) return 'preview · ' + it.coarse;
     if (it.unscheduled) return 'unscheduled · ' + it.coarse;
     if (it.state === 'coarse') return it.coarse;
     if (it.state === 'planned') return 'planned · ' + it.coarse;
     if (it.state === 'review') return 'in review';
     if (it.state === 'done') return 'done';
-    if (it.state === 'planning') return 'plan waiting';
+    if (it.state === 'planning') return 'open';
     var st = it.steps || [];
-    return (it.state === 'blocked' ? 'blocked' : 'building') + (st.length ? ' · ' + stepsDone(it) + ' of ' + st.length : '');
+    return (it.state === 'blocked' ? 'blocked' : 'building') + (st.length ? ' · ' + (it.progress != null ? it.progress + '%' : stepsDone(it) + ' of ' + st.length) : '');
   }
   function treeRow(id, d, vis) {
     var p = projOf(id), it = D.items[id], isRoot = id === 'root';
@@ -718,7 +760,7 @@
   function vWork(sel) {
     if (sel) S.work.sel = sel;
     var vis = visibleSet(), fc = filterCount();
-    var tb = '<div class="wtools" style="margin-bottom:12px"><div class="seg"><button class="on">Tasks</button><button data-go="#/issues">Issues · ' + fpbList().length + '</button></div></div><div class="wtools"><div class="seg"><button class="' + (S.work.view === 'outline' ? 'on' : '') + '" data-act="wview" data-v="outline">Outline</button><button class="' + (S.work.view === 'columns' ? 'on' : '') + '" data-act="wview" data-v="columns">Columns</button></div>' +
+    var tb = '<div class="wtools" style="margin-bottom:12px"><div class="seg"><button class="on">Tasks</button><button data-go="#/issues">FPBs · ' + fpbList().length + '</button></div></div><div class="wtools"><div class="seg"><button class="' + (S.work.view === 'outline' ? 'on' : '') + '" data-act="wview" data-v="outline">Outline</button><button class="' + (S.work.view === 'columns' ? 'on' : '') + '" data-act="wview" data-v="columns">Columns</button></div>' +
       '<button class="btn small" data-act="wfilter">Filter' + (fc ? ' · ' + fc : '') + '</button>' + (fc ? '<button class="btn small text" data-act="wclear">Clear</button>' : '') + '<span class="spacer"></span><button class="btn small" data-act="additem" data-node="' + (S.work.sel || 'root') + '">' + ic('plus') + 'Add item</button></div>';
     var body = S.work.view === 'columns' ? columnsView(vis) : '<div class="tree">' + treeRow('root', 0, vis) + (vis && keys(vis).length === 0 ? empty('Nothing matches', 'Items of the chosen kind and state would list here with their parents.') : '') + '</div>';
     var left = '<div class="lpane wide"><div class="lhead"><h2>Work</h2><p class="muted">The open path is marked. Closed nodes stay one line until a plan opens them.</p></div>' + tb + body + '</div>';
@@ -770,7 +812,7 @@
   }
 
   /* ================================================================ 8. Item: six tabs, each section one line until opened */
-  var TABS = [['overview', 'Overview'], ['about', 'About'], ['plan', 'Plan'], ['changes', 'Changes'], ['issues', 'Issues'], ['decisions', 'Decisions'], ['activity', 'Activity']];
+  var TABS = [['overview', 'Overview'], ['about', 'About'], ['plan', 'Plan'], ['changes', 'Changes'], ['issues', 'FPBs'], ['decisions', 'Decisions'], ['activity', 'Activity']];
   var TAB_ALIAS = { questions: ['decisions', 'questions'], assumptions: ['decisions', 'assumptions'], found: ['decisions', 'found'], comments: ['changes', 'comments'], runs: ['activity', 'runs'], sessions: ['activity', 'sessions'], history: ['activity', 'history'], rulings: ['overview', 'rulings'] };
   function vItem(id, tab) {
     var it = D.items[id];
@@ -799,21 +841,20 @@
     var cur = st.filter(function (s) { return s.state === 'current' || s.state === 'blocked'; })[0];
     var left = it.time && it.time.forecast != null && it.state !== 'done' ? fmtMin(Math.max(0, it.time.forecast - it.time.so)) + ' left' : it.state === 'done' ? 'done in ' + fmtMin(it.time.so) : 'not started';
     var leftRef = it.time && it.time.forecast != null && it.state !== 'done' ? 'of ' + fmtMin(it.time.forecast) + ' forecast' : it.state === 'done' && it.time ? 'against an estimate of ' + fmtMin(it.time.est) : '';
-    var h = '<div class="status"><div><p class="bignum">' + esc(left) + (leftRef ? ' <span class="bignum-ref">' + esc(leftRef) + '</span>' : '') + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + plural(st.length, 'step') + ' done' + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + '</p></div></div>';
+    var h = '<div class="status"><div><p class="bignum">' + esc(left) + (leftRef ? ' <span class="bignum-ref">' + esc(leftRef) + '</span>' : '') + '</p><p class="muted small">' + (st.length ? stepsDone(it) + ' of ' + plural(st.length, 'step') + ' done' + (it.progress != null ? ' · ' + it.progress + '%' : '') + (cur ? ' · now: ' + esc(cur.t) : '') : esc(nodeMeta(id))) + (it.outcome ? ' · ' + esc(it.outcome) : '') + '</p></div></div>';
     var oqHere = openQuestions(id).length, oqKids = ids.slice(1).reduce(function (a, k) { return a + openQuestions(k).length; }, 0);
     var as = itemAssumptions(ids), asUn = as.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length, fd = itemFound(ids).length;
     var cc = commentCounts(it.commentScope);
     var blockedN = st.filter(function (x) { return x.state === 'blocked'; }).length, unseenN = ch.files.filter(function (f) { return !D.files[parseRef(f[0]).id].seen; }).length;
     var runs = it.checks || [], failing = runs.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length;
-    var stepsBody = st.length ? stepsList(it) : (it.plan ? '<p>The plan waits for you: ' + chip(it.plan) + '</p>' : '<p class="muted">' + (it.unscheduled ? 'Unscheduled until Dope opens.' : 'A plan is drawn when the node opens.') + '</p>');
+    var stepsBody = st.length ? stepsList(it) : '<p class="muted">Claude writes its steps when it starts the item.</p>';
     h += drills([
       drill('Steps', st.length ? (blockedN ? plural(blockedN, 'step') + ' blocked' : NU) : 'no plan yet', stepsBody, { open: openSec === 'steps', attn: blockedN > 0 }),
-      drill('Checks', runs.length ? (failing ? plural(failing, 'check') + ' not passing' : NU) : 'no runs yet', runs.length ? chips(runs, { meta: true }) : empty('No runs', 'Checks appear when a session runs one.'), { attn: failing > 0 }),
       drill('Changed', ch.files.length ? (unseenN ? plural(unseenN, 'file') + ' new to you' : NU) : 'nothing yet', ch.files.length ? chips(ch.files.map(function (f) { return f[0]; })) + '<p class="small" style="margin-top:12px"><a href="#/item/' + id + '/changes">See every change</a></p>' : empty('Nothing changed', 'Files git reports on the branch appear here.'), { attn: unseenN > 0 }),
       drill('Time', it.time && it.state === 'done' ? fmtMin(it.time.so) + ' in all, against an estimate of ' + fmtMin(it.time.est) : it.time && it.time.factor ? fmtMin(it.time.so) + ' so far of ' + fmtMin(it.time.forecast) + ' forecast' : it.time ? 'estimate ' + fmtMin(it.time.est) + ' · not started' : esc(it.coarse), it.time ? '<dl class="kv"><dt>So far</dt><dd>' + fmtMin(it.time.so) + ', measured from hooks</dd><dt>Estimate</dt><dd>' + fmtMin(it.time.est) + ' Claude-minutes</dd><dt>Factor</dt><dd>' + (it.time.factor ? it.time.factor + ', actual over estimate' : 'not measured') + '</dd><dt>Forecast</dt><dd>' + fmtMin(it.time.forecast) + ', the estimate times the factor</dd></dl>' : ''),
       drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + plural((it.needs || []).filter(function (n) { return n.note !== 'done'; }).length, 'item') : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? 'about ' + fmtMin(b.min) + ' of work behind it' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
-      drill('Open', [oqHere + oqKids ? plural(oqHere + oqKids, 'question') + ' open' : '', asUn ? plural(asUn, 'assumption') + ' to review' : '', fd ? plural(fd, 'found item') + ' to sort' : ''].filter(Boolean).join(' · ') || NU, '<p>' + budgetQ(id) + '</p>' + (oqKids ? '<p class="small">' + oqKids + ' more open in children.</p>' : '') + '<p class="small"><a href="#/item/' + id + '/decisions">Questions, assumptions and found items</a>' + (asUn ? ' · ' + asUn + ' assumptions to review' : '') + '</p>', { attn: asUn > 0 }),
-      drill('Issues', fpbsUnder(id).length ? fpbCountLabel(fpbsUnder(id)) + ' raised here' : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems raised on this task appear here.'), {}),
+      drill('Assumptions', as.length ? plural(as.length, 'assumption') + ' Claude proceeded on' : 'none', as.length ? '<ul class="plain">' + as.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What a session proceeded on without asking appears here.')),
+      drill('FPBs', fpbsUnder(id).length ? fpbSummary(fpbsUnder(id)) : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No FPBs', 'Features, bugs and performance problems Claude raises on this item appear here.'), {}),
       drill('Comments in scope', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
       drill('Claude’s note', it.note ? esc(trunc(it.note.text, 56)) : 'none', it.note ? '<p>' + esc(it.note.text) + '</p><p class="small muted">' + (it.note.session ? 'Session ' + parseRef(it.note.session).id : 'Seed import') + ' · ' + esc(it.note.date) + '</p>' + (it.claims ? '<p class="small muted" style="margin-top:12px">Claims</p>' + claimsList(it.claims) : '') : ''),
       drill('Rulings that apply', plural((it.rulings || []).length, 'ruling'), (it.rulings || []).length ? '<div class="list">' + it.rulings.map(function (r) { return '<a class="li link" href="' + hrefFor(r) + '"><span class="li-main">' + esc(get(r).title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings this item\'s brief carries appear here.'), { open: openSec === 'rulings' }),
@@ -823,7 +864,7 @@
   }
   function stepsList(it) {
     return '<ol class="steps-simple">' + it.steps.map(function (s) {
-      return '<li class="' + s.state + '"><span class="tick">' + (s.state === 'done' ? '✓' : s.state === 'blocked' ? '!' : '') + '</span><span class="st-t">' + esc(s.t) + (s.state === 'current' ? ' <span class="marker">now</span>' : s.state === 'blocked' ? ' <span class="marker bad">blocked</span>' : '') + '</span>' + chip(s.item || s.proof) + '</li>';
+      return '<li class="' + s.state + '"><span class="tick">' + (s.state === 'done' ? '✓' : s.state === 'blocked' ? '!' : '') + '</span><span class="st-t">' + esc(s.t) + (s.state === 'current' ? ' <span class="marker">now</span>' : s.state === 'blocked' ? ' <span class="marker bad">blocked</span>' : '') + '</span>' + (s.item ? chip(s.item) : '<span class="muted small">' + s.est + ' min</span>') + '</li>';
     }).join('') + '</ol>';
   }
   function accList(list) { return claimsList(list); }
@@ -871,12 +912,11 @@
   }
   function tabPlan(id) {
     var it = work(id);
-    if (!(it.steps || []).length) return it.plan ? '<p class="lead-p">The plan waits for your approval.</p><div class="actions"><a class="btn primary" href="#/card/' + parseRef(it.plan).id + '">Review the plan</a></div>' : empty('No plan yet', 'An approved plan of up to 7 steps, each with an estimate and the check that proves it, appears here.');
+    if (!(it.steps || []).length) return empty('No steps yet', 'Claude writes its own steps, each with an estimate, when it starts the item. They give the item its progress.');
     var total = it.steps.reduce(function (a, s) { return a + s.est; }, 0);
-    var approved = (it.history || []).filter(function (e) { return e[1] === 'plan approved'; })[0];
-    var h = '<p class="muted small" style="margin-bottom:16px">Approved by you' + (approved ? ' ' + esc(approved[0]) : '') + ' · ' + it.steps.length + ' steps of the ' + D.budgets[2].value + ' allowed · ' + total + ' Claude-min estimated' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + '</p>';
+    var h = '<p class="muted small" style="margin-bottom:16px">Claude\'s own steps · ' + plural(it.steps.length, 'step') + ' · ' + total + ' Claude-min estimated' + (it.time && it.time.factor ? ' · forecast ' + fmtMin(it.time.forecast) : '') + (it.progress != null ? ' · ' + it.progress + '% done' : '') + '</p>';
     h += '<div class="drills">' + it.steps.map(function (s, i) {
-      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv"><dt>Proof</dt><dd>' + chip(s.proof, { meta: true }) + '</dd>' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
+      return drill('<span class="sn ' + s.state + '">' + (s.state === 'done' ? '✓' : i + 1) + '</span>' + esc(s.t), (s.state === 'current' ? 'now · ' : s.state === 'blocked' ? 'blocked · ' : '') + s.est + ' Claude-min estimated', '<dl class="kv">' + (s.item ? '<dt>Child</dt><dd>' + chip(s.item, { meta: true }) + '</dd>' : '') + (s.needs ? '<dt>Needs</dt><dd>' + chips(s.needs, { meta: true }) + '</dd>' : '') + (s.note ? '<dt>Note</dt><dd>' + esc(s.note) + '</dd>' : '') + '</dl>', { attn: s.state === 'blocked' });
     }).join('') + '</div>';
     if (D.fpbs[id]) h += '<p class="small" style="margin-top:16px"><a href="#/fpb/' + id + '/report">Back to the report</a></p>';
     return h;
@@ -938,11 +978,12 @@
     }).join('') + '</div>';
   }
   function rowMenu(id) {
-    var co = canOpen(id), it = D.items[id];
+    var co = canOpen(id), it = D.items[id], p = projOf(id);
     return '<div class="mi-h">' + esc(nodeTitle(id)) + '</div>' +
       (it ? '<a class="mi" href="#/item/' + id + '" data-act="close-after">' + ic('open') + 'Open item page</a>' : '<a class="mi" href="#/project/' + id + '" data-act="close-after">' + ic('open') + 'Open project page</a>') +
       '<button class="mi' + (co.ok ? '' : ' dis') + '" data-act="opennode" data-node="' + id + '">' + ic('work') + '<span>Open this node<span class="why">' + esc(co.why) + '</span></span></button>' +
-      '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">Owner only · FTR, BUG, PER or task</span></span></button>' +
+      '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">An item of work under this one</span></span></button>' +
+      (it || p ? '<button class="mi" data-act="openwindow" data-node="' + id + '">' + ic('rider') + '<span>Open in a new Rider window<span class="why">' + (p ? 'The whole project on ' + esc(p.branch) : 'Its branch') + ' in a second folder; this window stays as it is</span></span></button>' : '') +
       '<button class="mi" data-act="move" data-node="' + id + '">' + ic('move') + 'Move…</button>' +
       '<button class="mi" data-act="rename" data-node="' + id + '">' + ic('edit') + 'Rename…</button>' +
       '<button class="mi" data-act="summary" data-node="' + id + '">' + ic('projects') + 'Show summary</button>';
@@ -993,11 +1034,7 @@
     h += '<div class="actions"><button class="btn" data-act="message" data-session="' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Message</button><button class="btn" data-act="session-stop" data-session="' + id + '"' + (s.state === 'ended' ? ' disabled' : '') + '>Stop</button><button class="btn" data-toast="Resume runs through the Host in a later slice"' + (s.state === 'working' ? ' disabled' : '') + '>Resume</button></div>';
     h += drills([
       drill('Effort', fmtMin(s.minutes) + ' · ' + plural(s.turns, 'turn') + ' · ' + plural(s.tools, 'tool call'), '<dl class="kv"><dt>Started</dt><dd>' + esc(s.started) + '</dd>' + (s.ended ? '<dt>Ended</dt><dd>' + esc(s.ended) + '</dd>' : '') + '<dt>Session time</dt><dd>' + fmtMin(s.minutes) + '</dd><dt>Turns</dt><dd>' + plural(s.turns, 'turn') + '</dd><dt>Tool calls</dt><dd>' + plural(s.tools, 'call') + '</dd></dl>'),
-      drill('Checks run', s.checks.length ? (function () { var bad = s.checks.filter(function (r) { var x = D.runs[parseRef(r).id]; return x && x.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : NU; })() : 'none', s.checks.length ? runsTable(s.checks.map(function (r) { return parseRef(r).id; })) : empty('No checks yet', 'Runs reported by the hook for this session appear here.')),
-      drill('Questions asked', s.questions.length ? (function () { var op = s.questions.filter(function (q) { var x = D.questions[parseRef(q).id]; return x && x.state === 'open'; }).length; return op ? plural(op, 'question') + ' still open' : NU; })() : 'none', s.questions.length ? chips(s.questions, { meta: true }) : empty('No questions', 'Questions this session asked appear here.')),
-      drill('Assumptions', s.assumptions.length ? (function () { var un = s.assumptions.filter(function (a) { return D.assumptions[a].state === 'unreviewed'; }).length; return un ? plural(un, 'assumption') + ' to review' : NU; })() : 'none', s.assumptions.length ? assumptionBatch(s.assumptions, true) : empty('No assumptions', 'Assumptions this session made appear here.')),
-      drill('Found items', s.found.length ? s.found.length + ' of the ' + D.budgets[1].value + ' allowed' : 'none', s.found.length ? chips(s.found) : empty('None found', 'At most five per session; they go to the item\'s tray.')),
-      s.packet ? drill('Packet', esc(D.cards[parseRef(s.packet).id].headline), chip(s.packet, { meta: true })) : '',
+      drill('Assumptions', s.assumptions.length ? plural(s.assumptions.length, 'assumption') + ' proceeded on' : 'none', s.assumptions.length ? '<ul class="plain">' + s.assumptions.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What this session proceeded on without asking appears here.')),
       drill('Turn ledger', plural(s.ledger.length, 'entry', 'entries'), '<div class="list">' + s.ledger.map(function (l) { return '<div class="li"><span class="li-meta mono" style="min-width:44px">' + esc(l[0]) + '</span><span class="li-main">' + esc(l[2]) + '</span></div>'; }).join('') + '</div>'),
       drill('Machine', esc(s.machine), chip('machine:' + s.machine, { meta: true }) + (D.lanes[s.lane] ? chip('lane:' + s.lane, { meta: true }) : ''))
     ], 'Go deeper');
@@ -1126,18 +1163,35 @@
     var line = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' ');
     return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Measured hours left: ' + v.join(', ') + '"><path class="a" d="' + line + ' L' + pts[pts.length - 1][0] + ' ' + (H - 12) + ' L5 ' + (H - 12) + ' Z"/><path class="l" d="' + line + '"/><circle cx="' + pts[pts.length - 1][0] + '" cy="' + pts[pts.length - 1][1] + '" r="3"/><text x="5" y="' + (H - 1) + '">' + p.burnDays[0] + ' · ' + v[0] + ' h</text><text x="' + (W - 5) + '" y="' + (H - 1) + '" text-anchor="end">' + p.burnDays[p.burnDays.length - 1] + ' · ' + v[v.length - 1] + ' h</text></svg>';
   }
-  function kindCounts(pid) { var c = { FTR: 0, BUG: 0, PER: 0, task: 0 }; keys(D.items).forEach(function (i) { var it = D.items[i]; if (it.project === pid && !it.preview) c[it.kind]++; }); return c; }
+  function kindCounts(pid) { var c = { FTR: 0, BUG: 0, PER: 0, task: 0 }; keys(D.items).forEach(function (i) { var it = D.items[i]; if (it.project === pid && !it.preview) c.task++; }); return c; }
+  function resultsTable(list) {
+    return '<div class="tw"><table class="plain-table"><thead><tr><th>Check</th><th>Last</th><th>Before</th><th>When</th></tr></thead><tbody>' + list.map(function (r) {
+      var now = (r.result === 'pass' ? '<span class="tone-good">passed</span>' : '<span class="tone-bad">' + esc(r.result) + '</span>') + (r.total ? ' ' + r.passed + '/' + r.total : '') + (r.dur ? ' · ' + fmtSec(Math.round(r.dur)) : '');
+      var was = r.prev ? (r.prev.result === 'pass' ? 'passed' : esc(r.prev.result)) + (r.prev.total ? ' ' + r.prev.passed + '/' + r.prev.total : '') + (r.prev.dur ? ' · ' + fmtSec(Math.round(r.prev.dur)) : '') : '—';
+      return '<tr><td>' + esc(r.check) + '</td><td>' + now + '</td><td class="muted">' + was + '</td><td class="muted">' + esc(r.at) + (r.session ? ' · ' + chip('session:' + r.session, { nometa: true }) : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+  function leftText(p) {
+    if (!p.total) return 'not started';
+    if (p.done === p.total) return 'all done';
+    var left = p.leftHours ? 'about ' + p.leftHours + ' Claude-h left' : 'left not sized yet';
+    if (p.unsized) left += ' · ' + plural(p.unsized, 'item') + ' unsized';
+    if (p.etaDays) left += ' · about ' + p.etaDays + ' days at the current pace';
+    else if (p.paceMinPerDay) left += ' · pace ' + fmtMin(p.paceMinPerDay) + ' a day';
+    return left;
+  }
   function projectCard(p) {
     var bo = blockedOnYou(p.id);
-    return '<article class="pcard" data-act="pfilter-go" data-p="' + p.id + '" style="--pc:var(--' + p.color + ')"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
-      '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small">' + (p.measuredWeeks ? ' · ' + p.measuredWeeks + ' measured' : '') + '</span></p>' +
-      '<div class="wbar"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>' +
+    return '<article class="pcard" data-act="go" data-href="#/project/' + p.id + '" style="--pc:var(--' + p.color + ');cursor:pointer" role="link" tabindex="0" aria-label="Open ' + esc(p.name) + '"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.isOpen ? 'open on ' + esc(p.branch) : p.state === 'open' ? '' : 'coarse') + '</span></div>' +
+      (p.total ? '<p class="pc-num">' + p.pct + '%<span class="muted small"> · ' + p.done + ' of ' + plural(p.total, 'item') + ' done</span></p>' : '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small"> · not started</span></p>') +
+      '<div class="wbar"><span class="m" style="width:' + (p.total ? p.pct : 0) + '%"></span><span class="c"></span></div>' +
+      (p.total ? '<p class="small muted">' + leftText(p) + (p.sessionsNow && p.sessionsNow.length ? ' · ' + plural(p.sessionsNow.length, 'session') + ' now' : '') + '</p>' : '') +
       (p.burn && p.burn.length ? spark(p) : '') +
-      '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting' : esc(trunc(p.closedWhy, 70))) + '</p>' +
-      '<a class="btn small text" href="#/project/' + p.id + '">Project page</a></article>';
+      '<p class="small muted pc-foot">' + (bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + p.id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : p.state === 'open' ? 'nothing waiting on you' : esc(trunc(p.closedWhy, 70))) + '</p>' +
+      '</article>';
   }
   function vProjects() {
-    return '<div class="pane wide-pane"><div class="lhead flush"><h2>Projects</h2><p class="muted">About ' + D.meta.workLeft.coarseWeeks + ' weeks of work, ' + D.meta.workLeft.measuredWeeks + ' measured. Tap a project to filter everything to it.</p></div><div class="pgrid">' + D.projects.map(projectCard).join('') + '</div></div>';
+    return '<div class="pane wide-pane"><div class="lhead flush"><h2>Projects</h2><p class="muted">' + (function () { var t = D.projects.reduce(function (a, p) { return a + (p.total || 0); }, 0), d = D.projects.reduce(function (a, p) { return a + (p.done || 0); }, 0), w = D.projects.reduce(function (a, p) { return a + (p.waiting ? p.waiting.length : 0); }, 0); return t ? d + ' of ' + plural(t, 'item') + ' done across the programme' + (w ? ' · ' + plural(w, 'decision') + ' waiting on you' : ' · nothing waiting on you') : 'Nothing started yet. About ' + D.meta.workLeft.coarseWeeks + ' weeks of work, coarse.'; })() + '</p></div><div class="pgrid">' + D.projects.map(projectCard).join('') + '</div></div>';
   }
   function vProject(id) {
     var p = projOf(id);
@@ -1145,15 +1199,18 @@
     var items = keys(D.items).filter(function (i) { return D.items[i].project === id; });
     var kc = kindCounts(id), bo = blockedOnYou(id), rs = keys(D.rulings).filter(function (r) { return D.rulings[r].project === id; });
     var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
-    h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">' + (p.measuredWeeks ? p.measuredWeeks + ' measured, the rest coarse' : 'none measured yet') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + Math.round(100 * p.measuredWeeks / p.coarseWeeks) + '%"></span><span class="c"></span></div>';
-    h += '<div class="actions"><button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>';
+    if (p.total) h += '<p class="bignum">' + p.pct + '% done <span class="bignum-ref">' + p.done + ' of ' + plural(p.total, 'item') + '</span></p><p class="muted small">' + leftText(p) + (p.lastActivity ? ' · last activity ' + esc(p.lastActivity) : '') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + p.pct + '%"></span><span class="c"></span></div>';
+    else h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">nothing started yet; the estimate is coarse</p>';
+    h += '<div class="actions">' + (p.isOpen ? '<button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button>' : '<button class="btn primary" data-act="opennode" data-node="' + id + '">Open this project</button>') + '<button class="btn" data-act="openwindow" data-node="' + id + '">Open in a new Rider window</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>' + (p.isOpen ? '<p class="small muted">Open as a whole on ' + esc(p.branch) + (p.branchRecorded ? '' : ' (not made yet)') + (p.checkout ? ' in ' + esc(p.checkout) : '') + '. Everything in it shares that branch until you say the work is done.</p>' : '<p class="small muted">Opening it gives the whole project one branch, ' + esc(p.branch) + ', that everything in it shares; sessions in your checkout belong to it until you open an item under it.</p>');
     h += drills([
       p.burn && p.burn.length ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
-      drill('Items', items.length ? items.length + ' · ' + ['FTR', 'BUG', 'PER', 'task'].filter(function (k) { return kc[k]; }).map(function (k) { return kc[k] + ' ' + k; }).join(', ') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', (p.closedWhy || '') + ' Items appear when you add them.')),
+      (p.results && p.results.length) ? drill('Last results', (function () { var bad = p.results.filter(function (r) { return r.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : 'all ' + plural(p.results.length, 'check') + ' passing'; })(), resultsTable(p.results), { attn: p.results.some(function (r) { return r.result !== 'pass'; }) }) : '',
+      drill('Items', items.length ? plural(items.length, 'item') + (p.itemsByState ? ' · ' + p.itemsByState.done + ' done · ' + p.itemsByState.building + ' building · ' + p.itemsByState.notStarted + ' not started' : '') : 'none yet', items.length ? '<div class="list">' + items.map(function (i) { var x = D.items[i]; return '<a class="li link" href="#/item/' + i + '"><span class="li-main">' + esc(itemTitle(i)) + (x.parent ? ' <span class="muted small">under ' + esc(itemTitle(x.parent)) + '</span>' : '') + '</span><span class="li-meta">' + esc(nodeMeta(i)) + '</span></a>'; }).join('') + '</div>' : empty('No items yet', 'Say the work in chat, or add it here, and it appears.'), { open: true }),
+      (p.sessionsNow && p.sessionsNow.length) ? drill('Sessions now', plural(p.sessionsNow.length, 'session') + ' working', '<div class="list">' + p.sessionsNow.map(function (sid) { var sx = D.sessions[sid]; return sx ? '<a class="li link" href="#/session/' + sid + '"><span class="li-main">' + esc(sx.title) + '</span><span class="li-meta">' + esc(stateLabel(sx)) + ' · ' + fmtMin(sx.minutes) + '</span></a>' : ''; }).join('') + '</div>') : '',
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
       '',
-      drill('Issues', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? fpbCountLabel(l) : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
+      drill('FPBs', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? (p.fpbOpen ? p.fpbOpen + ' open of ' : 'all done, ') + plural(l.length, 'FPB') : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
     return h + '</div>';
@@ -1188,7 +1245,7 @@
     }
     group('Rulings', D.rulings, 'ruling', ['title', 'text', 'origin']);
     group('Items', D.items, 'item', ['title', 'goal', function (e) { return e.info && (e.info.text || e.info.symptom || e.info.purpose || e.info.goal); }, function (e) { return e.note && e.note.text; }]);
-    group('Issues', D.fpbs, 'fpb', ['title', function (e) { return keys(e.sections).map(function (k) { var x = e.sections[k]; return x && (x.text || ''); }).join(' · '); }]);
+    group('FPBs', D.fpbs, 'fpb', ['title', function (e) { return keys(e.sections).map(function (k) { var x = e.sections[k]; return x && (x.text || ''); }).join(' · '); }]);
     group('Questions', D.questions, 'question', ['text', 'context', 'answer', function (e) { return (e.options || []).map(function (o) { return o.t + ' ' + o.why; }).join(' · '); }]);
     group('Files', D.files, 'file', ['path', function (e) { return e.lines.join('\n'); }]);
     group('Comments', D.comments, 'comment', ['text', function (e) { return e.handled && e.handled.note; }]);
@@ -1300,7 +1357,8 @@
     var word = same ? { FTR: 'feature', BUG: 'bug', PER: 'perf issue' }[k[0]] : 'issue';
     return plural(ids.length, word);
   }
-  function fpbLead(id) { var s = D.fpbs[id].sections; return (s.goal && s.goal.text) || (s.symptom && s.symptom.text) || (targetOf(id) && targetOf(id).text) || ''; }
+  function fpbLead(id) { var s = D.fpbs[id].sections; return (s.why && s.why.text) || (s.goal && s.goal.text) || (s.symptom && s.symptom.text) || (s.headline && s.headline.text) || ''; }
+  function fpbSummary(ids) { var open = ids.filter(function (i) { return !D.fpbs[i].closed; }).length; return open ? open + ' open of ' + plural(ids.length, 'FPB') : 'all ' + plural(ids.length, 'FPB') + ' done'; }
   function sourceText(f) {
     var s = f.source;
     if (s.type === 'promoted') return 'promoted by you from the found tray, ' + esc(s.date) + ' · found by ' + chip(s.session) + ' on ' + esc(D.sessions[parseRef(s.session).id].machine) + ' as ' + chip(s.found);
@@ -1328,7 +1386,7 @@
     if (sv && !sv.confirmed) out.push({ key: 'sev', html: '<button class="need-row" data-act="sev" data-fpb="' + id + '"><span class="nk">Confirm</span><span class="nt">severity: ' + esc(sv.level) + ', proposed by Claude</span><span class="chev"></span></button>' });
     return out;
   }
-  function stateTone(st) { return /done|verified|closed|fixed|guarded|measured/.test(st) ? 'good' : /dropped|won't|cannot/.test(st) ? 'bad' : /reported|idea|observed/.test(st) ? '' : 'accent'; }
+  function stateTone(st) { st = String(st || '').toLowerCase(); return /^(done|exists)/.test(st) ? 'good' : /won't|wont|dropped|cannot/.test(st) ? 'bad' : /^(open|verify)/.test(st) ? '' : 'accent'; }
   var SEV_TONE = { blocking: 'bad', serious: 'bad', minor: 'warn', cosmetic: '' };
 
   /* ================================================================ Issues list */
@@ -1341,29 +1399,51 @@
       if (q.attach && f.attach !== (q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach)) return false;
       return true;
     });
-    var all = fpbList(), takenN = all.filter(function (id) { return (D.fpbs[id].takenOnBy || []).length; }).length;
-    var tasks = {}; all.forEach(function (id) { tasks[D.fpbs[id].attach] = 1; });
-    var h = '<div class="lpane"><div class="lhead"><h2>Issues</h2><p class="muted">' + plural(all.length, 'issue') + ' on ' + keys(tasks).length + ' tasks and projects · ' + takenN + ' taken on by a task</p></div>';
-    h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Tasks</button><button class="on">Issues</button></div></div>';
-    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div></div>';
+    var all = fpbList().filter(function (id) { return S.project === 'all' || D.fpbs[id].project === S.project; }), openN = all.filter(function (id) { return !D.fpbs[id].closed; }).length;
+    var h = '<div class="lpane"><div class="lhead"><h2>FPBs</h2><p class="muted">' + (all.length ? openN + ' open of ' + plural(all.length, 'FPB') + ', raised by Claude; attached to the item they came up in' : 'Features, bugs and performance problems Claude raises, attached to the item they came up in') + '</p></div>';
+    h += '<div class="lctrl"><div class="seg"><button data-go="#/work">Items</button><button class="on">FPBs</button></div></div>';
+    if (all.length) h += fpbStatusTable(all);
+    h += '<div class="lctrl"><div class="seg">' + ['all', 'FTR', 'BUG', 'PER'].map(function (k) { return '<button class="' + (S.iss.kind === k ? 'on' : '') + '" data-act="iss-kind" data-k="' + k + '">' + (k === 'all' ? 'All' : k) + '</button>'; }).join('') + '</div><div class="seg">' + [['tree', 'By project and item'], ['list', 'List']].map(function (v) { return '<button class="' + ((S.iss.view || 'tree') === v[0] ? 'on' : '') + '" data-act="iss-view" data-v="' + v[0] + '">' + v[1] + '</button>'; }).join('') + '</div></div>';
     if (q.attach) h += '<div class="notice soft"><p>Only issues on ' + chip(q.attach.indexOf(':') > 0 ? q.attach : 'project:' + q.attach) + ' · <a href="#/issues">show all</a></p></div>';
-    if (!ids.length) return h + empty('No issues match', 'Features, bugs and performance issues raised while building a task appear here, grouped by the task they belong to.') + '</div>';
-    var groups = {}, order = [];
-    ids.forEach(function (id) { var a = D.fpbs[id].attach; if (!groups[a]) { groups[a] = []; order.push(a); } groups[a].push(id); });
-    order.sort(function (a, b) { return (refProject(a) || '').localeCompare(refProject(b) || ''); });
-    order.forEach(function (a) {
-      var p = projOf(refProject(a));
-      h += '<p class="lgroup"><a href="' + hrefFor(a) + '">' + esc(chipInfo(a).title) + '</a>' + (parseRef(a).kind === 'item' ? ' <span class="muted">· ' + esc(p.name) + '</span>' : ' <span class="muted">· no task yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
+    if (!ids.length) return h + empty('No FPBs match', 'An FTR comes from what you ask for in chat; a BUG or PER from what Claude finds while checking. Nothing is typed here.') + '</div>';
+    if ((S.iss.view || 'tree') === 'list') {
+      ids.sort(function (a, b) { return a.localeCompare(b); });
+      return h + '<div class="slist">' + ids.map(function (id) { return issueRow(id, sel === id); }).join('') + '</div></div>';
+    }
+    // the tree: project, then the item each FPB came up in, in tree order; one project folds when there are several
+    var byProject = {};
+    ids.forEach(function (id) { var pid = D.fpbs[id].project; (byProject[pid] = byProject[pid] || []).push(id); });
+    var pids = D.projects.map(function (p) { return p.id; }).filter(function (pid) { return byProject[pid]; });
+    pids.forEach(function (pid) {
+      var p = projOf(pid), list = byProject[pid], open = list.filter(function (id) { return !D.fpbs[id].closed; }).length;
+      var groups = {}, order = [];
+      list.forEach(function (id) { var a = D.fpbs[id].attach; if (!groups[a]) { groups[a] = []; order.push(a); } groups[a].push(id); });
+      order.sort(function (a, b) { var x = parseRef(a), y = parseRef(b); if (x.kind !== y.kind) return x.kind === 'project' ? -1 : 1; return x.id.localeCompare(y.id, undefined, { numeric: true }); });
+      var body = order.map(function (a) {
+        var at = parseRef(a);
+        return '<p class="lgroup">' + (at.kind === 'item' ? '<a href="' + hrefFor(a) + '">' + esc(crumbText(at.id)) + '</a>' : '<span class="muted">on the project, no item yet</span>') + '</p><div class="slist">' + groups[a].map(function (id) { return issueRow(id, sel === id); }).join('') + '</div>';
+      }).join('');
+      h += '<details class="fyk" open><summary><span>' + esc(p.name) + '</span><span class="muted">' + (open ? open + ' open of ' : 'all done, ') + plural(list.length, 'FPB') + '</span><span class="chev"></span></summary><div class="fyk-b">' + body + '</div></details>';
     });
     return h + '</div>';
   }
   function issueRow(id, sel) {
     var f = D.fpbs[id], t = f.takenOnBy || [], sv = severityOf(id);
-    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2">' + f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + t.join(', ') : ' · no task yet') + '</span></span></a>';
+    return '<a class="srow irow' + (sel ? ' sel' : '') + '" href="#/fpb/' + id + '"><span class="ik ik-' + f.kind + '">' + ic(f.kind.toLowerCase()) + '</span><span class="sb-main"><span class="st1">' + esc(f.title) + '</span><span class="st2"><span class="mono">' + id + '</span> · <span class="tone-' + (stateTone(f.state) || 'neutral') + '">' + esc(f.state) + '</span>' + (f.left ? ' · ' + esc(trunc(f.left, 60)) : '') + (sv ? ' · ' + esc(sv.level) : '') + (t.length ? ' · taken on by ' + esc(itemTitle(t[0])) : '') + '</span></span></a>';
+  }
+  function crumbText(itemId) { var parts = [], id = itemId, guard = 0; while (id && D.items[id] && guard++ < 8) { parts.unshift(itemTitle(id)); id = D.items[id].parent; } return parts.join(' › '); }
+  function fpbStatusTable(ids) {
+    var kinds = ['FTR', 'BUG', 'PER'], rows = kinds.map(function (k) {
+      var mine = ids.filter(function (i) { return D.fpbs[i].kind === k; });
+      if (!mine.length) return '';
+      var open = mine.filter(function (i) { return !D.fpbs[i].closed; }).length, prog = mine.filter(function (i) { return /progress|design/i.test(D.fpbs[i].state); }).length, verify = mine.filter(function (i) { return /verify/i.test(D.fpbs[i].state); }).length;
+      return '<tr><td>' + k + '</td><td>' + mine.length + '</td><td>' + (open || '—') + '</td><td>' + (prog || '—') + '</td><td>' + (verify || '—') + '</td><td>' + ((mine.length - open) || '—') + '</td></tr>';
+    }).join('');
+    return '<div class="tw" style="padding:0 16px 8px"><table class="plain-table"><thead><tr><th>Kind</th><th>All</th><th>Open</th><th>In hand</th><th>Verify first</th><th>Done</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
   /* ================================================================ report page */
-  var FPB_TABS = [['report', 'Report'], ['plan', 'Plan'], ['changes', 'Changes'], ['decisions', 'Decisions'], ['activity', 'Activity']];
+  var FPB_TABS = [['report', 'Report'], ['activity', 'Activity']];
   var FPB_ALIAS = { overview: ['report'], questions: ['decisions', 'questions'], assumptions: ['decisions', 'assumptions'], found: ['decisions', 'found'], comments: ['changes', 'comments'], runs: ['activity', 'runs'], sessions: ['activity', 'sessions'], history: ['activity', 'history'], rulings: ['report', 'rulings'] };
   function heroFor(id) {
     var f = D.fpbs[id], x = f.sections, t = targetOf(id);
@@ -1387,7 +1467,7 @@
   }
   function vFpb(id, tab) {
     var f = D.fpbs[id];
-    if (!f) return head(null) + '<div class="pane">' + empty('No such issue', 'Issues are features, bugs and performance problems attached to tasks.') + '</div>';
+    if (!f) return head(null) + '<div class="pane">' + empty('No such FPB', 'FPBs are features, bugs and performance problems attached to items.') + '</div>';
     var openSec = null;
     if (FPB_ALIAS[tab]) { openSec = FPB_ALIAS[tab][1] || null; tab = FPB_ALIAS[tab][0]; }
     tab = tab || 'report';
@@ -1398,8 +1478,7 @@
     h += dhead(f.kind + ' · ' + esc(f.state) + (sv ? ' · ' + esc(sv.level) : ''), 'fk-' + f.kind, right, esc(f.title), lead);
     h += '<nav class="tabs" aria-label="Issue sections">' + FPB_TABS.map(function (x) { return '<a class="tab' + (x[0] === tab ? ' on' : '') + '" href="#/fpb/' + id + '/' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>';
     if (tab === 'report') {
-      var hero = heroFor(id);
-      h += '<div class="status"><div><p class="bignum">' + esc(hero[0]) + '</p><p class="muted small">' + esc(hero[1]) + '</p></div></div>' + takenOnLine(id);
+      h += glanceBlock(id);
       h += reportSections(id, openSec) + aboutRows(id, openSec);
       var kf = S.folds[f.kind] || {};
       if (keys(kf).some(function (k) { return kf[k]; })) h += '<p class="fold-reset"><button class="btn text small" data-act="fold-reset" data-kind="' + f.kind + '">Close all sections</button><span class="small muted">Open sections are remembered for every ' + KIND_NAME[f.kind].toLowerCase() + '.</span></p>';
@@ -1410,14 +1489,30 @@
     else h += fpbActivity(id, openSec);
     return h + '</div>';
   }
-  var SRC_SHORT = { promoted: 'promoted from a found tray', imported: 'imported from the old register', split: 'split from another issue', duplicate: 'duplicate of another issue', created: 'created by you' };
+  var SRC_SHORT = { chat: 'from what you said in chat', check: 'from a check Claude ran', run: 'from a run', read: 'from reading the code, not run', split: 'split from another FPB', duplicate: 'duplicate of another FPB', created: 'created by you' };
+  var LINK_WORD = { needs: ['needs', 'needed by'], splitfrom: ['split from', 'split into'], replacedby: ['replaced by', 'replaces'], carriedby: ['carried by', 'carries'], foundin: ['found in', 'where it was found'], duplicate: ['duplicates', 'duplicated by'], related: ['related to', 'related to'] };
+  function linkWord(l) { var w = LINK_WORD[l.type] || [l.type, l.type]; return l.outward ? w[0] : w[1]; }
+  /* the eight fields the owner reads: headline (the title), why (the lead), status and what is left, attached to, links, parts, decisions, evidence */
+  function glanceBlock(id) {
+    var f = D.fpbs[id], t = f.takenOnBy || [], links = f.links || [], parts = f.parts || [], ev = f.sections.evidence, dec = f.rulings || [];
+    var doneParts = parts.filter(function (x) { return /done|built|tested/i.test(x.state || ''); }).length;
+    var h = '<div class="status"><div><p class="bignum tone-' + (stateTone(f.state) || 'neutral') + '">' + esc(f.state) + '</p><p class="muted small">' + (f.left ? esc(f.left) : f.closed ? 'nothing left' : 'nothing noted as left') + (f.changed ? ' · last change ' + esc(f.changed) : '') + '</p></div></div>';
+    h += '<dl class="kv glance-kv">';
+    h += '<dt>Attached to</dt><dd>' + chip(f.attach) + (t.length ? ' <span class="muted small">· taken on by</span> ' + cchip('item:' + t[0]) : '') + '</dd>';
+    h += '<dt>Raised</dt><dd>' + esc(SRC_SHORT[f.source.type] || f.source.type) + (f.source.date ? ', ' + esc(f.source.date) : '') + (f.source.session ? ' · ' + chip('session:' + f.source.session, { nometa: true }) : '') + '</dd>';
+    h += '<dt>Links</dt><dd>' + (links.length ? links.map(function (l) { return '<span class="lnk"><span class="muted small">' + esc(linkWord(l)) + '</span> ' + chip(l.other) + '</span>'; }).join(' ') : '<span class="muted">none</span>') + '</dd>';
+    if (parts.length) h += '<dt>Parts</dt><dd>' + doneParts + ' of ' + plural(parts.length, 'part') + ' done · <a href="#" data-act="open-sec" data-target="sec-parts">see them</a></dd>';
+    h += '<dt>Decisions</dt><dd>' + (dec.length ? dec.map(function (r) { return chip(r); }).join(' ') : '<span class="muted">none yet</span>') + '</dd>';
+    h += '<dt>Evidence</dt><dd>' + (ev ? esc(trunc(ev.text || (ev.lines && ev.lines[0]) || (ev.run ? 'a run' : ''), 90)) + ' · <a href="#" data-act="open-sec" data-target="sec-evidence">see it</a>' : '<span class="muted">none recorded</span>') + '</dd>';
+    return h + '</dl>';
+  }
   function aboutRows(id, openSec) {
     var f = D.fpbs[id], sv = severityOf(id), t = f.time, at = parseRef(f.attach);
     var waits = at.kind === 'item' && !onOpenPath(at.id);
-    var rows = [lifeRow(id)];
+    var rows = [stateRow(id)];
     if (sv) rows.push(fold(f.kind, 'severity', 'Severity<span class="au-w au-w-' + (sv.by === 'you' ? 'me' : 'claude') + '">' + (sv.by === 'you' ? 'you' : 'Claude') + '</span>', esc(sv.level) + (sv.by === 'you' ? ' · changed by you' : ' · Claude\'s proposal'),
       '<p>' + esc(sv.reason) + '</p><p class="small muted" style="margin-top:12px">' + (sv.by === 'you' ? 'You changed it with Edit.' : 'Claude proposed it. Nothing waits on it; change it with Edit at the top of the report if you disagree.') + '</p>'));
-    rows.push(depsPanel(id, openSec));
+    rows.push(linksPanel(id, openSec));
     rows.push(fold(f.kind, 'time', 'Time', t.forecast ? 'forecast ' + fmtMin(t.forecast) : t.est != null ? 'estimate ' + t.est + ' Claude-min' : 'no estimate yet',
       '<dl class="kv"><dt>Estimate</dt><dd>' + (t.est != null ? t.est + ' Claude-min, ' + esc(t.estBy) : 'not yet') + '</dd><dt>Actual</dt><dd>' + (t.actual ? fmtMin(t.actual) + ' from sessions' : 'no session time yet') + '</dd>' + (t.factor ? '<dt>Factor</dt><dd>' + t.factor + ', actual over estimate</dd>' : '') + (t.forecast ? '<dt>Forecast</dt><dd>' + fmtMin(t.forecast) + '</dd>' : '') + '</dl>'));
     rows.push(fold(f.kind, 'origin', 'Where it came from', esc(SRC_SHORT[f.source.type] || 'created by you') + (f.source.date ? ', ' + esc(f.source.date) : ''),
@@ -1555,6 +1650,8 @@
       '<div class="legend"><span><i class="l-b50"></i>before p50</span><span><i class="l-b90"></i>before p90</span><span><i class="l-a50"></i>after p50</span><span><i class="l-a90"></i>after p90</span></div>';
   }
   var SECTIONS = {
+    why: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap(s.author || 'claude', '<p class="lead-p" style="margin:0">' + esc(s.text) + '</p>', { session: s.session ? 'session:' + s.session : null }) }; },
+    parts: function (f, s) { var rows = s.rows || []; return { sum: rows.filter(function (r) { return /done|built|tested/i.test(r.state || ''); }).length + ' of ' + plural(rows.length, 'part') + ' done', body: wrap(s.author || 'claude', '<table class="plain-table"><tbody>' + rows.map(function (r) { return '<tr><td>' + esc(r.t || r.part || '') + '</td><td>' + esc(r.state || '') + '</td><td class="muted">' + esc(r.note || '') + '</td></tr>'; }).join('') + '</tbody></table>') }; },
     goal: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap('me', '<p class="lead-p" style="margin:0">' + esc(s.text) + '</p>') }; },
     story: function (f, s) { return { sum: esc(trunc(s.text, 80)), body: wrap('me', '<p>' + esc(s.text) + '</p>') }; },
     scope: function (f, s) { return { sum: s.in.length + ' in · ' + s.out.length + ' out', body: wrap('me', '<div class="two"><div><p class="small muted">In</p>' + plainList(s.in.map(esc)) + '</div><div><p class="small muted">Out</p>' + plainList(s.out.map(esc)) + '</div></div>') }; },
@@ -1590,7 +1687,7 @@
     },
     environment: function (f, s) { return { sum: [s.machine ? parseRef(s.machine).id : null].concat(s.tags.slice(0, 3)).filter(Boolean).join(' · '), body: wrap('machine', '<div class="chips">' + (s.machine ? chip(s.machine, { meta: true }) : '') + (s.commit ? chip(s.commit) : '') + s.tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' + (s.method ? '<p class="small" style="margin-top:12px">Method ' + chip(s.method, { meta: true }) + ' · ' + s.iterations + ' iterations</p>' : ''), { chips: [] }) }; },
     frequency: function (f, s) { return { sum: esc(s.level) + ' · ' + esc(s.count), body: wrap('machine', '<p class="bignum" style="font-size:24px">' + esc(s.level) + '</p><p class="small muted">' + esc(s.count) + '</p>') }; },
-    cause: function (f, s) { return { sum: esc(s.status) + ' · ' + esc(s.confidence) + ' confidence', body: wrap('claude', causeBody(f, s), { session: s.session, by: s.by, cap: 'max three lines' }) }; },
+    cause: function (f, s) { if (!s.status && s.text) return { sum: esc(trunc(s.text, 80)), body: wrap(s.author || 'claude', '<p>' + esc(s.text) + '</p>', { session: s.session ? 'session:' + s.session : null }) }; return { sum: esc(s.status) + ' · ' + esc(s.confidence) + ' confidence', body: wrap('claude', causeBody(f, s), { session: s.session, by: s.by, cap: 'max three lines' }) }; },
     fixes: function (f, s, id) { var ch = chosenFix(id); return { sum: ch != null ? 'fix ' + (ch + 1) + ' of ' + s.rows.length + (fixSettled(id) ? ' settled in a plan' : ' recommended by Claude') : s.rows.length + ' compared, none recommended yet', body: wrap('claude', fixesBody(f, s, id), { session: s.session, by: s.by, cap: 'max three fixes' }) }; },
     workaround: function (f, s) { return { sum: esc(trunc(s.text, 70)), body: wrap('claude', '<p>' + esc(s.text) + '</p><p class="small muted" style="margin-top:6px">Applies to: ' + esc(s.who) + '</p>', { session: s.session, cap: 'two lines' }) }; },
     headline: function (f, s) {
@@ -1619,24 +1716,23 @@
 
   /* activity for an issue: runs, sessions, and a history with actors and small diffs */
   function fpbActivity(id, openSec) {
-    var f = D.fpbs[id], tk = f.takenOnBy || [], r = itemRuns([id].concat(tk)), s = (f.sessions || []).concat([].concat.apply([], tk.map(function (x) { return D.items[x].sessions || []; })));
+    var f = D.fpbs[id], tk = f.takenOnBy || [], s = (f.sessions || []).concat([].concat.apply([], tk.map(function (x) { return (D.items[x] && D.items[x].sessions) || []; })));
     var hist = f.history.slice().reverse().map(function (e) {
       var actor = e[1] === 'you' ? '<span class="au au-me">You</span>' : e[1] === 'seed' ? '<span class="au">Old register</span>' : e[1].indexOf('machine:') === 0 ? '<span class="au au-mc">Machine</span> ' + chip(e[1]) : chip(e[1]);
       return '<div class="li col"><span class="li-main">' + actor + ' <span class="small muted">' + esc(e[0]) + '</span></span><span class="li-sub rich">' + rich(e[2]) + '</span>' + (e[3] ? diffBlock(e[3], { small: true }) : '') + '</div>';
     }).join('');
     return drills([
       drill('History', plural(f.history.length, 'event'), '<div class="list">' + hist + '</div>', { open: openSec === 'history' }),
-      drill('Runs', r.length ? plural(r.length, 'run') : 'none', r.length ? runsTable(r) : empty('No runs', 'Runs that measure or reproduce this issue appear here.'), { open: openSec === 'runs' }),
       drill('Sessions', s.length ? plural(s.length, 'session') : 'none', s.length ? '<div class="list">' + s.map(function (x) { return '<div class="li"><span class="li-main">' + chip(x[0], { meta: true }) + '</span><span class="li-meta">' + fmtMin(x[1]) + '</span></div>'; }).join('') + '</div>' : empty('No sessions', 'Sessions that worked on this issue list here with their minutes.'), { open: openSec === 'sessions' }),
-      drill('Rulings cited', plural((f.rulings || []).length, 'ruling'), (f.rulings || []).length ? chips(f.rulings) : empty('No rulings', 'Rulings this issue relies on appear here.'))
+      drill('Decisions', plural((f.rulings || []).length, 'decision'), (f.rulings || []).length ? chips(f.rulings) : empty('No decisions', 'Decisions you made about this FPB appear here.'))
     ]);
   }
 
   /* issues per task, on the item page */
   function tabIssues(id) {
     var list = fpbsUnder(id);
-    var h = '<div class="actions" style="margin-bottom:20px"><button class="btn small" data-act="add-issue" data-node="' + id + '">' + ic('plus') + 'Add an issue to this task</button><a class="btn small text" href="#/issues">All issues</a></div>';
-    if (!list.length) return h + empty('No issues on this task', 'Features, bugs and performance problems raised while building this task are attached here, separate from its plan.');
+    var h = '<div class="actions" style="margin-bottom:20px"><a class="btn small text" href="#/issues">All FPBs</a></div>';
+    if (!list.length) return h + empty('No FPBs on this item', 'Features, bugs and performance problems Claude raises while building this item are attached here, separate from its steps.');
     return h + '<div class="slist">' + list.map(function (i) { return issueRow(i); }).join('') + '</div>';
   }
 
@@ -1730,7 +1826,18 @@
   }
   function takenOnLine(id) {
     var f = D.fpbs[id], t = f.takenOnBy || [];
-    return '<p class="taken">' + (t.length ? '<span class="muted">Taken on by</span> ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '<span class="muted">No task yet. A task takes a report on when you add it in the tree with Implements.</span>') + '</p>';
+    return '<p class="taken">' + (t.length ? '<span class="muted">Taken on by</span> ' + t.map(function (x) { return cchip('item:' + x); }).join(' ') : '<span class="muted">No item has taken it on yet.</span>') + '</p>';
+  }
+  function stateRow(id) {
+    var f = D.fpbs[id], states = (D.states && D.states[f.kind]) || [], cur = states.indexOf(f.state);
+    var body = '<ol class="life">' + states.map(function (st, i) { return '<li class="' + (i < cur ? 'past' : i === cur ? 'now' : '') + '">' + esc(st) + '</li>'; }).join('') + '</ol>' +
+      '<p class="small muted" style="margin-top:12px">Claude moves it; say so in chat ("not a bug", "drop it", "done") and it is recorded with your words as the reason.</p>';
+    return fold(f.kind, 'life', 'State', esc(f.state) + (f.left ? ' · ' + esc(trunc(f.left, 60)) : ''), body);
+  }
+  function linksPanel(id, openSec) {
+    var f = D.fpbs[id], links = f.links || [];
+    var body = links.length ? '<div class="list">' + links.map(function (l) { return '<div class="li col"><span class="li-main"><span class="muted small">' + esc(linkWord(l)) + '</span> ' + chip(l.other) + '</span>' + (l.reason ? '<span class="li-sub">' + esc(l.reason) + '</span>' : '') + '</div>'; }).join('') + '</div>' : '<p class="muted">No links to other FPBs or items yet.</p>';
+    return fold(f.kind, 'deps', 'Links', links.length ? links.map(function (l) { return linkWord(l) + ' ' + chipInfo(l.other).title; }).slice(0, 3).join(' · ') + (links.length > 3 ? ' · +' + (links.length - 3) : '') : 'none', body, { force: openSec === 'deps' });
   }
   function lifeRow(id) {
     var f = D.fpbs[id], n = lifeOf(id), t = f.takenOnBy || [];
@@ -1939,7 +2046,7 @@
 
   /* ================================================================ header, navigation, drawer */
   var NAV = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
-  var NAV_WIDE = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['issues', 'Issues', '#/issues'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
+  var NAV_WIDE = [['inbox', 'Inbox', '#/inbox'], ['work', 'Work', '#/work'], ['issues', 'FPBs', '#/issues'], ['now', 'Now', '#/now'], ['files', 'Files', '#/files'], ['rulings', 'Rulings', '#/rulings']];
   var MORE = [['projects', 'Projects', '#/projects'], ['machines', 'Machines', '#/machines'], ['settings', 'Settings', '#/settings']];
   function waitingSessions() { return keys(D.sessions).filter(function (s) { return D.sessions[s].state === 'waiting'; }).length; }
   function projectSelect() {
@@ -2108,15 +2215,15 @@
       '<button class="btn primary dis" disabled title="Not live in the prototype">Open chat in claude.ai</button><button class="btn" data-act="close">Close</button>');
   }
   function addItemSheet(node, pre) {
-    pre = pre || {}; var kinds = ['FTR', 'BUG', 'PER', 'task'], kOn = kinds.indexOf(pre.kind || 'task'), impl = pre.implements || [];
-    openSheet('Add item', (pre.from ? '<p class="notice soft small">Prefilled from found item ' + chip(pre.from) + ', sorted as Task on its packet card. It enters the tree only when you add it here.</p>' : '') + '<p class="small">Only you add items; Claude never creates structure.</p><div class="sec"><div class="sec-h"><h3>Kind</h3></div><div class="seg big" id="ai-kind">' + kinds.map(function (k, i) { return '<button class="' + (i === kOn ? 'on' : '') + '" data-act="pickone">' + k + '</button>'; }).join('') + '</div></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai-title" type="text" style="width:100%" placeholder="e.g. Runs page keeps its scroll position" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Implements</h3></div><div class="impl-pick" id="ai-impl">' + fpbList().map(function (f) { return '<label class="tick-row"><input type="checkbox" data-f="' + f + '"' + (impl.indexOf(f) >= 0 ? ' checked' : '') + '><span><b>' + f + '</b> ' + esc(D.fpbs[f].title) + ((D.fpbs[f].takenOnBy || []).length ? ' <span class="small muted">· taken on by ' + D.fpbs[f].takenOnBy.join(', ') + '</span>' : '') + '</span></label>'; }).join('') + '</div><p class="tiny" style="margin-top:6px">Optional. A task may implement several reports, and a report may be split across tasks. Its plan draws from each report\'s When implementing lines.</p></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select id="ai-place" style="width:100%" aria-label="Place">' + placeOptions(node) + '</select><p class="tiny" style="margin-top:6px">It arrives closed, as one line with a coarse size, until a plan opens it.</p></div>' +
-      '<div class="sec"><div class="sec-h"><h3>Coarse size</h3></div><div class="seg big" id="ai-size">' + ['~half a day', '~3 days', '~1 week', '~3 weeks'].map(function (s, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + s + '</button>'; }).join('') + '</div></div>',
+    pre = pre || {};
+    openSheet('Add item', '<p class="small">An item is a unit of development work. You can also just say it in chat and Claude writes it here.</p>' +
+      '<div class="sec"><div class="sec-h"><h3>Title, in your words</h3></div><input id="ai-title" type="text" style="width:100%" placeholder="e.g. Login screen" aria-label="Title" value="' + esc(pre.title || '') + '"></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Place</h3></div><select id="ai-place" style="width:100%" aria-label="Place">' + placeOptions(node) + '</select></div>' +
+      '<div class="sec"><div class="sec-h"><h3>Size</h3></div><div class="seg big" id="ai-size">' + ['~half a day', '~3 days', '~1 week', '~3 weeks'].map(function (s, i) { return '<button class="' + (i === 1 ? 'on' : '') + '" data-act="pickone">' + s + '</button>'; }).join('') + '</div></div>',
       '<button class="btn primary" data-act="additem-save" data-node="' + node + '">Add</button><button class="btn" data-act="close">Cancel</button>');
   }
 
+  try { if (S.iss && store('issview')) S.iss.view = store('issview'); } catch (e) { }
   function refreshMenu() { var m = document.querySelector('#layer .menu'); if (m && m.querySelector('[data-act="wkind"]')) m.innerHTML = filterMenu(); }
   document.addEventListener('click', function (ev) {
     var sm = ev.target.closest && ev.target.closest('summary'); if (!sm) return;
@@ -2147,8 +2254,9 @@
         return true;
       case 'colsel': S.work.sel = dv.node; location.hash = '#/work/' + dv.node; return true;
       case 'rowmenu': openMenu(el, rowMenu(dv.node)); return true;
-      case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
+      case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.openProject) WBAPI.openProject(dv.node).then(function () { location.hash = co.go; }); else if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
       case 'additem': addItemSheet(dv.node); return true;
+      case 'openwindow': closeLayers(); toast('Preparing a second folder on the item\'s branch…'); WBAPI.window(dv.node); return true;
       case 'found-task': var fx = D.found[dv.f]; var pkf = D.sessions[fx.session] && D.sessions[fx.session].packet; if (pkf) WBAPI.press(parseRef(pkf).id, 'found-task', { target: dv.f }); toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;
       case 'report-edit': openMenu(el, reportEditMenu(dv.fpb)); return true;
       case 'report-edit-x': closeLayers(); reportEditSheet(dv.fpb, dv.v); return true;
@@ -2172,6 +2280,8 @@
       case 'defer': WBAPI.press(dv.card, 'defer'); return true;
       case 'plan-approve': WBAPI.press(dv.card, 'approve'); return true;
       case 'stuck-retry': WBAPI.press(dv.card, 'retry'); return true;
+      case 'dev-allow': WBAPI.press(dv.card, 'allow'); return true;
+      case 'dev-pick': WBAPI.press(dv.card, 'pick', { index: +dv.i }); return true;
       case 'stuck-drop': WBAPI.press(dv.card, 'drop'); return true;
       case 'stuck-reassign': closeLayers(); WBAPI.press(dv.card, 'reassign', { value: dv.v }); return true;
       case 'all-fine': if (dv.card) WBAPI.press(dv.card, 'all-fine'); else toast('Reviewed on the packet card when it arrives'); return true;
@@ -2179,7 +2289,7 @@
       case 'found-drop': var fd = D.found[dv.f]; var pkd = D.sessions[fd.session] && D.sessions[fd.session].packet; if (pkd) WBAPI.press(parseRef(pkd).id, 'found-drop', { target: dv.f }); else toast(esc(fd.title) + ' dropped'); return true;
       case 'proposals-discard': WBAPI.press(dv.card, 'discard'); return true;
       case 'ruling-save': var rlt = document.getElementById('rl-text').value.trim(); closeLayers(); WBAPI.press(dv.card, 'make-ruling', { text: rlt }); return true;
-      case 'additem-save': var aik = document.querySelector('#ai-kind .on'), ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aii = [].slice.call(document.querySelectorAll('#ai-impl input:checked')).map(function (x) { return x.getAttribute('data-f'); }); var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); var kindv = aik ? aik.textContent.trim() : 'task'; closeLayers(); WBAPI.addItem({ kind: kindv, title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days', implements: aii }); return true;
+      case 'additem-save': var ait = document.getElementById('ai-title').value.trim(); if (!ait) { toast('A title, in your words'); return true; } var aip = document.getElementById('ai-place').value, ais = document.querySelector('#ai-size .on'); closeLayers(); WBAPI.addItem({ kind: 'task', title: ait, place: aip, coarseSize: ais ? ais.textContent.trim() : '~3 days' }); return true;
       case 'rename-save': var rnv = document.getElementById('rn-title').value.trim(); closeLayers(); if (rnv) WBAPI.patchItem(dv.node, { title: rnv }); return true;
       case 'move-save': var mvv = document.getElementById('mv-place').value; closeLayers(); WBAPI.patchItem(dv.node, { parentId: D.items[mvv] ? mvv : '' }); return true;
       case 'message-send': var mtv = document.getElementById('msg-text').value.trim(); closeLayers(); if (mtv) WBAPI.message(dv.session, mtv); return true;
@@ -2201,10 +2311,11 @@
       case 'psearch': openSearchOverlay(); return true;
       case 'moremenu': openMenu(el, '<div class="mi-h">Project</div><div class="menu-sec">' + projectSelect() + '</div><div class="mi-h">More</div>' + MORE.map(function (x) { return '<a class="mi" href="' + x[2] + '" data-act="close-after">' + ic(x[0]) + x[1] + '</a>'; }).join('') + ''); return true;
       case 'wfilter': openMenu(el, filterMenu()); return true;
-      case 'go': location.hash = dv.href; return true;
+      case 'go': if (ev && ev.target && ev.target.closest && ev.target.closest('a,button,[data-ref]') && ev.target.closest('a,button,[data-ref]') !== el) return false; location.hash = dv.href; return true;
       case 'reply': var rb = document.getElementById('reply-' + dv.card); if (rb) { rb.hidden = false; var ri = rb.querySelector('input'); ri && ri.focus(); } return true;
-      case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'question' ? 'write' : cty === 'packet' ? 'changes' : cty === 'plan' ? 'change' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
+      case 'send-reply': var inp2 = document.querySelector('#reply-' + dv.card + ' input'); var txt = inp2 ? inp2.value.trim() : ''; if (!txt) { toast('Write a line first'); return true; } var cty = D.cards[dv.card].type; WBAPI.press(dv.card, cty === 'page' ? 'changes' : cty === 'deviation' ? 'back' : cty === 'info' ? 'note' : 'write', { text: txt }); inp2.value = ''; document.getElementById('reply-' + dv.card).hidden = true; return true;
       case 'iss-kind': S.iss.kind = dv.k; render(true); return true;
+      case 'iss-view': S.iss.view = dv.v; store('issview', dv.v); render(true); return true;
       case 'edge': var eg = D.edges.filter(function (x) { return x.id === dv.edge; })[0]; openMenu(el, '<div class="mi-h">' + esc(chipInfo(eg.from).title) + ' ' + (eg.type === 'needs' ? 'needs' : eg.type) + ' ' + esc(chipInfo(eg.to).title) + '</div><p class="small muted" style="padding:0 12px 8px">' + esc(eg.reason) + '</p><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="confirmed">' + ic('run') + '<span>Confirm<span class="why">' + (eg.min ? '~' + fmtMin(eg.min) + ' of work waits behind it' : 'keeps the link') + '</span></span></button><button class="mi" data-act="edge-set" data-edge="' + eg.id + '" data-v="removed">' + ic('close') + '<span>Remove<span class="why">Claude proposed it; nothing waits on it then</span></span></button>'); return true;
       case 'edge-set': S.edgeState[dv.edge] = dv.v; closeLayers(); WBAPI.edge(dv.edge, dv.v === 'confirmed'); return true;
       case 'choose-fix': var curFix = chosenFix(dv.fpb); WBAPI.report(dv.fpb, { chosenFix: curFix === +dv.i ? null : +dv.i }); return true;

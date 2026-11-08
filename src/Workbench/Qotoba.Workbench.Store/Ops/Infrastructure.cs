@@ -11,25 +11,25 @@ public interface IChangeNotifier { void Changed(string kind, string id); }
 
 public sealed class NoNotifier : IChangeNotifier { public void Changed(string kind, string id) { } }
 
-/// <summary>The only way the Service reaches a disk: through the Host on a machine.</summary>
+/// <summary>The only way the Service reaches a disk: through the Host on a machine. It reads; it never runs git or tests.</summary>
 public interface IHostClient
 {
-    Task<GitResult> RunGitAsync(string machineId, GitInstruction instruction, CancellationToken ct = default);
     Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default);
     Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default);
     Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default);
     /// <summary>The branch a checkout is on right now, or null when the Host cannot say.</summary>
     Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default);
+    /// <summary>On the owner's click: a worktree of the checkout on the item's branch, so a second Rider window can work that item.</summary>
+    Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default);
 }
 
 public sealed class NoHost : IHostClient
 {
-    public Task<GitResult> RunGitAsync(string machineId, GitInstruction instruction, CancellationToken ct = default) =>
-        Task.FromResult(new GitResult(false, "No Host is registered for " + machineId + "."));
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>(null);
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(false);
     public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    public Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default) => Task.FromResult(new WorktreeResult(false, req.Folder, req.Branch, false, "No Host is registered for " + machineId + "."));
 }
 
 public sealed class OpsOptions

@@ -68,10 +68,13 @@ public class ServiceTests : IClassFixture<ServiceFactory>
     public async Task SnapshotHasEveryCollectionThePrototypeReads()
     {
         var wb = await f.Authed().GetFromJsonAsync<JsonElement>("/api/snapshot");
-        foreach (var key in new[] { "meta", "budgets", "projects", "lanes", "items", "questions", "assumptions", "found", "rulings", "proposed", "files", "types", "nyw", "comments", "commits", "branches", "claudemd", "runs", "sessions", "machines", "tokens", "install", "cards", "packets", "plans", "stucks", "settings", "chat", "register", "reportOrder", "reportFolded", "subtypes", "states", "fpbs", "edges", "cardWhy", "cardOrigin" })
+        foreach (var key in new[] { "meta", "budgets", "projects", "lanes", "items", "questions", "assumptions", "found", "rulings", "proposed", "files", "types", "nyw", "comments", "commits", "branches", "claudemd", "runs", "sessions", "machines", "tokens", "install", "cards", "packets", "plans", "pages", "deviations", "stucks", "settings", "chat", "register", "reportOrder", "reportFolded", "subtypes", "states", "fpbs", "edges", "cardWhy", "cardOrigin" })
             Assert.True(wb.TryGetProperty(key, out _), "missing " + key);
         Assert.Equal(8, wb.GetProperty("projects").GetArrayLength());
         Assert.Equal("open", wb.GetProperty("projects")[0].GetProperty("state").GetString());
+        // the project is the progress dashboard: how far, what is left, how long, what waits on the owner
+        foreach (var key in new[] { "pct", "done", "total", "leftHours", "paceMinPerDay", "sessionsNow", "waiting", "results", "fpbOpen", "itemsByState" })
+            Assert.True(wb.GetProperty("projects")[0].TryGetProperty(key, out _), "project is missing " + key);
     }
 
     [Fact]
@@ -95,9 +98,10 @@ public class ServiceTests : IClassFixture<ServiceFactory>
         if (text.StartsWith("event:")) text = text.Split('\n').First(l => l.StartsWith("data:"))[5..].Trim();
         var names = JsonDocument.Parse(text).RootElement.GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
         Assert.Contains("session_hello", names);
-        Assert.Contains("question_ask", names);
-        Assert.Contains("packet_submit", names);
-        Assert.DoesNotContain(names, n => n!.Contains("item_create") || n.Contains("project") || n.Contains("lane"));
+        Assert.Contains("page_submit", names);
+        Assert.Contains("fpb_raise", names);
+        Assert.Contains("decision_record", names);
+        Assert.DoesNotContain(names, n => n!.Contains("question_ask") || n.Contains("packet") || n.Contains("plan_submit") || n.Contains("found") || n.Contains("project") || n.Contains("lane"));
     }
 
     [Fact]

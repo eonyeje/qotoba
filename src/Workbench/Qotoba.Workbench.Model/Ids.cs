@@ -9,10 +9,9 @@ public static class Ids
     public static string Child(string projectCode, string? parentId, int n) =>
         parentId is null ? $"{projectCode}-{n}" : $"{parentId}.{n}";
 
-    public static string Report(ReportKind kind, int n) => $"{kind}-{n}";
+    /// <summary>The owner's register scheme: PROJECT-KIND-NNN, counted per project and kind, never reused or renumbered.</summary>
+    public static string Report(string projectCode, ReportKind kind, int n) => $"{projectCode}-{kind}-{n:000}";
     public static string Ruling(int n) => $"R-{n}";
-    public static string Question(int n) => $"Q-{n}";
-    public static string Proposal(int n) => $"P-{n}";
 
     public static string Short() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4));
     public static string Token() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(24)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -20,11 +19,9 @@ public static class Ids
 
     public static string Card(CardType type) => type switch
     {
-        CardType.Question => "q-" + Short(),
-        CardType.Packet => "pk-" + Short(),
-        CardType.Plan => "pl-" + Short(),
+        CardType.Page => "pg-" + Short(),
         CardType.Stuck => "st-" + Short(),
-        CardType.Proposals => "rp-" + Short(),
+        CardType.Deviation => "dv-" + Short(),
         _ => "i-" + Short()
     };
 }

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -9,8 +9,9 @@ using Qotoba.Workbench.Contracts;
 
 /*
  * qotoba-host · the only process that touches a disk for the Workbench.
- * Registers this machine with the Service, heartbeats, runs the git lines of an approved packet,
- * reads file lines for pulled code, and runs checks on request. Everything else lives in the Service.
+ * Registers this machine with the Service, heartbeats, says which branch a checkout is on, reads file lines for
+ * pulled code, opens a file in Rider, indexes //+ comments, and on the owner's click makes a worktree for a second
+ * Rider window. It runs no git on its own and no tests. Everything else lives in the Service.
  *
  *   qotoba-host serve [--workbench http://localhost:5290] [--port 5291] [--name <machine>] [--checkout <path>]...
  *   qotoba-host register ...   (same flags; registers once and exits)
@@ -23,6 +24,7 @@ var port = int.TryParse(Arg("--port"), out var p) ? p : 5291;
 var name = Arg("--name") ?? Environment.GetEnvironmentVariable("QOTOBA_WB_MACHINE") ?? Environment.MachineName.ToLowerInvariant();
 var checkouts = Args("--checkout");
 if (checkouts.Count == 0 && Directory.Exists(Path.Combine(Environment.CurrentDirectory, ".git"))) checkouts.Add(Environment.CurrentDirectory);
+await DiscoverWorktreesAsync();
 var tokenPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qotoba-workbench", "token");
 var token = Environment.GetEnvironmentVariable("QOTOBA_WB_TOKEN") ?? (File.Exists(tokenPath) ? File.ReadAllText(tokenPath).Trim() : "");
 const string Version = "0.1.0";
@@ -67,24 +69,25 @@ app.MapGet("/branch", async (string checkout) =>
     return code == 0 ? Results.Text(output.Trim()) : Results.NotFound();
 });
 
-app.MapPost("/git", async (GitInstruction ins) =>
+// the owner asked for an item in a new Rider window: check its branch out as a worktree beside the main checkout
+app.MapPost("/worktree", async (WorktreeRequest req) =>
 {
-    var cwd = string.IsNullOrWhiteSpace(ins.Checkout) ? (checkouts.FirstOrDefault() ?? Environment.CurrentDirectory) : ins.Checkout;
-    if (!Directory.Exists(cwd)) return Results.Json(new GitResult(false, "No such checkout: " + cwd));
-    var log = new System.Text.StringBuilder();
-    foreach (var raw in ins.Lines)
+    if (!Directory.Exists(req.Checkout)) return Results.Json(new WorktreeResult(false, req.Folder, req.Branch, false, "No such checkout: " + req.Checkout));
+    var folder = Path.GetFullPath(req.Folder);
+    if (Directory.Exists(folder))
     {
-        var line = raw.Trim();
-        if (line.Length == 0 || line.StartsWith('#')) continue;
-        var mayFail = line.StartsWith("- ");           // "- git push origin main": allowed to fail (no remote yet)
-        if (mayFail) line = line[2..].Trim();
-        if (line.StartsWith("cd ", StringComparison.OrdinalIgnoreCase)) { var d = line[3..].Trim().Trim('"'); if (Directory.Exists(d)) cwd = d; else { log.AppendLine("no such folder: " + d); return Results.Json(new GitResult(false, log.ToString())); } continue; }
-        if (!line.StartsWith("git ", StringComparison.OrdinalIgnoreCase)) { log.AppendLine("refused (only git lines run here): " + line); return Results.Json(new GitResult(false, log.ToString())); }
-        var (code, output) = await RunAsync("git", line[4..], cwd, TimeSpan.FromMinutes(5));
-        log.AppendLine("$ " + line); log.AppendLine(output.Trim());
-        if (code != 0) { log.AppendLine($"exit {code}" + (mayFail ? " · allowed" : "")); if (!mayFail) return Results.Json(new GitResult(false, log.ToString())); }
+        var (c0, b0) = await RunAsync("git", "rev-parse --abbrev-ref HEAD", folder, TimeSpan.FromSeconds(10));
+        if (c0 == 0) { if (!checkouts.Contains(folder, StringComparer.OrdinalIgnoreCase)) checkouts.Add(folder); _ = RegisterAsync(); return Results.Json(new WorktreeResult(true, folder, b0.Trim(), false, "already there, on " + b0.Trim())); }
+        return Results.Json(new WorktreeResult(false, folder, req.Branch, false, "The folder exists and is not a checkout: " + folder));
     }
-    return Results.Json(new GitResult(true, log.ToString()));
+    var (has, _) = await RunAsync("git", "rev-parse --verify --quiet refs/heads/" + req.Branch, req.Checkout, TimeSpan.FromSeconds(10));
+    var (code, output) = has == 0
+        ? await RunAsync("git", $"worktree add \"{folder}\" {req.Branch}", req.Checkout, TimeSpan.FromMinutes(2))
+        : await RunAsync("git", $"worktree add -b {req.Branch} \"{folder}\" main", req.Checkout, TimeSpan.FromMinutes(2));
+    if (code != 0) return Results.Json(new WorktreeResult(false, folder, req.Branch, false, output.Trim()));
+    checkouts.Add(folder);
+    _ = RegisterAsync();
+    return Results.Json(new WorktreeResult(true, folder, req.Branch, true, output.Trim()));
 });
 
 app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
@@ -95,26 +98,6 @@ app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
     from = Math.Max(1, from); to = Math.Min(lines.Length, Math.Max(from, to));
     if (to - from + 1 > 40) to = from + 39;
     return Results.Text(string.Join("\n", lines.Skip(from - 1).Take(to - from + 1)));
-});
-
-app.MapPost("/run", async (RunRequest req) =>
-{
-    var cwd = string.IsNullOrWhiteSpace(req.Checkout) ? (checkouts.FirstOrDefault() ?? Environment.CurrentDirectory) : req.Checkout;
-    var sw = Stopwatch.StartNew();
-    var parts = req.Command.Split(' ', 2);
-    var (code, output) = await RunAsync(parts[0], parts.Length > 1 ? parts[1] : "", cwd, TimeSpan.FromMinutes(20));
-    sw.Stop();
-    var lines = output.Replace("\r\n", "\n").Split('\n');
-    var tail = string.Join("\n", lines.TakeLast(40));
-    int passed = 0, total = 0;
-    foreach (var l in lines)
-    {
-        var m = System.Text.RegularExpressions.Regex.Match(l, @"Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*(\d+),\s*Total:\s*(\d+)");
-        if (m.Success) { passed = int.Parse(m.Groups[2].Value); total = int.Parse(m.Groups[4].Value); }
-    }
-    var report = new RunReport(req.Check, req.Item, req.Session, name, code == 0 ? "pass" : "fail", passed, total, Math.Round(sw.Elapsed.TotalSeconds, 1), req.Command, tail, 1, code, null, null, req.Step);
-    try { var r = await http.PostAsJsonAsync("api/runs", report); return Results.Json(new { ok = r.IsSuccessStatusCode, exit = code, passed, total, tail }); }
-    catch (Exception ex) { return Results.Json(new { ok = false, exit = code, error = ex.Message, tail }); }
 });
 
 app.MapGet("/open", (string file, int line) =>
@@ -172,6 +155,22 @@ List<string> Args(string flag) { var l = new List<string>(); for (var i = 0; i <
 
 static string OsName() => OperatingSystem.IsWindows() ? "Windows " + Environment.OSVersion.Version.Build switch { >= 26100 => "11 24H2", >= 22000 => "11", _ => "10" } : Environment.OSVersion.VersionString;
 
+/// the worktrees that already hang off a checkout are checkouts too: a second Rider window may be open on one
+async Task DiscoverWorktreesAsync()
+{
+    foreach (var c in checkouts.ToList())
+    {
+        var (code, output) = await RunAsync("git", "worktree list --porcelain", c, TimeSpan.FromSeconds(10));
+        if (code != 0) continue;
+        foreach (var line in output.Split('\n'))
+        {
+            if (!line.StartsWith("worktree ")) continue;
+            var path = Path.GetFullPath(line[9..].Trim());
+            if (Directory.Exists(path) && !checkouts.Contains(path, StringComparer.OrdinalIgnoreCase)) checkouts.Add(path);
+        }
+    }
+}
+
 async Task<List<CheckoutInfo>> DescribeCheckoutsAsync()
 {
     var list = new List<CheckoutInfo>();
@@ -200,4 +199,3 @@ static async Task<(int code, string output)> RunAsync(string file, string argume
     catch (Exception ex) { return (127, ex.Message); }
 }
 
-sealed record RunRequest(string Check, string Command, string? Checkout, string? Item, string? Session, int? Step);

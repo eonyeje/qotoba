@@ -1,6 +1,9 @@
 package qotoba.workbench.rider
 
 import com.intellij.icons.AllIcons
+import com.intellij.ide.impl.OpenProjectTask
+import com.intellij.ide.impl.ProjectUtil
+import java.nio.file.Path
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.Disposable
@@ -93,6 +96,7 @@ class WorkbenchPanel(private val project: Project, parent: Disposable) : JPanel(
         q.addHandler { payload ->
             val parts = payload.split('\u001f')
             val path = parts.getOrNull(0) ?: return@addHandler null
+            if (parts.getOrNull(1) == "project") { openProjectInNewWindow(path); return@addHandler null }
             val line = parts.getOrNull(1)?.toIntOrNull() ?: 1
             ApplicationManager.getApplication().invokeLater { openInEditor(path, line) }
             null
@@ -102,11 +106,20 @@ class WorkbenchPanel(private val project: Project, parent: Disposable) : JPanel(
                 if (!frame.isMain) return
                 val call = q.inject("payload")
                 cef.executeJavaScript(
-                    "window.QOTOBA_RIDER = { open: function (path, line) { var payload = String(path) + '\\u001f' + String(line || 1); $call } };",
+                    "window.QOTOBA_RIDER = { open: function (path, line) { var payload = String(path) + '\\u001f' + String(line || 1); $call }, openProject: function (path) { var payload = String(path) + '\\u001fproject'; $call } };",
                     cef.url, 0
                 )
             }
         }, b.cefBrowser)
+    }
+
+    /** window.QOTOBA_RIDER.openProject(folder): the Workbench prepared a worktree for an item; open it as a new window of this Rider, never a new instance. */
+    private fun openProjectInNewWindow(path: String) {
+        val dir = File(path)
+        if (!dir.isDirectory) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            ProjectUtil.openOrImport(Path.of(dir.absolutePath), OpenProjectTask(forceOpenInNewFrame = true, projectToClose = null))
+        }
     }
 
     private fun openInEditor(path: String, line: Int) {

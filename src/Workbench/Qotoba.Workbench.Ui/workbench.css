@@ -591,7 +591,7 @@ html:not([data-layout="desktop"]) .menu { left: 0 !important; right: 0; bottom: 
 .mi { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 8px 12px; border: 0; background: transparent; text-align: left; border-radius: 9px; cursor: pointer; font-size: 14.5px; color: var(--ink); }
 .mi:hover { background: var(--sunk); text-decoration: none; }
 .mi svg { width: 17px; height: 17px; color: var(--ink3); flex: none; }
-.mi .why { display: block; font-size: 12.5px; color: var(--ink3); }
+.mi .why { display: block; margin: 2px 0 0; font-size: 12.5px; color: var(--ink3); }
 .mi.dis { opacity: .55; cursor: not-allowed; }
 .mi-h { font-family: var(--display); font-size: 12px; color: var(--ink3); padding: 10px 12px 4px; font-weight: 700; }
 .chat-box { border-radius: 10px; padding: 12px; background: var(--sunk); }
@@ -1025,3 +1025,14 @@ details.drill > summary { padding: 12px 2px; }
 
 /* list rows with a second line use the full width of their section */
 .list > .li.col { align-self: stretch; width: 100%; }
+
+/* a page card renders Claude's HTML in a sandboxed frame that grows with the pane */
+.page-frame{margin:16px 0;border:1px solid var(--rule,#d9d5ca);border-radius:10px;overflow:hidden;background:#fff}
+.page-frame iframe{display:block;width:100%;height:min(70vh,760px);border:0}
+.plain-table th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:.7}
+
+/* the FPB page: the eight fields before the folds */
+.glance-kv{margin:4px 0 20px}
+.glance-kv dd .lnk{display:inline-flex;gap:4px;align-items:center;margin:0 8px 4px 0}
+.bignum.tone-good{color:var(--good,#2f7a4f)}
+.bignum.tone-bad{color:var(--bad,#9b3b35)}
