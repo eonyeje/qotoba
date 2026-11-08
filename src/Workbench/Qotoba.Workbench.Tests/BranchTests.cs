@@ -97,7 +97,7 @@ public class BranchTests : IDisposable
         await RegisterCheckoutAsync();
         var top = await f.Ops().AddItemAsync(new AddItemRequest("task", "Rendering engine", "wb", null, null, null), Actor.Owner);
         var (opened, folder, branch, msg) = await f.Ops().OpenInWindowAsync(top.Id);
-        Assert.Equal(top.Id, opened.Id);
+        Assert.Equal(top.Id, opened!.Id);
         Assert.True(opened.IsOpen);
         Assert.Equal("wb/1-rendering-engine", branch);
         Assert.Equal("D:" + Path.DirectorySeparatorChar + "repo-1-rendering-engine", folder);
@@ -133,10 +133,67 @@ public class BranchTests : IDisposable
     }
 
     [Fact]
+    public async Task AProjectOpenedAsAWholeHoldsTheBranchEverythingUnderItShares()
+    {
+        await RegisterCheckoutAsync();
+        await f.Ops().OpenProjectAsync("WB");
+        var top = await f.Ops().AddItemAsync(new AddItemRequest("task", "Login screen", "wb", null, null, null), Actor.Owner);
+        var s1 = await f.Ops().SessionStartedAsync(Start("s1", @"D:\repo"));
+        Assert.Contains("Project Workbench (WB) · open, no item yet", s1.HookSpecificOutput!.AdditionalContext);
+        Assert.Contains("`wb/workbench`", s1.HookSpecificOutput!.AdditionalContext);
+        await f.Ops().HelloAsync("s1", @"D:\repo", null);
+        var (_, msg) = await f.Ops().OpenNodeFromChatAsync("s1", top.Id);
+        Assert.Contains("wb/workbench (project WB, open as a whole)", msg);
+        Assert.Equal("project WB is on wb/workbench", await f.Ops().BranchNoteAsync("s1", top.Id, "wb/workbench", null));
+        using (var db = f.Db())
+        {
+            Assert.Equal("wb/workbench", db.Projects.Single(p => p.Id == "wb").Branch);
+            Assert.Null(db.Items.Single(i => i.Id == top.Id).Branch);
+            Assert.Equal("wb", Json.ReadList<Checkout>(db.Machines.Single().CheckoutsJson).Single().ItemId);
+        }
+        // a later session on that branch lands on the open item under the project, with the project's branch
+        f.Host.Branch = "wb/workbench";
+        var s2 = await f.Ops().SessionStartedAsync(Start("s2", @"D:\repo\src"));
+        Assert.Contains($"## Item {top.Id}", s2.HookSpecificOutput!.AdditionalContext);
+        Assert.Contains("Branch: wb/workbench in D:" + Path.DirectorySeparatorChar + "repo, shared by everything under project WB", s2.HookSpecificOutput!.AdditionalContext);
+        // the owner says the whole is done: the project is no longer open and the branch is off the record
+        var done = await f.Ops().ItemDoneAsync("s1", "WB", "The Workbench is reviewed as a whole", null);
+        Assert.Contains("no longer open as a whole", done);
+        using var db2 = f.Db();
+        var wb = db2.Projects.Single(p => p.Id == "wb");
+        Assert.False(wb.IsOpen); Assert.Null(wb.Branch);
+        Assert.Null(Json.ReadList<Checkout>(db2.Machines.Single().CheckoutsJson).Single().ItemId);
+    }
+
+    [Fact]
+    public async Task AProjectOpensInANewWindowOnItsOwnBranch()
+    {
+        await RegisterCheckoutAsync();
+        var (opened, folder, branch, msg) = await f.Ops().OpenInWindowAsync("wb");
+        Assert.Null(opened);
+        Assert.Equal("wb/workbench", branch);
+        Assert.Equal("D:" + Path.DirectorySeparatorChar + "repo-workbench", folder);
+        Assert.Contains("Workbench opened as a whole", msg);
+        using (var db = f.Db())
+        {
+            var wb = db.Projects.Single(p => p.Id == "wb");
+            Assert.True(wb.IsOpen); Assert.Equal(branch, wb.Branch); Assert.Equal(folder, wb.Checkout);
+            Assert.Contains(Json.ReadList<Checkout>(db.Machines.Single().CheckoutsJson), c => c.Path == folder && c.ItemId == "wb" && c.Worktree);
+        }
+        var s = await f.Ops().SessionStartedAsync(Start("s9", folder + Path.DirectorySeparatorChar + "src"));
+        Assert.Contains("Project Workbench (WB) · open, no item yet", s.HookSpecificOutput!.AdditionalContext);
+        Assert.Contains("Branch: wb/workbench in " + folder, s.HookSpecificOutput!.AdditionalContext);
+        // the owner's word in chat opens it too, and the brief names the branch
+        await f.Ops().HelloAsync("s9", folder, null);
+        Assert.Contains("is already open as a whole · on wb/workbench", await f.Ops().OpenProjectFromChatAsync("s9", "WB"));
+    }
+
+    [Fact]
     public void BranchNamesAreProjectCodeNumberAndSlug()
     {
         var p = new Project { Id = "lng", Code = "LNG", Name = "Language" };
         Assert.Equal("lng/3-parser-and-printer", Store.Ops.WorkbenchOps.BranchNameFor(p, new Item { Id = "LNG-3", ProjectId = "lng", Title = "Parser and printer" }));
         Assert.Equal("lng/3", Store.Ops.WorkbenchOps.BranchNameFor(p, new Item { Id = "LNG-3", ProjectId = "lng", Title = "!!!" }));
+        Assert.Equal("lng/language", Store.Ops.WorkbenchOps.BranchNameFor(p));
     }
 }

@@ -155,8 +155,15 @@ public sealed partial class WorkbenchOps
         if (it is null && s?.ProjectId is not null && await db.Projects.FindAsync([s.ProjectId], ct) is { } sp)
         {
             p = sp;
-            sb.AppendLine($"## Project {sp.Name} ({sp.Code}) · open, no item yet");
-            sb.AppendLine($"The owner opened the project. You belong to it until an item under it opens. When they say the work, write it with `items_write` (it goes under {sp.Code}) and open the one to work on with `item_open`. An FPB you raise attaches to the project.");
+            sb.AppendLine($"## Project {sp.Name} ({sp.Code}) · {(sp.IsOpen ? "open" : "nothing open")}, no item yet");
+            if (sp.IsOpen)
+            {
+                sb.AppendLine($"The owner opened the project as a whole. You belong to it until an item under it opens. When they say the work, write it with `items_write` (it goes under {sp.Code}) and open the one to work on with `item_open`. An FPB you raise attaches to the project.");
+                sb.AppendLine(sp.Branch is null
+                    ? $"Branch: none recorded yet. The convention: the project has one branch, `{WorkbenchOps.BranchNameFor(sp)}`, that everything in it shares while it is open; create or check it out yourself and record it with `branch_note`."
+                    : $"Branch: {sp.Branch}" + (sp.Checkout is null ? "" : $" in {sp.Checkout}") + ", the project's own, shared by everything in it while it is open.");
+            }
+            else sb.AppendLine($"This checkout is bound to {sp.Name} but nothing in it is open. When the owner says the work, write it with `items_write` (it goes under {sp.Code}) and open the node they name with `item_open`.");
             var tops = await db.Items.Where(i => i.ProjectId == sp.Id && i.ParentId == null).OrderBy(i => i.Order).ToListAsync(ct);
             if (tops.Count > 0) { sb.AppendLine("Items in it:"); foreach (var t in tops) sb.AppendLine($"  {t.Id} · {t.Title} · {t.State.ToString().ToLowerInvariant()}{(t.IsOpen ? " · open" : "")}"); }
         }
@@ -170,9 +177,10 @@ public sealed partial class WorkbenchOps
             sb.AppendLine($"Project {p!.Name} ({p.Code}) · state {it.State.ToString().ToLowerInvariant()}" + (it.HomeMachineId is null ? "" : $" · home machine {it.HomeMachineId}"));
             var top = await TopOfAsync(it, ct);
             if (top.Id != it.Id) sb.AppendLine($"Under {top.Id} · {top.Title}");
-            sb.AppendLine(top.Branch is null
-                ? $"Branch: none recorded yet. The convention: the opened top item has one branch, `{BranchNameFor(p, top)}`, that everything under it shares; create or check it out yourself and record it with `branch_note`."
-                : $"Branch: {top.Branch}" + (top.Checkout is null ? "" : $" in {top.Checkout}") + $", shared by everything under {top.Id}.");
+            var hold = await BranchOfAsync(it, ct);
+            sb.AppendLine(!hold.Recorded
+                ? $"Branch: none recorded yet. The convention: {hold.Holder} has one branch, `{hold.Branch}`, that everything under it shares; create or check it out yourself and record it with `branch_note`."
+                : $"Branch: {hold.Branch}" + (hold.Checkout is null ? "" : $" in {hold.Checkout}") + $", shared by everything under {hold.Holder}.");
             if (!string.IsNullOrWhiteSpace(it.Goal)) sb.AppendLine("Goal: " + it.Goal);
             var steps = List<Step>(it.StepsJson);
             if (steps.Count > 0)

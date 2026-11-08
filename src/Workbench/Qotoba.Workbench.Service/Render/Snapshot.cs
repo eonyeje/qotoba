@@ -181,6 +181,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         return new
         {
             id = p.Id, code = p.Code, name = p.Name, color = p.Color, state = open ? "open" : "coarse", coarseWeeks = p.CoarseWeeks, measuredWeeks = measured,
+            isOpen = p.IsOpen, branch = p.Branch ?? WorkbenchOps.BranchNameFor(p), branchRecorded = p.Branch is not null, checkout = p.Checkout,
             factor = open ? p.Factor : null, purpose = p.Purpose,
             children = open ? top : new List<string>(), lanes = new List<string>(),
             burn = burn.Count >= 2 ? burn.Select(b => b.H).ToArray() : [], burnDays = burn.Count >= 2 ? burn.Select(b => b.Day).ToArray() : [],

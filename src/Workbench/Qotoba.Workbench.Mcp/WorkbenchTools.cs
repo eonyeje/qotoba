@@ -43,10 +43,15 @@ public static class WorkbenchTools
         catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
-    [McpServerTool(Name = "item_open"), Description("The owner said in chat which item to work on: open that node. If a sibling is already open, that one is opened instead and you are told. You keep the branch convention yourself (one branch per opened top item) and record it with branch_note.")]
-    public static async Task<string> ItemOpen(WorkbenchOps ops, string session, [Description("Item id, for example WB-1.2")] string item)
+    [McpServerTool(Name = "item_open"), Description("The owner said in chat which node to work on: open it. An item id opens that item (if a sibling is already open, that one is opened instead and you are told); a project code opens the whole project. You keep the branch convention yourself (one branch per opened node, shared by everything under it) and record it with branch_note.")]
+    public static async Task<string> ItemOpen(WorkbenchOps ops, string session, [Description("Item id, for example WB-1.2, or a project code such as WB to open the whole project")] string item)
     {
-        try { var (it, message) = await ops.OpenNodeFromChatAsync(session, item); return $"{it.Id} · {it.Title} · {message}"; } catch (WorkbenchRuleException ex) { return Err(ex); }
+        try
+        {
+            if (await ops.FindProjectAsync(item) is { } p) return await ops.OpenProjectFromChatAsync(session, p.Id);
+            var (it, message) = await ops.OpenNodeFromChatAsync(session, item); return $"{it.Id} · {it.Title} · {message}";
+        }
+        catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
     [McpServerTool(Name = "item_get"), Description("An item as the owner sees it: title, goal, state, steps, note, decisions, open FPBs.")]
@@ -86,7 +91,7 @@ public static class WorkbenchTools
         try { await ops.StepUpdateAsync(session, item, step, state, note); return "ok"; } catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
-    [McpServerTool(Name = "item_done"), Description("The item is finished: say in one sentence what is now true. Done is written down; nothing waits on the owner. Commit, merge and push only when the owner says so.")]
+    [McpServerTool(Name = "item_done"), Description("The item is finished: say in one sentence what is now true. Done is written down; nothing waits on the owner. Commit, merge and push only when the owner says so. With a project code, the project is no longer open as a whole and its branch is off the record.")]
     public static async Task<string> ItemDone(WorkbenchOps ops, string session, string item,
         [Description("One sentence: what is now true")] string outcome,
         [Description("A note of at most two lines, if something should be known")] string? note = null)
@@ -106,8 +111,8 @@ public static class WorkbenchTools
         try { var a = await ops.AssumeAsync(session, item, text); return a.Id; } catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
-    [McpServerTool(Name = "branch_note"), Description("Record which branch the opened top item is on, after you created or checked it out yourself (the convention: one branch per opened top item, shared by everything under it). Recorded only; the Workbench runs no git.")]
-    public static async Task<string> BranchNote(WorkbenchOps ops, string session, string item, [Description("The branch name, for example wb/1-login-screen")] string branch, [Description("The checkout folder, if not your working directory")] string? checkout = null)
+    [McpServerTool(Name = "branch_note"), Description("Record which branch the opened node is on, after you created or checked it out yourself (the convention: one branch per opened node, shared by everything under it; the node is the project when it is open as a whole, else the top item). Recorded only; the Workbench runs no git.")]
+    public static async Task<string> BranchNote(WorkbenchOps ops, string session, [Description("Item id, or a project code when the project is open as a whole")] string item, [Description("The branch name, for example wb/1-login-screen or wb/workbench")] string branch, [Description("The checkout folder, if not your working directory")] string? checkout = null)
     {
         try { return await ops.BranchNoteAsync(session, item, branch, checkout); } catch (WorkbenchRuleException ex) { return Err(ex); }
     }

@@ -690,7 +690,7 @@
   function canOpen(id) {
     if (id === 'root') return { ok: false, why: 'The programme is always open.' };
     var p = projOf(id);
-    if (p) return p.state === 'open' ? { ok: false, why: 'Already open. Sessions in this checkout belong to it until you open an item under it.' } : { ok: true, why: 'Opens the project to work on: sessions in this checkout belong to it until you open an item under it.', go: '#/project/' + id, openProject: true };
+    if (p) return p.isOpen ? { ok: false, why: 'Already open as a whole on ' + p.branch + '.' } : { ok: true, why: 'Opens the whole project: one branch, ' + p.branch + ', that everything in it shares; sessions in this checkout belong to it until you open an item under it.', go: '#/project/' + id, openProject: true };
     var it = D.items[id];
     if (it.isOpen) return { ok: false, why: 'Already open.' };
     if (it.state === 'done') return { ok: false, why: 'Done items do not reopen.' };
@@ -719,7 +719,7 @@
   function nodeMeta(id) {
     var p = projOf(id), it = D.items[id];
     if (id === 'root') return '8 projects';
-    if (p) return p.state === 'open' ? 'open · ~' + p.coarseWeeks + ' weeks' : '~' + p.coarseWeeks + ' weeks';
+    if (p) return p.isOpen ? 'open on ' + p.branch : '~' + p.coarseWeeks + ' weeks';
     if (it.preview) return 'preview · ' + it.coarse;
     if (it.unscheduled) return 'unscheduled · ' + it.coarse;
     if (it.state === 'coarse') return it.coarse;
@@ -978,12 +978,12 @@
     }).join('') + '</div>';
   }
   function rowMenu(id) {
-    var co = canOpen(id), it = D.items[id];
+    var co = canOpen(id), it = D.items[id], p = projOf(id);
     return '<div class="mi-h">' + esc(nodeTitle(id)) + '</div>' +
       (it ? '<a class="mi" href="#/item/' + id + '" data-act="close-after">' + ic('open') + 'Open item page</a>' : '<a class="mi" href="#/project/' + id + '" data-act="close-after">' + ic('open') + 'Open project page</a>') +
       '<button class="mi' + (co.ok ? '' : ' dis') + '" data-act="opennode" data-node="' + id + '">' + ic('work') + '<span>Open this node<span class="why">' + esc(co.why) + '</span></span></button>' +
       '<button class="mi" data-act="additem" data-node="' + id + '">' + ic('plus') + '<span>Add item<span class="why">An item of work under this one</span></span></button>' +
-      (it ? '<button class="mi" data-act="openwindow" data-node="' + id + '">' + ic('rider') + '<span>Open in a new Rider window<span class="why">Its branch in a second folder; this window stays as it is</span></span></button>' : '') +
+      (it || p ? '<button class="mi" data-act="openwindow" data-node="' + id + '">' + ic('rider') + '<span>Open in a new Rider window<span class="why">' + (p ? 'The whole project on ' + esc(p.branch) : 'Its branch') + ' in a second folder; this window stays as it is</span></span></button>' : '') +
       '<button class="mi" data-act="move" data-node="' + id + '">' + ic('move') + 'Move…</button>' +
       '<button class="mi" data-act="rename" data-node="' + id + '">' + ic('edit') + 'Rename…</button>' +
       '<button class="mi" data-act="summary" data-node="' + id + '">' + ic('projects') + 'Show summary</button>';
@@ -1182,7 +1182,7 @@
   }
   function projectCard(p) {
     var bo = blockedOnYou(p.id);
-    return '<article class="pcard" data-act="go" data-href="#/project/' + p.id + '" style="--pc:var(--' + p.color + ');cursor:pointer" role="link" tabindex="0" aria-label="Open ' + esc(p.name) + '"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.state === 'open' ? 'open' : 'coarse') + '</span></div>' +
+    return '<article class="pcard" data-act="go" data-href="#/project/' + p.id + '" style="--pc:var(--' + p.color + ');cursor:pointer" role="link" tabindex="0" aria-label="Open ' + esc(p.name) + '"><div class="pc-top"><span class="pdot"></span><h3>' + esc(p.name) + '</h3><span class="muted small">' + (p.isOpen ? 'open on ' + esc(p.branch) : p.state === 'open' ? '' : 'coarse') + '</span></div>' +
       (p.total ? '<p class="pc-num">' + p.pct + '%<span class="muted small"> · ' + p.done + ' of ' + plural(p.total, 'item') + ' done</span></p>' : '<p class="pc-num">~' + p.coarseWeeks + ' weeks<span class="muted small"> · not started</span></p>') +
       '<div class="wbar"><span class="m" style="width:' + (p.total ? p.pct : 0) + '%"></span><span class="c"></span></div>' +
       (p.total ? '<p class="small muted">' + leftText(p) + (p.sessionsNow && p.sessionsNow.length ? ' · ' + plural(p.sessionsNow.length, 'session') + ' now' : '') + '</p>' : '') +
@@ -1201,7 +1201,7 @@
     var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
     if (p.total) h += '<p class="bignum">' + p.pct + '% done <span class="bignum-ref">' + p.done + ' of ' + plural(p.total, 'item') + '</span></p><p class="muted small">' + leftText(p) + (p.lastActivity ? ' · last activity ' + esc(p.lastActivity) : '') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + p.pct + '%"></span><span class="c"></span></div>';
     else h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">nothing started yet; the estimate is coarse</p>';
-    h += '<div class="actions">' + (p.state === 'open' ? '<button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button>' : '<button class="btn primary" data-act="opennode" data-node="' + id + '">Open this project</button>') + '<button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>' + (p.state === 'open' ? '' : '<p class="small muted">Opening it means sessions in your checkout belong to it until you open an item under it.</p>');
+    h += '<div class="actions">' + (p.isOpen ? '<button class="btn primary" data-act="pfilter-go" data-p="' + id + '">Filter to ' + esc(p.name) + '</button>' : '<button class="btn primary" data-act="opennode" data-node="' + id + '">Open this project</button>') + '<button class="btn" data-act="openwindow" data-node="' + id + '">Open in a new Rider window</button><button class="btn" data-act="additem" data-node="' + id + '">Add item</button></div>' + (p.isOpen ? '<p class="small muted">Open as a whole on ' + esc(p.branch) + (p.branchRecorded ? '' : ' (not made yet)') + (p.checkout ? ' in ' + esc(p.checkout) : '') + '. Everything in it shares that branch until you say the work is done.</p>' : '<p class="small muted">Opening it gives the whole project one branch, ' + esc(p.branch) + ', that everything in it shares; sessions in your checkout belong to it until you open an item under it.</p>');
     h += drills([
       p.burn && p.burn.length ? drill('Burn-down', p.burn[0] + ' h → ' + p.burn[p.burn.length - 1] + ' h of measured work left, since ' + p.burnDays[0], spark(p)) : '',
       (p.results && p.results.length) ? drill('Last results', (function () { var bad = p.results.filter(function (r) { return r.result !== 'pass'; }).length; return bad ? plural(bad, 'check') + ' not passing' : 'all ' + plural(p.results.length, 'check') + ' passing'; })(), resultsTable(p.results), { attn: p.results.some(function (r) { return r.result !== 'pass'; }) }) : '',

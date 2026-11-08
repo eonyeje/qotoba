@@ -53,8 +53,8 @@ The script only talks to the service when the session's folder is inside a check
 ## The loop
 
 1. The owner says what the work is, in chat or on the tree: "Login screen", with the items under it. Claude writes it. The owner opens the node to work on; opening a sibling of an open node takes them to the one already open.
-2. A session started anywhere in the checkout belongs to the open node there: the checkout's bound item, else the item on the checkout's branch, else the one open top item; then the open node under it. Nobody names an item to a session.
-3. The session reads its brief, writes its steps, and works. The branch is a convention it keeps itself: one branch per opened top item (`wb/1-login-screen`), shared by everything under it, recorded with `branch_note`.
+2. A session started anywhere in the checkout belongs to the open node there: the checkout's bound node, else the node on the checkout's branch, else the one open top item; then the open node under it. A project opened as a whole counts as a node. Nobody names an item to a session.
+3. The session reads its brief, writes its steps, and works. The branch is a convention it keeps itself: one branch per opened node, shared by everything under it, recorded with `branch_note`. The node is the project when the owner opened it as a whole (`wb/workbench`), else the opened top item (`wb/1-login-screen`).
 4. A design that spans several classes, a concept, a data change, a review: the session writes a page and the owner answers on it and approves; the answers are the agreed design. Small blocked questions are not cards: the session takes the recommended answer and records an assumption.
 5. A rule the owner states in chat is recorded as a decision there and then. A feature the owner asks for is an FTR; a defect or a slow path the session finds is a BUG or a PER, raised by the session, attached to the item.
 6. Nothing closes, merges or pushes on its own. When the work is finished the session advises in chat (tests green, FPBs fixed, ready to merge, push and mark done) and the owner decides. Then the session does what was said and records done in one sentence, written against the item.

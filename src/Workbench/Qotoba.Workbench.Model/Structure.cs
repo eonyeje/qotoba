@@ -12,6 +12,12 @@ public class Project
     public double? Factor { get; set; }
     public string Purpose { get; set; } = "";
     public string? Repo { get; set; }
+    /// <summary>The owner opened the project itself, to work on it as a whole. It then holds the branch, and every item under it shares that branch while the project stays open.</summary>
+    public bool IsOpen { get; set; }
+    /// <summary>The branch of a project opened as a whole, once Claude or the Host has made it. Recorded, never run.</summary>
+    public string? Branch { get; set; }
+    public string? Checkout { get; set; }
+    public string? HomeMachineId { get; set; }
     public string? ClosedWhy { get; set; }
     public int Order { get; set; }
     public int NextItemNumber { get; set; } = 1;

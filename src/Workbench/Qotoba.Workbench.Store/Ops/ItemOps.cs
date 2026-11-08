@@ -122,9 +122,8 @@ public sealed partial class WorkbenchOps
         await LedgerAsync(s, "open", message);
         Audit(Actor.Claude, "open", "item", opened.Id);
         await SaveAsync("item", opened.Id, ct);
-        var p = await ProjectOfAsync(opened, ct);
-        var top = await TopOfAsync(opened, ct);
-        return (opened, message + (top.Branch is null ? $" · branch convention: {BranchNameFor(p, top)}; create or check it out yourself and record it with branch_note" : $" · on {top.Branch}"));
+        var hold = await BranchOfAsync(opened, ct);
+        return (opened, message + (hold.Recorded ? $" · on {hold.Branch} ({hold.Holder})" : $" · branch convention: {hold.Branch} ({hold.Holder}); create or check it out yourself and record it with branch_note"));
     }
 
     /// <summary>Opens a node. When a sibling is already open, that sibling is the one that opens: the owner is taken to it, nothing is refused.</summary>
@@ -190,6 +189,7 @@ public sealed partial class WorkbenchOps
     public async Task<string> ItemDoneAsync(string sessionId, string itemId, string outcome, string? note, CancellationToken ct = default)
     {
         var s = await RequireSessionAsync(sessionId, ct);
+        if (await FindProjectAsync(itemId, ct) is { } proj) return await ProjectDoneAsync(s, proj, outcome, ct);
         var it = await RequireItemAsync(itemId, ct);
         Rules.TextFits(outcome, "The outcome");
         var steps = List<Step>(it.StepsJson).Select(st => st.State == StepState.Done ? st : st with { State = StepState.Done }).ToList();

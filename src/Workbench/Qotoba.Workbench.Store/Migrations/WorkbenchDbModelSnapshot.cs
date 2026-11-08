@@ -661,6 +661,12 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Branch")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Checkout")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ClosedWhy")
                         .HasColumnType("TEXT");
 
@@ -681,6 +687,12 @@ namespace Qotoba.Workbench.Store.Migrations
 
                     b.Property<double?>("Factor")
                         .HasColumnType("REAL");
+
+                    b.Property<string>("HomeMachineId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsOpen")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
