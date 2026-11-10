@@ -344,7 +344,9 @@
   function drill(label, summary, body, opt) {
     opt = opt || {};
     if (opt.empty || EMPTY_SUM.indexOf(summary) >= 0 || body === '' || body == null) return '';
-    return '<details class="drill' + (opt.attn ? ' attn' : '') + '"' + (opt.open ? ' open' : '') + (opt.id ? ' id="' + opt.id + '"' : '') + '><summary><span class="dl">' + label + '</span><span class="ds">' + summary + '</span><span class="chev" aria-hidden="true"></span></summary><div class="db">' + body + '</div></details>';
+    // every fold carries an id: a refresh re-renders the page and reopens the folds by id, so one the owner opened stays open
+    var did = opt.id || ('drill-' + String(label).replace(/<[^>]*>/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    return '<details class="drill' + (opt.attn ? ' attn' : '') + '"' + (opt.open ? ' open' : '') + ' id="' + did + '"><summary><span class="dl">' + label + '</span><span class="ds">' + summary + '</span><span class="chev" aria-hidden="true"></span></summary><div class="db">' + body + '</div></details>';
   }
   function drills(rows, title) { return (title ? '<div class="deeper-h">' + title + '</div>' : '') + '<div class="drills">' + rows.filter(Boolean).join('') + '</div>'; }
   function dhead(kind, cls, right, title, sub) {
