@@ -195,7 +195,11 @@ public sealed partial class WorkbenchOps
     {
         var n = await db.Rulings.CountAsync(ct) + 1;
         while (await db.Rulings.AnyAsync(r => r.Id == Ids.Ruling(n), ct)) n++;
-        var r = new Ruling { Id = Ids.Ruling(n), ProjectId = projectId, Title = Trim(text, 60), Text = text.Trim(), Date = Now, Origin = origin, ItemId = itemId, SessionId = sessionId };
+        // the project by id or code (a session says "LNG", the tree says "lang"); an unknown one falls back to the item's, then the first project
+        var project = projectId is null ? null : await FindProjectAsync(projectId, ct);
+        if (project is null && itemId is not null) { var it = await db.Items.FindAsync([itemId], ct); if (it is not null) project = await ProjectOfAsync(it, ct); }
+        project ??= await db.Projects.OrderBy(x => x.Order).FirstAsync(ct);
+        var r = new Ruling { Id = Ids.Ruling(n), ProjectId = project.Id, Title = Trim(text, 60), Text = text.Trim(), Date = Now, Origin = origin, ItemId = itemId, SessionId = sessionId };
         db.Rulings.Add(r);
         return r;
     }

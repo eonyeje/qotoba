@@ -77,7 +77,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             ["found"] = new Dictionary<string, object?>(),
             ["rulings"] = rulings.ToDictionary(r => r.Id, r => (object?)new
             {
-                project = r.ProjectId ?? "wb", title = r.Title, date = fmt.Day(r.Date), neverReopened = r.NeverReopened, text = r.Text, origin = r.Origin,
+                project = projects.FirstOrDefault(p => p.Id == r.ProjectId || p.Code.Equals(r.ProjectId, StringComparison.OrdinalIgnoreCase))?.Id ?? "wb", title = r.Title, date = fmt.Day(r.Date), neverReopened = r.NeverReopened, text = r.Text, origin = r.Origin,
                 question = (string?)null, session = r.SessionId, item = r.ItemId is null ? null : "item:" + r.ItemId,
                 related = Json.ReadList<string>(r.RelatedJson), reopenNote = r.ReopenNote,
                 withdrawn = r.WithdrawnAt is null ? null : fmt.DayTime(r.WithdrawnAt.Value), withdrawnWhy = r.WithdrawnWhy,

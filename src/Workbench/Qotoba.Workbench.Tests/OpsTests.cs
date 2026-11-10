@@ -298,6 +298,21 @@ public class OpsTests : IDisposable
     }
 
     [Fact]
+    public async Task ADecisionNamedByProjectCodeLandsOnTheProjectById()
+    {
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Design QDL", "lang", null, null, null), Actor.Owner);
+        await f.SessionOnAsync("s1", "LNG-1");
+        var byCode = await f.Ops().RecordDecisionAsync("s1", "Never refer to tasks by their ids.", null, "LNG");
+        var byId = await f.Ops().RecordDecisionAsync("s1", "Only I can initiate a rule being removed.", null, "wb");
+        var mine = await f.Ops().RecordDecisionAsync("s1", "Rulings are process, not results.", null, null);
+        var wrong = await f.Ops().RecordDecisionAsync("s1", "A code nobody knows still records.", null, "NOPE");
+        Assert.Equal("lang", byCode.ProjectId);
+        Assert.Equal("wb", byId.ProjectId);
+        Assert.Equal("lang", mine.ProjectId);
+        Assert.Equal("lang", wrong.ProjectId);
+    }
+
+    [Fact]
     public async Task ADecisionIsWithdrawnOnTheOwnersWordAndStaysInHistoryStruckThrough()
     {
         await f.Ops().AddItemAsync(new AddItemRequest("task", "Design QDL", "wb", null, null, null), Actor.Owner);
