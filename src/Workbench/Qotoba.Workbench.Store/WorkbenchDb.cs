@@ -26,6 +26,7 @@ public class WorkbenchDb(DbContextOptions<WorkbenchDb> options) : DbContext(opti
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<ActionLog> Actions => Set<ActionLog>();
     public DbSet<OwnerMessage> Messages => Set<OwnerMessage>();
+    public DbSet<Document> Documents => Set<Document>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {

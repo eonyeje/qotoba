@@ -21,11 +21,14 @@ public interface IHostClient
     Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default);
     /// <summary>On the owner's click: a worktree of the checkout on the item's branch, so a second Rider window can work that item.</summary>
     Task<WorktreeResult> WorktreeAsync(string machineId, WorktreeRequest req, CancellationToken ct = default);
+    /// <summary>A whole file of a checkout (a document the owner opens), or null when the Host or the file is not there.</summary>
+    Task<HostFile?> ReadFileAsync(string machineId, string checkout, string file, CancellationToken ct = default);
 }
 
 public sealed class NoHost : IHostClient
 {
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    public Task<HostFile?> ReadFileAsync(string machineId, string checkout, string file, CancellationToken ct = default) => Task.FromResult<HostFile?>(null);
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(false);
     public Task<string?> BranchAsync(string machineId, string checkout, CancellationToken ct = default) => Task.FromResult<string?>(null);

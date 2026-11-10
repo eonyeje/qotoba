@@ -31,6 +31,8 @@ builder.Services.AddSingleton<TokenAuth>();
 builder.Services.AddHttpClient<IHostClient, HostClient>(c => c.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddScoped<WorkbenchOps>();
 builder.Services.AddScoped<Snapshot>();
+builder.Services.AddScoped<Qotoba.Workbench.Service.Docs.DocumentReader>();
+builder.Services.AddHttpClient("docs", c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd("qotoba-workbench"); });
 builder.Services.AddHostedService<DailySampler>();
 builder.Services.ConfigureHttpJsonOptions(o =>
 {

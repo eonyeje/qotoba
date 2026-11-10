@@ -226,13 +226,40 @@ public sealed partial class WorkbenchOps
         return r;
     }
 
-    /// <summary>The owner overturns or withdraws a recorded decision.</summary>
+    /// <summary>The owner withdraws a recorded decision on its page. It leaves the table and every brief and stays in history with the reason.</summary>
     public async Task WithdrawRulingAsync(string id, string? note, CancellationToken ct = default)
     {
         var r = await db.Rulings.FindAsync([id], ct) ?? throw new WorkbenchRuleException("ruling.unknown", $"There is no ruling {id}.");
-        r.NeverReopened = false; r.ReopenNote = string.IsNullOrWhiteSpace(note) ? $"Withdrawn by you on {fmt.Day(Now)}" : note.Trim();
-        Audit(Actor.Owner, "withdraw", "ruling", id);
+        r.WithdrawnAt = Now; r.WithdrawnWhy = string.IsNullOrWhiteSpace(note) ? "Withdrawn by you" : note.Trim();
+        Audit(Actor.Owner, "withdraw", "ruling", id, r.WithdrawnWhy);
         await SaveAsync("ruling", id, ct);
+    }
+
+    /// <summary>
+    /// The owner asked in chat for a decision to be withdrawn or replaced (R-16: only the owner initiates this). Claude records it with
+    /// the owner's words as the reason and, when they named one, the later decision that supersedes it.
+    /// </summary>
+    public async Task<string> WithdrawDecisionAsync(string sessionId, string rulingId, string reason, string? supersededBy, CancellationToken ct = default)
+    {
+        var s = await RequireSessionAsync(sessionId, ct);
+        var id = rulingId.Trim().ToUpperInvariant();
+        var r = await db.Rulings.FindAsync([id], ct) ?? throw new WorkbenchRuleException("ruling.unknown", $"There is no decision {id}.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new WorkbenchRuleException("ruling.reason", "Give the owner's words as the reason.");
+        Ruling? by = null;
+        if (!string.IsNullOrWhiteSpace(supersededBy))
+        {
+            var byId = supersededBy.Trim().ToUpperInvariant();
+            by = await db.Rulings.FindAsync([byId], ct) ?? throw new WorkbenchRuleException("ruling.unknown", $"There is no decision {byId} to supersede it.");
+            if (by.Id == r.Id) throw new WorkbenchRuleException("ruling.self", "A decision cannot supersede itself.");
+            if (by.WithdrawnAt is not null) throw new WorkbenchRuleException("ruling.withdrawn", $"{by.Id} is itself withdrawn.");
+        }
+        var already = r.WithdrawnAt is not null;
+        r.WithdrawnAt ??= Now; r.WithdrawnWhy = reason.Trim(); r.SupersededById = by?.Id;
+        if (r.ItemId is not null) await HistoryAsync(r.ItemId, "decision", $"[[ruling:{r.Id}]] withdrawn" + (by is null ? "" : $", replaced by [[ruling:{by.Id}]]"), ct);
+        await LedgerAsync(s, "decision", $"{r.Id} withdrawn" + (by is null ? "" : $" · replaced by {by.Id}"));
+        Audit(Actor.Claude, already ? "update" : "withdraw", "ruling", r.Id, reason.Trim());
+        await SaveAsync("ruling", r.Id, ct);
+        return by is null ? $"{r.Id} withdrawn on the owner's word; it stays in history" : $"{r.Id} withdrawn, replaced by {by.Id}; it stays in history";
     }
 
     public async Task MessageSessionAsync(string sessionId, string text, CancellationToken ct = default)
@@ -252,7 +279,7 @@ public sealed partial class WorkbenchOps
         m.Kind = reg.Kind.Equals("cloud", StringComparison.OrdinalIgnoreCase) ? MachineKind.Cloud : MachineKind.Machine;
         m.ClockSkewSec = Math.Round((reg.Clock - Now).TotalSeconds, 1);
         var known = List<Checkout>(m.CheckoutsJson);
-        m.CheckoutsJson = Json.Write(reg.Checkouts.Select(c => new Checkout(c.Path, c.Branch, c.Item ?? known.FirstOrDefault(k => k.Path.Equals(c.Path, StringComparison.OrdinalIgnoreCase))?.ItemId, c.Worktree, c.Note)).ToList());
+        m.CheckoutsJson = Json.Write(reg.Checkouts.Select(c => new Checkout(c.Path, c.Branch, c.Item ?? known.FirstOrDefault(k => k.Path.Equals(c.Path, StringComparison.OrdinalIgnoreCase))?.ItemId, c.Worktree, c.Note, c.Remote)).ToList());
         if (isNew) await InfoAsync($"{m.Id} registered with Host {reg.HostVersion}", $"A Host joined on {reg.Os} with {reg.Checkouts.Count} checkout{(reg.Checkouts.Count == 1 ? "" : "s")}.", "machine:" + m.Id, $"Host on {m.Id}", null, null, null, ct);
         await SaveAsync("machine", m.Id, ct);
         return m;

@@ -45,7 +45,8 @@ public class Machine
     public string? HostUrl { get; set; }
 }
 
-public sealed record Checkout(string Path, string Branch, string? ItemId, bool Worktree, string? Note);
+/// <summary>A checkout the Host on a machine knows. Remote is its origin URL, which says which repository it is a checkout of.</summary>
+public sealed record Checkout(string Path, string Branch, string? ItemId, bool Worktree, string? Note, string? Remote = null);
 
 public class Token
 {

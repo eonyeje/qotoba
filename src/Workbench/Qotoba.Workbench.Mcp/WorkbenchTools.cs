@@ -132,8 +132,44 @@ public static class WorkbenchTools
     public static async Task<string> RulingsSearch(WorkbenchOps ops, [Description("Words to look for")] string query)
     {
         var q = query.ToLowerInvariant();
-        var hits = await ops.Db.Rulings.Where(r => r.NeverReopened && (r.Text.ToLower().Contains(q) || r.Title.ToLower().Contains(q))).OrderByDescending(r => r.Date).Take(12).ToListAsync();
+        var hits = await ops.Db.Rulings.Where(r => r.WithdrawnAt == null && r.NeverReopened && (r.Text.ToLower().Contains(q) || r.Title.ToLower().Contains(q))).OrderByDescending(r => r.Date).Take(12).ToListAsync();
         return hits.Count == 0 ? "No decision mentions that." : string.Join("\n", hits.Select(r => $"{r.Id} · {r.Text}"));
+    }
+
+    [McpServerTool(Name = "decision_withdraw"), Description("The owner asked in chat for a recorded decision to be withdrawn, or replaced by a later one. Only the owner initiates this (R-16); never call it on your own judgement. The reason is the owner's words. The decision leaves the rulings table and every brief and stays in history, struck through.")]
+    public static async Task<string> DecisionWithdraw(WorkbenchOps ops, string session,
+        [Description("The decision to withdraw, for example R-5")] string ruling,
+        [Description("Why, in the owner's words")] string reason,
+        [Description("The later decision that replaces it, if the owner named one")] string? supersededBy = null)
+    {
+        try { return await ops.WithdrawDecisionAsync(session, ruling, reason, supersededBy); } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    /* ---------------------------------------------------------------- documents */
+
+    [McpServerTool(Name = "doc_add"), Description("A document belongs to an item or a project: a design page, a reference, specimens. Give the repo-relative path of the file in the project's repository (the Workbench reaches it from any machine) or a URL for a document outside any repository. The same title on the same node updates the entry (a move or rename).")]
+    public static async Task<string> DocAdd(WorkbenchOps ops, string session,
+        [Description("Item id or project code it belongs to; defaults to yours")] string? node,
+        [Description("The title the owner sees")] string title,
+        [Description("Repo-relative path with forward slashes, for example docs/design/qdl.html")] string? path = null,
+        [Description("An absolute URL instead of a path, for a document outside the repository")] string? url = null)
+    {
+        try { return await ops.DocAddAsync(session, node, title, path, url); } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "doc_remove"), Description("Remove a document entry from an item or project, on the owner's word. The file is not touched.")]
+    public static async Task<string> DocRemove(WorkbenchOps ops, string session,
+        [Description("Item id or project code; defaults to yours")] string? node,
+        [Description("The title, or the path, of the entry to remove")] string title,
+        [Description("Why, one line")] string? reason = null)
+    {
+        try { return await ops.DocRemoveAsync(session, node, title, reason); } catch (WorkbenchRuleException ex) { return Err(ex); }
+    }
+
+    [McpServerTool(Name = "doc_list"), Description("The documents of an item (and everything under it) or of a project, one line each. Read them before writing a design: the design page may already exist.")]
+    public static async Task<string> DocList(WorkbenchOps ops, [Description("Item id or project code")] string node)
+    {
+        try { return await ops.DocListAsync(node); } catch (WorkbenchRuleException ex) { return Err(ex); }
     }
 
     /* ---------------------------------------------------------------- FPBs */

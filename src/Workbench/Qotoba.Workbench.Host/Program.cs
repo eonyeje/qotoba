@@ -100,6 +100,23 @@ app.MapGet("/lines", async (string checkout, string file, int from, int to) =>
     return Results.Text(string.Join("\n", lines.Skip(from - 1).Take(to - from + 1)));
 });
 
+// a whole file of a checkout, for a document the owner opens in the Workbench pane; never outside the checkout
+app.MapGet("/file", (string checkout, string file) =>
+{
+    if (!Directory.Exists(checkout)) return Results.NotFound();
+    var root = Path.GetFullPath(checkout).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    var path = Path.GetFullPath(Path.Combine(root, file.Replace('/', Path.DirectorySeparatorChar)));
+    if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return Results.NotFound();
+    var ext = Path.GetExtension(path).ToLowerInvariant();
+    var type = ext switch
+    {
+        ".html" or ".htm" => "text/html; charset=utf-8", ".css" => "text/css; charset=utf-8", ".js" or ".mjs" => "text/javascript; charset=utf-8",
+        ".json" => "application/json; charset=utf-8", ".svg" => "image/svg+xml", ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".gif" => "image/gif",
+        ".webp" => "image/webp", ".woff" => "font/woff", ".woff2" => "font/woff2", ".pdf" => "application/pdf", _ => "text/plain; charset=utf-8"
+    };
+    return Results.File(path, type);
+});
+
 app.MapGet("/open", (string file, int line) =>
 {
     var rider = Environment.GetEnvironmentVariable("QOTOBA_RIDER") ?? "rider64";
@@ -178,7 +195,9 @@ async Task<List<CheckoutInfo>> DescribeCheckoutsAsync()
     {
         var (_, branch) = await RunAsync("git", "rev-parse --abbrev-ref HEAD", c, TimeSpan.FromSeconds(10));
         var (_, wt) = await RunAsync("git", "rev-parse --git-dir", c, TimeSpan.FromSeconds(10));
-        list.Add(new CheckoutInfo(c, branch.Trim(), null, wt.Contains("worktrees"), null));
+        // the remote says which repository this is a checkout of, so a document recorded against the project is found on any machine
+        var (rc, remote) = await RunAsync("git", "remote get-url origin", c, TimeSpan.FromSeconds(10));
+        list.Add(new CheckoutInfo(c, branch.Trim(), null, wt.Contains("worktrees"), null, rc == 0 && remote.Trim().Length > 0 ? remote.Trim() : null));
     }
     return list;
 }

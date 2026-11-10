@@ -345,6 +345,40 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.ToTable("Commits");
                 });
 
+            modelBuilder.Entity("Qotoba.Workbench.Model.Document", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AddedBySessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("At")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ItemId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Path")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProjectId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Documents");
+                });
+
             modelBuilder.Entity("Qotoba.Workbench.Model.Edge", b =>
                 {
                     b.Property<string>("Id")
@@ -839,12 +873,21 @@ namespace Qotoba.Workbench.Store.Migrations
                     b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SupersededById")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WithdrawnAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WithdrawnWhy")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Qotoba.Workbench.Contracts;
 using Qotoba.Workbench.Model;
+using Qotoba.Workbench.Service.Docs;
 using Qotoba.Workbench.Service.Events;
 using Qotoba.Workbench.Service.Render;
 using Qotoba.Workbench.Store;
@@ -45,6 +46,27 @@ public static class ApiEndpoints
         api.MapPost("/edges", async (EdgeBody body, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.AddEdgeAsync(body.From, body.To, ct)).Id }, Json.Options)));
         api.MapPost("/index", async (CommentIndexPost post, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { await ops.IndexAsync(post, ct); return Results.Ok(new { ok = true }); }));
         api.MapPost("/open", async (OpenRequest req, IHostClient host, CancellationToken ct) => Results.Json(new { ok = await host.OpenAsync(req.Machine, req.File, req.Line, ct) }));
+        // a document's file in the editor: the Workbench finds the checkout on this machine; the owner never types a path
+        api.MapPost("/docs/{id}/open", async (string id, WorkbenchDb db, DocumentReader reader, IHostClient host, CancellationToken ct) =>
+        {
+            var d = await db.Documents.FindAsync([id], ct);
+            if (d is null) return Results.Json(new { ok = false, message = "There is no such document." });
+            var place = await reader.EditorPlaceAsync(d, ct);
+            if (place is null) return Results.Json(new { ok = false, message = "No checkout of this project is reachable from here, so there is nothing to open in the editor." });
+            var ok = await host.OpenAsync(place.Value.machine, place.Value.file, 1, ct);
+            return Results.Json(new { ok, message = ok ? $"Opening {d.Title} in Rider on {place.Value.machine}" : $"The Host on {place.Value.machine} could not open Rider" });
+        });
+
+        // a project's files for the pane, at the project's current ref: /docs/LNG/docs/design/qdl.html. Relative links inside a page resolve within the same tree.
+        app.MapGet("/docs/{code}/{**path}", async (string code, string path, DocumentReader reader, HttpContext ctx, CancellationToken ct) =>
+        {
+            var read = await reader.ReadAsync(code, path, ct);
+            if (read is null) return Results.Content("<!doctype html><meta charset=utf-8><body style=\"font:15px system-ui;margin:24px;color:#666\">This file cannot be reached from here: no checkout of the project is online and the repository's remote does not serve it. It may be on a branch that is not pushed yet.</body>", "text/html; charset=utf-8", statusCode: 404);
+            ctx.Response.Headers.CacheControl = "no-cache, must-revalidate";
+            ctx.Response.Headers["X-Workbench-Via"] = new string(read.Via.Where(c => c < 127 && !char.IsControl(c)).ToArray());   // header values are ASCII
+            var isHtml = read.ContentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase);
+            return Results.Bytes(isHtml ? DocumentReader.WithBridge(read.Bytes) : read.Bytes, read.ContentType);
+        });
         api.MapPost("/rulings", async (RulingRequest req, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => Results.Json(new { id = (await ops.AddRulingAsync(req, ct)).Id }, Json.Options)));
         api.MapPost("/rulings/{id}/withdraw", async (string id, WithdrawBody? body, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { await ops.WithdrawRulingAsync(id, body?.Note, ct); return Results.Ok(new { ok = true }); }));
         api.MapPost("/sessions/{id}/message", async (string id, MessageBody body, WorkbenchOps ops, CancellationToken ct) => await Guard(async () => { await ops.MessageSessionAsync(id, body.Text, ct); return Results.Ok(new { ok = true }); }));

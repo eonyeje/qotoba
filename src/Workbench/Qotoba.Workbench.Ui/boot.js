@@ -86,6 +86,9 @@
     addEdge: function (from, to) {
       return api('POST', '/api/edges', { from: from, to: to }).then(function (r) { toast(r.message ? esc(r.message) : 'Dependency recorded by you'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
     },
+    docOpen: function (id) {
+      return api('POST', '/api/docs/' + encodeURIComponent(id) + '/open', {}).then(function (r) { toast(esc(r.message || (r.ok ? 'Opening in Rider' : 'Could not open'))); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
     open: function (machine, path, line) {
       // inside Rider the pane opens the file itself; elsewhere the Host on that machine does
       if (window.QOTOBA_RIDER && window.QOTOBA_RIDER.open) { window.QOTOBA_RIDER.open(path, line); toast('Opening ' + esc(path.split(/[\\/]/).pop()) + ':' + line); return Promise.resolve(); }

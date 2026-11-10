@@ -19,7 +19,10 @@ public sealed record PageAnswer(string Key, string Value);
 
 /// <summary>What the Host sends when it registers and heartbeats.</summary>
 public sealed record MachineRegistration(string Id, string Os, string HostVersion, string Kind, string HostUrl, List<CheckoutInfo> Checkouts, DateTimeOffset Clock);
-public sealed record CheckoutInfo(string Path, string Branch, string? Item, bool Worktree, string? Note);
+public sealed record CheckoutInfo(string Path, string Branch, string? Item, bool Worktree, string? Note, string? Remote = null);
+
+/// <summary>A file the Host read for the Service: the bytes and the media type its extension says.</summary>
+public sealed record HostFile(byte[] Bytes, string ContentType);
 
 /// <summary>The owner asked for an item in a new Rider window: the Host checks the item's branch out as a worktree beside the main checkout.</summary>
 public sealed record WorktreeRequest(string Checkout, string Branch, string Folder);
