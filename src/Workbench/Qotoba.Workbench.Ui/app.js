@@ -1188,7 +1188,6 @@
     var q = S.rulingQ.toLowerCase();
     var h = '<div class="lpane"><div class="lhead"><h2>Rulings</h2><p class="muted">Decisions in your words. ' + keys(D.rulings).length + ' recorded.</p></div>';
     h += '<div class="lctrl"><div class="search inline"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="' + P.search + '"/></svg><input type="search" placeholder="Search rulings" value="' + esc(S.rulingQ) + '" data-act="rq" aria-label="Search rulings"></div></div>';
-    h += '<a class="proposal-link' + (mode === 'proposed' ? ' sel' : '') + '" href="#/rulings/proposed"><span><b>' + D.proposed.items.length + ' proposed from chat</b><span class="muted small"> · read only; you tick them on their card in the inbox</span></span><span class="chev"></span></a>';
     var groups = {}, gone = [];
     keys(D.rulings).forEach(function (id) { var r = D.rulings[id]; if (S.project !== 'all' && r.project !== S.project) return; if (q && (r.title + ' ' + r.text).toLowerCase().indexOf(q) < 0) return; if (r.withdrawn) { gone.push(id); return; } (groups[r.project] = groups[r.project] || []).push(id); });
     var gk = D.projects.map(function (p) { return p.id; }).filter(function (p) { return groups[p]; });
