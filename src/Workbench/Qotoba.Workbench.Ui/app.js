@@ -608,7 +608,7 @@
     h += dhead(pg.approved ? 'Page · approved' : pg.state === 'changes asked' ? 'Page · changes asked' : 'Page', 'plan', pg.approved ? 'approved ' + esc(pg.approved) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(pg.title), (pg.item ? itemLink(pg.item) + ' · ' : '') + esc(pg.purpose || 'A change with no designer: answer on it, then approve.'));
     h += whyLine(id);
     window.WB_PAGE_CARD = id;
-    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html)) + '"></iframe></div>';
+    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html, pg.answers)) + '"></iframe></div>';
     var keys_ = keys(pg.answers || {});
     if (pg.approved) h += '<div class="answered"><p><span class="done-line">Approved ' + esc(pg.approved) + '</span> · ' + plural(keys_.length, 'answer') + ' went with it as the agreed design</p></div>';
     else if (pg.state === 'changes asked') h += '<div class="answered"><p><span class="done-line">Changes asked ' + esc(c.answered) + '</span></p><p>' + esc(c.answer || '') + '</p></div>';
@@ -619,11 +619,41 @@
     ], 'Go deeper');
     return h + '</div>';
   }
-  function pageDoc(html) {
-    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);})();<\/script>';
+  function pageDoc(html, answers) {
+    // the owner's saved answers go back into the page's controls when it loads, so a reopened page shows what was answered
+    var restore = '<script>(function(){var A=' + JSON.stringify(answers || {}).replace(/</g, '\\u003c') + ';function apply(){Object.keys(A).forEach(function(k){var v=A[k];var rs=document.querySelectorAll("input[type=radio][name=\\""+k+"\\"]");for(var i=0;i<rs.length;i++){rs[i].checked=(rs[i].value===v);}var cb=document.querySelector("input[type=checkbox][name=\\""+k+"\\"]");if(cb)cb.checked=(v==="yes");if(!rs.length&&!cb){var f=document.querySelector("textarea[data-key=\\""+k+"\\"],textarea[name=\\""+k+"\\"],select[name=\\""+k+"\\"],input[name=\\""+k+"\\"]");if(f)f.value=v;}var bs=document.querySelectorAll("[data-answer=\\""+k+"\\"]");for(var j=0;j<bs.length;j++){var bv=bs[j].getAttribute("data-value")||bs[j].textContent.trim();if(bv===v)bs[j].setAttribute("aria-pressed","true");else bs[j].removeAttribute("aria-pressed");}});}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",apply);else apply();})();<\/script>';
+    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);' +
+      // the frame tells the inbox how tall its content is, so the page reads as one document instead of scrolling inside a box
+      'var lastH=0;function tall(){var b=document.body;if(!b)return;var h=Math.ceil(Math.max(b.scrollHeight,b.offsetHeight,document.documentElement.scrollHeight));if(h!==lastH){lastH=h;parent.postMessage({type:"wb-height",height:h},"*");}}function watch(){tall();if(window.ResizeObserver&&document.body){new ResizeObserver(tall).observe(document.body);}document.addEventListener("toggle",function(){setTimeout(tall,0);},true);setTimeout(tall,300);setTimeout(tall,1500);}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch);else watch();window.addEventListener("load",tall);' +
+      '})();<\/script>';
     var base = '<style>body{font:15px/1.5 system-ui,sans-serif;margin:16px;color:#1d2430;background:#fff}details{border-top:1px solid #ddd;padding:8px 0}summary{cursor:pointer;font-weight:600}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}button[data-answer]{font:inherit;padding:5px 12px;border-radius:8px;border:1px solid #c9c9c9;background:#fff;cursor:pointer;margin:2px}button[data-answer][aria-pressed=true]{background:#274a78;color:#fff;border-color:#274a78}@media (prefers-color-scheme:dark){body{background:#1d2129;color:#eceef2}td,th{border-color:#343a46}button[data-answer]{background:#262b35;color:#eceef2;border-color:#444}}</style>';
-    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + '</head>');
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + '</head><body>' + html + '</body></html>';
+    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + restore + '</head>');
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + restore + '</head><body>' + html + '</body></html>';
+  }
+  /* A re-render must not touch a page's frame: an iframe reloads when it is moved or rebuilt, which loses the owner's
+     unsaved state and flashes. put() swaps everything around the frame and leaves the frame itself in place. */
+  function put(container, html, keep) {
+    var oldFrame = keep ? container.querySelector('.page-frame') : null;
+    if (!oldFrame) { container.innerHTML = html; return; }
+    var tmp = document.createElement('div'); tmp.innerHTML = html;
+    var newFrame = tmp.querySelector('.page-frame');
+    var oldIf = oldFrame.querySelector('iframe'), newIf = newFrame && newFrame.querySelector('iframe');
+    if (!oldIf || !newIf || oldIf.id !== newIf.id) { container.innerHTML = html; return; }
+    var o = oldFrame, n = newFrame;
+    while (o.parentNode && o.parentNode !== container && n.parentNode && n.parentNode !== tmp) {
+      syncAround(o.parentNode, n.parentNode, o, n);
+      o.parentNode.className = n.parentNode.className;
+      o = o.parentNode; n = n.parentNode;
+    }
+    syncAround(container, tmp, o, n);
+  }
+  function syncAround(oldParent, newParent, keepOld, keepNew) {
+    [].slice.call(oldParent.childNodes).forEach(function (c) { if (c !== keepOld) oldParent.removeChild(c); });
+    var before = true;
+    [].slice.call(newParent.childNodes).forEach(function (c) {
+      if (c === keepNew) { before = false; return; }
+      if (before) oldParent.insertBefore(c, keepOld); else oldParent.appendChild(c);
+    });
   }
 
   /* ================================================================ 4c. Deviation */
@@ -2175,11 +2205,11 @@
     shell.classList.toggle('wide', !!r.wide);
     if (S.layout === 'desktop') {
       shell.classList.remove('show-detail');
-      if (r.wide) { list.innerHTML = ''; det.innerHTML = (r.page || r.detail)(); }
-      else { var d = r.detail || defaultFor(r); list.innerHTML = listFor(r); det.innerHTML = d(); }
+      if (r.wide) { list.innerHTML = ''; put(det, (r.page || r.detail)(), keep); }
+      else { var d = r.detail || defaultFor(r); list.innerHTML = listFor(r); put(det, d(), keep); }
     } else {
-      if (r.list || r.page) { det.innerHTML = ''; list.innerHTML = r.page ? r.page() : listFor(r); shell.classList.remove('show-detail'); }
-      else { list.innerHTML = ''; det.innerHTML = r.detail(); shell.classList.add('show-detail'); }
+      if (r.list || r.page) { det.innerHTML = ''; put(list, r.page ? r.page() : listFor(r), keep); shell.classList.remove('show-detail'); }
+      else { list.innerHTML = ''; put(det, r.detail(), keep); shell.classList.add('show-detail'); }
     }
     wasOpen.forEach(function (i) { var d = document.getElementById(i); if (d) d.open = true; });
     list.scrollTop = st[0]; det.scrollTop = st[1];

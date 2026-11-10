@@ -1026,9 +1026,9 @@ details.drill > summary { padding: 12px 2px; }
 /* list rows with a second line use the full width of their section */
 .list > .li.col { align-self: stretch; width: 100%; }
 
-/* a page card renders Claude's HTML in a sandboxed frame that grows with the pane */
+/* a page card renders Claude's HTML in a sandboxed frame that grows to its content (the frame posts wb-height); the pane scrolls, not the frame */
 .page-frame{margin:16px 0;border:1px solid var(--rule,#d9d5ca);border-radius:10px;overflow:hidden;background:#fff}
-.page-frame iframe{display:block;width:100%;height:min(70vh,760px);border:0}
+.page-frame iframe{display:block;width:100%;height:60vh;min-height:120px;border:0;overflow:hidden}
 .plain-table th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;opacity:.7}
 
 /* the FPB page: the eight fields before the folds */

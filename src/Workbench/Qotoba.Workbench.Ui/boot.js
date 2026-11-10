@@ -117,7 +117,16 @@
 
   // a page card's frame posts the owner's answers; the Workbench keeps them with the card
   window.addEventListener('message', function (ev) {
-    var d = ev.data; if (!d || d.type !== 'wb-answer' || !window.WB_PAGE_CARD) return;
+    var d = ev.data; if (!d) return;
+    if (d.type === 'wb-height') {
+      // the page's frame grows to its content; the inbox scrolls as one document
+      var frames = document.querySelectorAll('.page-frame iframe'), h = Number(d.height) || 0;
+      for (var i = 0; i < frames.length; i++) {
+        if (frames[i].contentWindow === ev.source && h > 0) frames[i].style.height = Math.min(Math.max(h, 120), 40000) + 'px';
+      }
+      return;
+    }
+    if (d.type !== 'wb-answer' || !window.WB_PAGE_CARD) return;
     window.WBAPI.pageAnswer(window.WB_PAGE_CARD, String(d.key || ''), String(d.value == null ? '' : d.value));
   });
 
