@@ -215,7 +215,7 @@ public sealed partial class WorkbenchOps
             foreach (var m in notes) { sb.AppendLine("  " + m.Text); m.DeliveredAt = Now; m.Via = "hello"; }
             await db.SaveChangesAsync(ct);
         }
-        var rulings = await db.Rulings.Where(r => r.NeverReopened && (p == null || r.ProjectId == null || r.ProjectId == p.Id)).OrderByDescending(r => r.Date).Take(15).ToListAsync(ct);
+        var rulings = await db.Rulings.Where(r => r.WithdrawnAt == null && r.NeverReopened && (p == null || r.ProjectId == null || r.ProjectId == p.Id)).OrderByDescending(r => r.Date).Take(15).ToListAsync(ct);
         if (rulings.Count > 0)
         {
             sb.AppendLine();

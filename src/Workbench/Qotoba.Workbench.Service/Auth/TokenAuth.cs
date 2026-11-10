@@ -44,7 +44,7 @@ public sealed class TokenAuth(IOptions<WorkbenchOptions> options)
 
 public static class TokenAuthMiddleware
 {
-    private static readonly string[] Guarded = ["/api", "/hooks", "/mcp"];
+    private static readonly string[] Guarded = ["/api", "/hooks", "/mcp", "/docs"];
 
     public static IApplicationBuilder UseWorkbenchTokens(this IApplicationBuilder app) => app.Use(async (ctx, next) =>
     {

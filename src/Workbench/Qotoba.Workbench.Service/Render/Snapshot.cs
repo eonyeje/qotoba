@@ -35,7 +35,8 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         var claudemd = await db.ClaudeMd.ToListAsync(ct);
         var edges = await db.Edges.ToListAsync(ct);
         var reports = await db.Reports.ToListAsync(ct);
-        var burns = await db.Settings.Where(s => s.Key.StartsWith("burn:")).ToDictionaryAsync(s => s.Key[5..], s => Json.ReadList<BurnSample>(s.Value), ct);
+        var documents = await db.Documents.OrderBy(d => d.At).ToListAsync(ct);
+        var burns =await db.Settings.Where(s => s.Key.StartsWith("burn:")).ToDictionaryAsync(s => s.Key[5..], s => Json.ReadList<BurnSample>(s.Value), ct);
         var decisionsMeasured = await db.Cards.CountAsync(c => c.AnsweredAt != null && c.Type != CardType.Info, ct);
         var firstDecision = await db.Cards.Where(c => c.AnsweredAt != null).OrderBy(c => c.AnsweredAt).Select(c => c.AnsweredAt).FirstOrDefaultAsync(ct);
 
@@ -53,17 +54,35 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
                 workLeft = new { coarseWeeks = projects.Where(p => p.State == ProjectState.Coarse).Sum(p => p.CoarseWeeks), measuredWeeks = MeasuredWeeks(items) }
             },
             ["budgets"] = new object[] { new { key = "noteLines", label = "Lines in a Claude note", value = Caps.NoteLines, def = 2, note = "Anything longer belongs on the item's page." } },
-            ["projects"] = projects.Select(p => ProjectView(p, items, cards, edges, burns, sessions, reports)).ToList(),
+            ["projects"] = projects.Select(p => ProjectView(p, items, cards, edges, burns, sessions, reports, documents)).ToList(),
             ["lanes"] = new Dictionary<string, object?>(),
-            ["items"] = items.ToDictionary(i => i.Id, i => (object?)ItemView(i, branches, children, sessionsByItem, comments, edges, reports, cardsById)),
+            ["items"] = items.ToDictionary(i => i.Id, i => (object?)ItemView(i, branches, children, sessionsByItem, comments, edges, reports, cardsById, documents)),
+            // documents: the file is in the project's repository; href is the pane's route to it at the project's current ref
+            ["documents"] = documents.ToDictionary(d => d.Id, d =>
+            {
+                var p = projects.FirstOrDefault(x => x.Id == d.ProjectId);
+                var it = d.ItemId is null ? null : byItem.GetValueOrDefault(d.ItemId);
+                var places = p is null ? [] : WorkbenchOps.DocPlaces(p, it, items, machines);
+                return (object?)new
+                {
+                    title = d.Title, project = d.ProjectId, item = d.ItemId, path = d.Path, url = d.Url, external = d.Url is not null,
+                    href = d.Url ?? (p is null ? null : $"/docs/{p.Code}/{string.Join('/', d.Path!.Split('/').Select(Uri.EscapeDataString))}"),
+                    added = fmt.DayTime(d.At), session = d.AddedBySessionId,
+                    reachable = d.Url is not null || places.Count > 0 || machines.Any(m => Json.ReadList<Checkout>(m.CheckoutsJson).Any(c => c.Remote != null)),
+                    editable = places.Any(x => x.Machine == options.MachineId), via = places.FirstOrDefault()?.Checkout
+                };
+            }),
             ["questions"] = new Dictionary<string, object?>(),
             ["assumptions"] = assumptions.ToDictionary(a => a.Id, a => (object?)new { session = a.SessionId, item = a.ItemId, state = AssumptionState(a.State), text = a.Text }),
             ["found"] = new Dictionary<string, object?>(),
             ["rulings"] = rulings.ToDictionary(r => r.Id, r => (object?)new
             {
-                project = r.ProjectId ?? "wb", title = r.Title, date = fmt.Day(r.Date), neverReopened = r.NeverReopened, text = r.Text, origin = r.Origin,
+                project = projects.FirstOrDefault(p => p.Id == r.ProjectId || p.Code.Equals(r.ProjectId, StringComparison.OrdinalIgnoreCase))?.Id ?? "wb", title = r.Title, date = fmt.Day(r.Date), neverReopened = r.NeverReopened, text = r.Text, origin = r.Origin,
                 question = (string?)null, session = r.SessionId, item = r.ItemId is null ? null : "item:" + r.ItemId,
-                related = Json.ReadList<string>(r.RelatedJson), reopenNote = r.ReopenNote
+                related = Json.ReadList<string>(r.RelatedJson), reopenNote = r.ReopenNote,
+                withdrawn = r.WithdrawnAt is null ? null : fmt.DayTime(r.WithdrawnAt.Value), withdrawnWhy = r.WithdrawnWhy,
+                supersededBy = r.SupersededById is null ? null : "ruling:" + r.SupersededById,
+                supersedes = rulings.Where(x => x.SupersededById == r.Id).Select(x => "ruling:" + x.Id).ToList()
             }),
             ["proposed"] = new { chat = "", when = "", turns = 0, items = new List<object>(), card = (string?)null, item = (string?)null },
             ["files"] = files.ToDictionary(f => f.Id, f => (object?)new
@@ -146,7 +165,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
 
     /* ---------------------------------------------------------------- views */
 
-    private object ProjectView(Project p, List<Item> items, List<Card> cards, List<Edge> edges, Dictionary<string, List<BurnSample>> burns, List<Session> sessions, List<Report> reports)
+    private object ProjectView(Project p, List<Item> items, List<Card> cards, List<Edge> edges, Dictionary<string, List<BurnSample>> burns, List<Session> sessions, List<Report> reports, List<Document> documents)
     {
         var mine = items.Where(i => i.ProjectId == p.Id).ToList();
         var leaves = mine.Where(i => !mine.Any(k => k.ParentId == i.Id)).ToList();                 // progress counts the leaves, so a parent is not counted twice
@@ -191,6 +210,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             done = doneLeaves, total = leaves.Count, pct, leftMin, leftHours = Math.Round(leftMin / 60.0, 1), unsized,
             paceMinPerDay = (int)Math.Round(paceMin), etaDays, sessionsNow = now, waiting,
             fpbOpen = fpbs.Count(r => !ReportStates.IsClosed(r.State)), fpbTotal = fpbs.Count,
+            docs = documents.Where(d => d.ProjectId == p.Id && d.ItemId is null).Select(d => d.Id).ToList(),
             lastActivity = lastEvent == default ? null : fmt.DayTime(lastEvent),
             itemsByState = new { done = mine.Count(i => i.State == Model.ItemState.Done), building = mine.Count(i => i.State is Model.ItemState.Building or Model.ItemState.Blocked or Model.ItemState.Planning), notStarted = mine.Count(i => i.State is Model.ItemState.Coarse or Model.ItemState.Planned) }
         };
@@ -201,7 +221,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
     public sealed record BurnSample(string Day, int H);
 
     private object ItemView(Item i, List<Branch> branches, Dictionary<string, List<string>> children, Dictionary<string, List<Session>> sessionsByItem,
-        List<Comment> comments, List<Edge> edges, List<Report> reports, Dictionary<string, Card> cards)
+        List<Comment> comments, List<Edge> edges, List<Report> reports, Dictionary<string, Card> cards, List<Document> documents)
     {
         var steps = Json.ReadList<Step>(i.StepsJson);
         var kids = children.GetValueOrDefault(i.Id, []);
@@ -235,6 +255,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
             plan = (string?)null,
             cards = openCards,
             fpbs = reports.Where(r => r.AttachItemId == i.Id || r.TakenOnItemId == i.Id).Select(r => r.Id).ToList(),
+            docs = documents.Where(d => d.ItemId == i.Id).Select(d => d.Id).ToList(),
             implements = new List<string>(),
             decisions,
             history = Json.ReadList<HistoryLine>(i.HistoryJson).Select(h => new[] { h.Date, h.Event, h.Text }).ToList(),
@@ -278,7 +299,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
         {
             os = m.Os, host = m.HostVersion, online = m.Online && m.LastSeen is { } ls && (Now - ls) < TimeSpan.FromMinutes(3), lastSeen = m.LastSeen is null ? "never" : fmt.Time(m.LastSeen.Value),
             clock, clockWarn = m.Id != reference.Id && Math.Abs(m.ClockSkewSec) >= 1.0, token = fmt.DayTime(m.Registered), kind = m.Kind.ToString().ToLowerInvariant(), ephemeral = m.Ephemeral,
-            checkouts = Json.ReadList<Checkout>(m.CheckoutsJson).Select(c => new { path = c.Path, branch = c.Branch, item = c.ItemId, worktree = c.Worktree, note = c.Note }).ToList(),
+            checkouts = Json.ReadList<Checkout>(m.CheckoutsJson).Select(c => new { path = c.Path, branch = c.Branch, item = c.ItemId, worktree = c.Worktree, note = c.Note, remote = c.Remote }).ToList(),
             homed = items.Where(i => i.HomeMachineId == m.Id).Select(i => i.Id).ToList(),
             sessions = sessions.Where(s => s.MachineId == m.Id).Select(s => s.Id).ToList()
         };
@@ -331,7 +352,7 @@ public sealed class Snapshot(WorkbenchDb db, IClock clock, Fmt fmt, OpsOptions o
     private object ReportView(Report r, List<Edge> edges, List<Ruling> rulings)
     {
         var sections = Json.Read<Dictionary<string, object>>(r.SectionsJson, []);
-        var decided = rulings.Where(x => x.NeverReopened && (x.Text.Contains(r.Id, StringComparison.OrdinalIgnoreCase) || x.RelatedJson.Contains("fpb:" + r.Id))).Select(x => "ruling:" + x.Id).ToList();
+        var decided = rulings.Where(x => x.WithdrawnAt is null && x.NeverReopened && (x.Text.Contains(r.Id, StringComparison.OrdinalIgnoreCase) || x.RelatedJson.Contains("fpb:" + r.Id))).Select(x => "ruling:" + x.Id).ToList();
         var parts = sections.TryGetValue("parts", out var pv) && pv is System.Text.Json.JsonElement pe && pe.ValueKind == System.Text.Json.JsonValueKind.Object && pe.TryGetProperty("rows", out var rows) && rows.ValueKind == System.Text.Json.JsonValueKind.Array
             ? rows.EnumerateArray().Select(x => new { t = x.TryGetProperty("t", out var t) ? t.GetString() : x.TryGetProperty("part", out var pp) ? pp.GetString() : "", state = x.TryGetProperty("state", out var st) ? st.GetString() : "", note = x.TryGetProperty("note", out var nt) ? nt.GetString() : null }).ToList() : [];
         var me = "fpb:" + r.Id;

@@ -35,6 +35,17 @@ public sealed class HostClient(HttpClient http, IServiceScopeFactory scopes, IOp
         catch { return null; }
     }
 
+    public async Task<HostFile?> ReadFileAsync(string machineId, string checkout, string file, CancellationToken ct = default)
+    {
+        try
+        {
+            using var res = await http.SendAsync(Req(HttpMethod.Get, $"{await UrlFor(machineId, ct)}/file?checkout={Uri.EscapeDataString(checkout)}&file={Uri.EscapeDataString(file)}", null), ct);
+            if (!res.IsSuccessStatusCode) return null;
+            return new HostFile(await res.Content.ReadAsByteArrayAsync(ct), res.Content.Headers.ContentType?.ToString() ?? "application/octet-stream");
+        }
+        catch { return null; }
+    }
+
     public async Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default)
     {
         try

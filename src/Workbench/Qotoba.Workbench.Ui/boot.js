@@ -86,6 +86,9 @@
     addEdge: function (from, to) {
       return api('POST', '/api/edges', { from: from, to: to }).then(function (r) { toast(r.message ? esc(r.message) : 'Dependency recorded by you'); refresh(); }).catch(function (e) { toast(esc(e.message)); });
     },
+    docOpen: function (id) {
+      return api('POST', '/api/docs/' + encodeURIComponent(id) + '/open', {}).then(function (r) { toast(esc(r.message || (r.ok ? 'Opening in Rider' : 'Could not open'))); return r; }).catch(function (e) { toast(esc(e.message)); });
+    },
     open: function (machine, path, line) {
       // inside Rider the pane opens the file itself; elsewhere the Host on that machine does
       if (window.QOTOBA_RIDER && window.QOTOBA_RIDER.open) { window.QOTOBA_RIDER.open(path, line); toast('Opening ' + esc(path.split(/[\\/]/).pop()) + ':' + line); return Promise.resolve(); }
@@ -117,7 +120,16 @@
 
   // a page card's frame posts the owner's answers; the Workbench keeps them with the card
   window.addEventListener('message', function (ev) {
-    var d = ev.data; if (!d || d.type !== 'wb-answer' || !window.WB_PAGE_CARD) return;
+    var d = ev.data; if (!d) return;
+    if (d.type === 'wb-height') {
+      // the page's frame grows to its content; the inbox scrolls as one document
+      var frames = document.querySelectorAll('.page-frame iframe'), h = Number(d.height) || 0;
+      for (var i = 0; i < frames.length; i++) {
+        if (frames[i].contentWindow === ev.source && h > 0) frames[i].style.height = Math.min(Math.max(h, 120), 40000) + 'px';
+      }
+      return;
+    }
+    if (d.type !== 'wb-answer' || !window.WB_PAGE_CARD) return;
     window.WBAPI.pageAnswer(window.WB_PAGE_CARD, String(d.key || ''), String(d.value == null ? '' : d.value));
   });
 

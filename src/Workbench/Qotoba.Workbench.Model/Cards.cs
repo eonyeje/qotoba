@@ -54,4 +54,9 @@ public class Ruling
     public string RelatedJson { get; set; } = "[]";
     public bool NeverReopened { get; set; } = true;
     public string? ReopenNote { get; set; }
+    /// <summary>Withdrawn on the owner's word (R-16): it leaves the rulings table and every brief, and stays in history struck through with the reason.</summary>
+    public DateTimeOffset? WithdrawnAt { get; set; }
+    public string? WithdrawnWhy { get; set; }
+    /// <summary>The later ruling that replaces this one, when the owner said so.</summary>
+    public string? SupersededById { get; set; }
 }

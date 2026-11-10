@@ -90,8 +90,8 @@
   };
 
   /* ================================================================ references */
-  var COLL = { fpb: 'fpbs', reg: 'register', ruling: 'rulings', item: 'items', question: 'questions', assumption: 'assumptions', found: 'found', file: 'files', type: 'types', run: 'runs', session: 'sessions', machine: 'machines', comment: 'comments', claudemd: 'claudemd', commit: 'commits', branch: 'branches', card: 'cards', lane: 'lanes', nyw: 'nyw' };
-  var KIND_LABEL = { fpb: 'FPB', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
+  var COLL = { doc: 'documents', fpb: 'fpbs', reg: 'register', ruling: 'rulings', item: 'items', question: 'questions', assumption: 'assumptions', found: 'found', file: 'files', type: 'types', run: 'runs', session: 'sessions', machine: 'machines', comment: 'comments', claudemd: 'claudemd', commit: 'commits', branch: 'branches', card: 'cards', lane: 'lanes', nyw: 'nyw' };
+  var KIND_LABEL = { doc: 'Document', fpb: 'FPB', reg: 'Old register', ruling: 'Ruling', item: 'Item', project: 'Project', question: 'Question', assumption: 'Assumption', found: 'Found item', file: 'File and lines', type: 'Type', run: 'Run', session: 'Session', machine: 'Machine', comment: '+ comment', claudemd: 'CLAUDE.md section', commit: 'Commit', branch: 'Branch', card: 'Card', lane: 'Lane', nyw: 'Not yet written' };
   var REF_RE = /\b(fpb|reg|ruling|item|question|assumption|found|file|type|run|session|machine|comment|claudemd|commit|branch|project|card|lane|nyw):([A-Za-z0-9][A-Za-z0-9._\-]*(?::\d+(?:-\d+)?)?)/g;
 
   function parseRef(ref) {
@@ -123,7 +123,8 @@
     switch (k) {
       case 'fpb': return { kind: k, title: e.title, meta: e.state, id: r.id, icon: e.kind.toLowerCase(), cls: 'fk-' + e.kind };
       case 'reg': return { kind: k, title: e.title, meta: e.date, id: r.id };
-      case 'ruling': return { kind: k, title: e.title, meta: e.date, id: r.id };
+      case 'ruling': return { kind: k, title: e.title, meta: e.withdrawn ? 'withdrawn' : e.date, id: r.id, cls: e.withdrawn ? 'withdrawn' : '' };
+      case 'doc': return { kind: k, title: e.title, meta: e.external ? 'link' : 'document', id: '', icon: 'files' };
       case 'item': return { kind: k, title: e.title, meta: e.unscheduled ? 'unscheduled' : e.preview ? 'preview' : STATE_LABEL[e.state], id: r.id };
       case 'project': return { kind: k, title: e.name, meta: e.state, id: e.code };
       case 'question': return { kind: k, title: e.short, meta: e.state, id: r.id };
@@ -174,6 +175,7 @@
       case 'fpb': return '#/fpb/' + r.id;
       case 'reg': return e.fpb ? '#/fpb/' + e.fpb : '#/issues';
       case 'ruling': return '#/ruling/' + r.id;
+      case 'doc': return e.external ? e.url : '#/doc/' + r.id;
       case 'item': return '#/item/' + r.id;
       case 'project': return '#/project/' + r.id;
       case 'question': return e.state === 'open' && e.card ? '#/card/' + e.card : workHref(e.item) + '/questions';
@@ -342,7 +344,9 @@
   function drill(label, summary, body, opt) {
     opt = opt || {};
     if (opt.empty || EMPTY_SUM.indexOf(summary) >= 0 || body === '' || body == null) return '';
-    return '<details class="drill' + (opt.attn ? ' attn' : '') + '"' + (opt.open ? ' open' : '') + (opt.id ? ' id="' + opt.id + '"' : '') + '><summary><span class="dl">' + label + '</span><span class="ds">' + summary + '</span><span class="chev" aria-hidden="true"></span></summary><div class="db">' + body + '</div></details>';
+    // every fold carries an id: a refresh re-renders the page and reopens the folds by id, so one the owner opened stays open
+    var did = opt.id || ('drill-' + String(label).replace(/<[^>]*>/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    return '<details class="drill' + (opt.attn ? ' attn' : '') + '"' + (opt.open ? ' open' : '') + ' id="' + did + '"><summary><span class="dl">' + label + '</span><span class="ds">' + summary + '</span><span class="chev" aria-hidden="true"></span></summary><div class="db">' + body + '</div></details>';
   }
   function drills(rows, title) { return (title ? '<div class="deeper-h">' + title + '</div>' : '') + '<div class="drills">' + rows.filter(Boolean).join('') + '</div>'; }
   function dhead(kind, cls, right, title, sub) {
@@ -364,8 +368,11 @@
       case 'reg':
         return { html: '<p class="small muted">' + esc(e.where) + ' · ' + esc(e.date) + '</p>' + (e.note ? '<p>' + esc(e.note) + '</p>' : '') + (e.fpb ? '<p>Now ' + chip('fpb:' + e.fpb) + '</p>' : ''), origin: 'Imported from the Quanta Workbench with the seed, 4 Nov' };
       case 'ruling':
-        return { html: '<p>' + esc(e.text) + '</p><div class="meta-line">' + (e.neverReopened ? '<span class="tag good">never reopened</span>' : '<span class="tag warn">may reopen · ' + esc(e.reopenNote || '') + '</span>') + '<span>' + esc(projOf(e.project).name) + '</span></div>',
+        return { html: '<p' + (e.withdrawn ? ' class="withdrawn"' : '') + '>' + esc(e.text) + '</p><div class="meta-line">' + (e.withdrawn ? '<span class="tag warn">withdrawn ' + esc(e.withdrawn) + ' · ' + esc(e.withdrawnWhy || '') + '</span>' : e.neverReopened ? '<span class="tag good">never reopened</span>' : '<span class="tag warn">may reopen · ' + esc(e.reopenNote || '') + '</span>') + '<span>' + esc(projOf(e.project).name) + '</span></div>',
           origin: esc(e.origin) + ', ' + esc(e.date) + (e.question ? ' · ' + chip(e.question, { nometa: true }) : '') + (e.item ? ' · ' + chip(e.item, { nometa: true }) : '') };
+      case 'doc':
+        return { html: '<p class="mono small">' + esc(e.path || e.url) + '</p>' + (e.reachable ? '' : '<p class="small tone-warn">Not reachable from here</p>'),
+          origin: 'Recorded ' + esc(e.added) + (e.item ? ' on ' + chip('item:' + e.item, { nometa: true }) : ' on ' + chip('project:' + e.project, { nometa: true })) };
       case 'item':
         var q = openQuestions(r.id).length, steps = e.steps || [];
         return { html: '<div class="meta-line">' + kindPill(e.kind) + statePill(e.unscheduled ? 'coarse' : e.state) + (e.coarse ? '<span class="tag">coarse · ' + esc(e.coarse) + '</span>' : '') + (e.lane ? chip('lane:' + e.lane.charAt(0), { nometa: true }) : '') + '</div>' +
@@ -608,7 +615,7 @@
     h += dhead(pg.approved ? 'Page · approved' : pg.state === 'changes asked' ? 'Page · changes asked' : 'Page', 'plan', pg.approved ? 'approved ' + esc(pg.approved) : (c.weight ? 'about ' + fmtMin(c.weight) + ' waits on it' : ''), esc(pg.title), (pg.item ? itemLink(pg.item) + ' · ' : '') + esc(pg.purpose || 'A change with no designer: answer on it, then approve.'));
     h += whyLine(id);
     window.WB_PAGE_CARD = id;
-    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html)) + '"></iframe></div>';
+    h += '<div class="page-frame"><iframe id="page-frame-' + id + '" sandbox="allow-scripts allow-forms" title="' + esc(pg.title) + '" srcdoc="' + esc(pageDoc(pg.html, pg.answers)) + '"></iframe></div>';
     var keys_ = keys(pg.answers || {});
     if (pg.approved) h += '<div class="answered"><p><span class="done-line">Approved ' + esc(pg.approved) + '</span> · ' + plural(keys_.length, 'answer') + ' went with it as the agreed design</p></div>';
     else if (pg.state === 'changes asked') h += '<div class="answered"><p><span class="done-line">Changes asked ' + esc(c.answered) + '</span></p><p>' + esc(c.answer || '') + '</p></div>';
@@ -619,11 +626,41 @@
     ], 'Go deeper');
     return h + '</div>';
   }
-  function pageDoc(html) {
-    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);})();<\/script>';
+  function pageDoc(html, answers) {
+    // the owner's saved answers go back into the page's controls when it loads, so a reopened page shows what was answered
+    var restore = '<script>(function(){var A=' + JSON.stringify(answers || {}).replace(/</g, '\\u003c') + ';function apply(){Object.keys(A).forEach(function(k){var v=A[k];var rs=document.querySelectorAll("input[type=radio][name=\\""+k+"\\"]");for(var i=0;i<rs.length;i++){rs[i].checked=(rs[i].value===v);}var cb=document.querySelector("input[type=checkbox][name=\\""+k+"\\"]");if(cb)cb.checked=(v==="yes");if(!rs.length&&!cb){var f=document.querySelector("textarea[data-key=\\""+k+"\\"],textarea[name=\\""+k+"\\"],select[name=\\""+k+"\\"],input[name=\\""+k+"\\"]");if(f)f.value=v;}var bs=document.querySelectorAll("[data-answer=\\""+k+"\\"]");for(var j=0;j<bs.length;j++){var bv=bs[j].getAttribute("data-value")||bs[j].textContent.trim();if(bv===v)bs[j].setAttribute("aria-pressed","true");else bs[j].removeAttribute("aria-pressed");}});}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",apply);else apply();})();<\/script>';
+    var bridge = '<script>(function(){function send(k,v){parent.postMessage({type:"wb-answer",key:String(k),value:String(v==null?"":v)},"*");}window.wbAnswer=send;document.addEventListener("change",function(e){var t=e.target;if(!t||!t.name&&!t.id)return;var k=t.name||t.id;if(t.type==="checkbox")send(k,t.checked?"yes":"no");else if(t.type==="radio"){if(t.checked)send(k,t.value||t.textContent);}else if(t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.tagName==="INPUT")send(k,t.value);},true);document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-answer]");if(!b)return;var k=b.getAttribute("data-answer"),v=b.getAttribute("data-value")||b.textContent.trim();var g=b.parentNode;if(g)[].forEach.call(g.querySelectorAll("[data-answer=\\""+k+"\\"]"),function(x){x.removeAttribute("aria-pressed");});b.setAttribute("aria-pressed","true");send(k,v);},true);' +
+      // the frame tells the inbox how tall its content is, so the page reads as one document instead of scrolling inside a box
+      'var lastH=0;function tall(){var b=document.body;if(!b)return;var h=Math.ceil(Math.max(b.scrollHeight,b.offsetHeight,document.documentElement.scrollHeight));if(h!==lastH){lastH=h;parent.postMessage({type:"wb-height",height:h},"*");}}function watch(){tall();if(window.ResizeObserver&&document.body){new ResizeObserver(tall).observe(document.body);}document.addEventListener("toggle",function(){setTimeout(tall,0);},true);setTimeout(tall,300);setTimeout(tall,1500);}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch);else watch();window.addEventListener("load",tall);' +
+      '})();<\/script>';
     var base = '<style>body{font:15px/1.5 system-ui,sans-serif;margin:16px;color:#1d2430;background:#fff}details{border-top:1px solid #ddd;padding:8px 0}summary{cursor:pointer;font-weight:600}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}button[data-answer]{font:inherit;padding:5px 12px;border-radius:8px;border:1px solid #c9c9c9;background:#fff;cursor:pointer;margin:2px}button[data-answer][aria-pressed=true]{background:#274a78;color:#fff;border-color:#274a78}@media (prefers-color-scheme:dark){body{background:#1d2129;color:#eceef2}td,th{border-color:#343a46}button[data-answer]{background:#262b35;color:#eceef2;border-color:#444}}</style>';
-    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + '</head>');
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + '</head><body>' + html + '</body></html>';
+    if (/<html[\s>]/i.test(html)) return html.replace(/<\/head>/i, base + bridge + restore + '</head>');
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + base + bridge + restore + '</head><body>' + html + '</body></html>';
+  }
+  /* A re-render must not touch a page's frame: an iframe reloads when it is moved or rebuilt, which loses the owner's
+     unsaved state and flashes. put() swaps everything around the frame and leaves the frame itself in place. */
+  function put(container, html, keep) {
+    var oldFrame = keep ? container.querySelector('.page-frame') : null;
+    if (!oldFrame) { container.innerHTML = html; return; }
+    var tmp = document.createElement('div'); tmp.innerHTML = html;
+    var newFrame = tmp.querySelector('.page-frame');
+    var oldIf = oldFrame.querySelector('iframe'), newIf = newFrame && newFrame.querySelector('iframe');
+    if (!oldIf || !newIf || oldIf.id !== newIf.id) { container.innerHTML = html; return; }
+    var o = oldFrame, n = newFrame;
+    while (o.parentNode && o.parentNode !== container && n.parentNode && n.parentNode !== tmp) {
+      syncAround(o.parentNode, n.parentNode, o, n);
+      o.parentNode.className = n.parentNode.className;
+      o = o.parentNode; n = n.parentNode;
+    }
+    syncAround(container, tmp, o, n);
+  }
+  function syncAround(oldParent, newParent, keepOld, keepNew) {
+    [].slice.call(oldParent.childNodes).forEach(function (c) { if (c !== keepOld) oldParent.removeChild(c); });
+    var before = true;
+    [].slice.call(newParent.childNodes).forEach(function (c) {
+      if (c === keepNew) { before = false; return; }
+      if (before) oldParent.insertBefore(c, keepOld); else oldParent.appendChild(c);
+    });
   }
 
   /* ================================================================ 4c. Deviation */
@@ -855,12 +892,38 @@
       drill('Needs and blocks', ((it.needs || []).filter(function (n) { return !n.note || n.note !== 'done'; }).length ? 'needs ' + plural((it.needs || []).filter(function (n) { return n.note !== 'done'; }).length, 'item') : 'needs nothing') + ' · blocks ' + plural((it.blocks || []).length, 'item'), '<p class="small muted">Needs</p>' + ((it.needs || []).length ? '<div class="list">' + it.needs.map(function (n) { return '<div class="li"><span class="li-main">' + chip(n.ref) + '</span><span class="li-meta">' + esc(n.note || '') + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>') + '<p class="small muted" style="margin-top:12px">Blocks</p>' + ((it.blocks || []).length ? '<div class="list">' + it.blocks.map(function (b) { return '<div class="li"><span class="li-main">' + chip(b.ref) + '</span><span class="li-meta">' + (b.min ? 'about ' + fmtMin(b.min) + ' of work behind it' : esc(b.note || '')) + '</span></div>'; }).join('') + '</div>' : '<p>nothing</p>')),
       drill('Assumptions', as.length ? plural(as.length, 'assumption') + ' Claude proceeded on' : 'none', as.length ? '<ul class="plain">' + as.map(function (a) { return '<li>' + esc(D.assumptions[a].text) + '</li>'; }).join('') + '</ul>' : empty('No assumptions', 'What a session proceeded on without asking appears here.')),
       drill('FPBs', fpbsUnder(id).length ? fpbSummary(fpbsUnder(id)) : 'none', fpbsUnder(id).length ? '<div class="slist">' + fpbsUnder(id).map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No FPBs', 'Features, bugs and performance problems Claude raises on this item appear here.'), {}),
+      drill('Documents', docsUnder(ids).length ? plural(docsUnder(ids).length, 'document') : 'none', docsUnder(ids).length ? '<div class="list">' + docsUnder(ids).map(function (d) { return docRow(d, id); }).join('') + '</div>' : empty('No documents', 'Design pages and references Claude records on this item appear here and open in this pane.'), { open: openSec === 'documents' }),
       drill('Comments in scope', cc.n ? ([cc.stale ? cc.stale + ' stale' : '', cc.open ? cc.open + ' open' : ''].filter(Boolean).join(' · ') || NU) : 'none', cc.n ? '<p>' + cc.open + ' open, ' + cc.handled + ' handled, ' + cc.stale + ' stale.</p><p class="small"><a href="#/item/' + id + '/comments">See the comments</a></p>' : empty('No comments', '+ comments in this item\'s files appear here.'), { attn: cc.stale > 0 }),
       drill('Claude’s note', it.note ? esc(trunc(it.note.text, 56)) : 'none', it.note ? '<p>' + esc(it.note.text) + '</p><p class="small muted">' + (it.note.session ? 'Session ' + parseRef(it.note.session).id : 'Seed import') + ' · ' + esc(it.note.date) + '</p>' + (it.claims ? '<p class="small muted" style="margin-top:12px">Claims</p>' + claimsList(it.claims) : '') : ''),
       drill('Rulings that apply', plural((it.rulings || []).length, 'ruling'), (it.rulings || []).length ? '<div class="list">' + it.rulings.map(function (r) { return '<a class="li link" href="' + hrefFor(r) + '"><span class="li-main">' + esc(get(r).title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings this item\'s brief carries appear here.'), { open: openSec === 'rulings' }),
       drill('Where it lives', [it.machine, it.branch && D.branches[it.branch] ? D.branches[it.branch].name : null, it.lane ? 'lane ' + it.lane : null].filter(Boolean).join(' · ') || 'nowhere yet', '<div class="chips">' + (it.machine ? chip('machine:' + it.machine) : '') + (it.branch && D.branches[it.branch] ? chip('branch:' + it.branch, { meta: true }) : '') + (it.lane ? it.lane.split(' + ').map(function (l) { return chip('lane:' + l, { meta: true }); }).join('') : '') + '</div>')
     ]);
     return h;
+  }
+  /* ---------------------------------------------------------------- documents: the file is in the project's repository; the pane reaches it from any machine */
+  function docsUnder(itemIds) { return keys(D.documents).filter(function (d) { return itemIds.indexOf(D.documents[d].item) >= 0; }); }
+  function docsOfProject(pid) {
+    var own = keys(D.documents).filter(function (d) { return D.documents[d].project === pid && !D.documents[d].item; });
+    var under = keys(D.documents).filter(function (d) { return D.documents[d].project === pid && D.documents[d].item; });
+    return own.concat(under);
+  }
+  function docRow(id, fromNode) {
+    var d = D.documents[id], where = d.external ? String(d.url).replace(/^https?:\/\//, '') : d.path;
+    var on = d.item && d.item !== fromNode ? ' · ' + esc(itemTitle(d.item)) : !d.item && fromNode && projOf(fromNode) ? '' : '';
+    return '<a class="li col link" href="' + (d.external ? esc(d.url) : '#/doc/' + id) + '"' + (d.external ? ' target="_blank" rel="noopener"' : '') + '><span class="li-main">' + esc(d.title) + (d.reachable ? '' : ' <span class="tag warn">not reachable from here</span>') + '</span><span class="li-sub"><span class="mono">' + esc(where) + '</span>' + on + ' · added ' + esc(d.added) + '</span></a>';
+  }
+  function vDoc(id) {
+    var d = D.documents[id];
+    if (!d) return head(null) + '<div class="pane">' + empty('No such document', 'It may have been removed from its item.') + '</div>';
+    var crumbs = (d.item ? crumbRefs(d.item) : ['project:' + d.project]).concat(['doc:' + id]);
+    var h = head(crumbs) + '<div class="pane page-pane">';
+    var right = d.editable ? '<button class="btn small" data-act="doc-editor" data-doc="' + id + '">Open in Rider</button>' : '';
+    h += dhead('Document', 'info', right, esc(d.title), '<span class="mono">' + esc(d.path || d.url) + '</span> · ' + (d.item ? itemLink(d.item) : esc(projOf(d.project).name)) + ' · added ' + esc(d.added));
+    if (d.external) h += '<div class="actions"><a class="btn primary" href="' + esc(d.url) + '" target="_blank" rel="noopener">Open ' + esc(String(d.url).replace(/^https?:\/\//, '').split('/')[0]) + '</a></div>';
+    else if (!d.reachable) h += empty('Not reachable from here', 'No checkout of the project is online, and the repository has no remote the Workbench can read. It appears as soon as a Host with the checkout is up.');
+    else h += '<div class="page-frame"><iframe id="doc-frame-' + id + '" title="' + esc(d.title) + '" src="' + esc(d.href) + '"></iframe></div>';
+    if (!d.external) h += '<p class="small muted">The file lives in the project\'s repository, on the node\'s branch while it is open and on main after' + (d.via ? '; read here from ' + esc(d.via) : '') + '. <a href="' + esc(d.href) + '" target="_blank" rel="noopener">Open in a tab</a></p>';
+    return h + '</div>';
   }
   function stepsList(it) {
     return '<ol class="steps-simple">' + it.steps.map(function (s) {
@@ -1125,22 +1188,31 @@
     var q = S.rulingQ.toLowerCase();
     var h = '<div class="lpane"><div class="lhead"><h2>Rulings</h2><p class="muted">Decisions in your words. ' + keys(D.rulings).length + ' recorded.</p></div>';
     h += '<div class="lctrl"><div class="search inline"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="' + P.search + '"/></svg><input type="search" placeholder="Search rulings" value="' + esc(S.rulingQ) + '" data-act="rq" aria-label="Search rulings"></div></div>';
-    h += '<a class="proposal-link' + (mode === 'proposed' ? ' sel' : '') + '" href="#/rulings/proposed"><span><b>' + D.proposed.items.length + ' proposed from chat</b><span class="muted small"> · read only; you tick them on their card in the inbox</span></span><span class="chev"></span></a>';
-    var groups = {};
-    keys(D.rulings).forEach(function (id) { var r = D.rulings[id]; if (S.project !== 'all' && r.project !== S.project) return; if (q && (r.title + ' ' + r.text).toLowerCase().indexOf(q) < 0) return; (groups[r.project] = groups[r.project] || []).push(id); });
+    var groups = {}, gone = [];
+    keys(D.rulings).forEach(function (id) { var r = D.rulings[id]; if (S.project !== 'all' && r.project !== S.project) return; if (q && (r.title + ' ' + r.text).toLowerCase().indexOf(q) < 0) return; if (r.withdrawn) { gone.push(id); return; } (groups[r.project] = groups[r.project] || []).push(id); });
     var gk = D.projects.map(function (p) { return p.id; }).filter(function (p) { return groups[p]; });
-    if (!gk.length) return h + empty('No rulings match', 'Rulings appear here grouped by project.') + '</div>';
+    if (!gk.length && !gone.length) return h + empty('No rulings match', 'Rulings appear here grouped by project.') + '</div>';
     gk.forEach(function (p) {
       h += '<p class="lgroup">' + esc(projOf(p).name) + '</p><div class="slist">' + groups[p].map(function (id) { var r = D.rulings[id]; return '<a class="srow' + (sel === id ? ' sel' : '') + '" href="#/ruling/' + id + '"><span class="sb-main"><span class="st1">' + esc(r.title) + '</span><span class="st2">' + esc((D.rulingFrom || {})[id] || r.origin) + ', ' + esc(r.date) + ' · cited in ' + plural(citedCount(id), 'place') + '</span></span></a>'; }).join('') + '</div>';
     });
+    // withdrawn on the owner's word: out of the table that applies, kept in history, struck through
+    if (gone.length) h += '<details class="drill withdrawn-group"' + (gone.indexOf(sel) >= 0 ? ' open' : '') + '><summary><span class="dl">Withdrawn</span><span class="ds">' + plural(gone.length, 'ruling') + ' no longer apply</span><span class="chev" aria-hidden="true"></span></summary><div class="slist">' + gone.map(function (id) { var r = D.rulings[id]; return '<a class="srow withdrawn' + (sel === id ? ' sel' : '') + '" href="#/ruling/' + id + '"><span class="sb-main"><span class="st1">' + esc(r.title) + '</span><span class="st2">withdrawn ' + esc(r.withdrawn) + (r.supersededBy ? ' · replaced by ' + esc(parseRef(r.supersededBy).id) : '') + ' · ' + esc(r.withdrawnWhy || '') + '</span></span></a>'; }).join('') + '</div></details>';
     return h + '</div>';
   }
   function vRuling(id) {
     var r = D.rulings[id];
     if (!r) return head(null) + '<div class="pane">' + empty('No such ruling', 'It may be a proposal not yet recorded.') + '</div>';
     var back = backlinks('ruling:' + id);
-    var h = head(['project:' + r.project, 'ruling:' + id]) + '<div class="pane">' + dhead('Ruling · ' + esc(r.date), 'question', r.neverReopened ? 'never reopened' : '<span class="tone-warn">may reopen</span>', esc(r.title), '');
-    h += '<p class="ruling-text">' + esc(r.text) + '</p>';
+    var h = head(['project:' + r.project, 'ruling:' + id]) + '<div class="pane">';
+    if (r.withdrawn) {
+      h += dhead('Ruling · withdrawn ' + esc(r.withdrawn), 'question', r.supersededBy ? 'replaced by ' + chip(r.supersededBy, { nometa: true }) : '<span class="tone-warn">no longer applies</span>', '<s>' + esc(r.title) + '</s>', '');
+      h += '<p class="ruling-text withdrawn">' + esc(r.text) + '</p>';
+      h += '<p class="tone-warn"><b>Withdrawn on your word</b> · ' + esc(r.withdrawnWhy || '') + '</p>';
+    } else {
+      h += dhead('Ruling · ' + esc(r.date), 'question', r.neverReopened ? 'never reopened' : '<span class="tone-warn">may reopen</span>', esc(r.title), '');
+      h += '<p class="ruling-text">' + esc(r.text) + '</p>';
+    }
+    if ((r.supersedes || []).length) h += '<p class="small muted">Replaces ' + r.supersedes.map(function (x) { return chip(x, { nometa: true }); }).join(' ') + '</p>';
     h += drills([
       drill('Where it came from', esc(r.origin), '<p>' + esc(r.origin) + ', ' + esc(r.date) + '.</p>' + (r.question || r.item ? '<div class="chips">' + (r.question ? chip(r.question, { meta: true }) : '') + (r.item ? chip(r.item, { meta: true }) : '') + '</div>' : '') + (r.reopenNote ? '<p class="small tone-warn" style="margin-top:12px">' + esc(r.reopenNote) + '</p>' : '')),
       drill('Cited by', 'cited in ' + plural(back.length, 'place'), back.length ? chips(back, { meta: true }) : empty('Not cited yet', 'Items, cards and questions that carry this ruling appear here.')),
@@ -1197,7 +1269,7 @@
     var p = projOf(id);
     if (!p) return head(null) + '<div class="pane">' + empty('No such project', 'Projects are created by you only.') + '</div>';
     var items = keys(D.items).filter(function (i) { return D.items[i].project === id; });
-    var kc = kindCounts(id), bo = blockedOnYou(id), rs = keys(D.rulings).filter(function (r) { return D.rulings[r].project === id; });
+    var kc = kindCounts(id), bo = blockedOnYou(id), rs = keys(D.rulings).filter(function (r) { return D.rulings[r].project === id && !D.rulings[r].withdrawn; }), pdocs = docsOfProject(id);
     var h = head(['project:' + id]) + '<div class="pane">' + dhead('Project · ' + p.state, 'info', bo.length ? '<a class="tone-warn plink" href="#/inbox" data-act="pinbox" data-p="' + id + '">' + plural(bo.length, 'decision') + ' waiting</a>' : '', esc(p.name), esc(p.purpose));
     if (p.total) h += '<p class="bignum">' + p.pct + '% done <span class="bignum-ref">' + p.done + ' of ' + plural(p.total, 'item') + '</span></p><p class="muted small">' + leftText(p) + (p.lastActivity ? ' · last activity ' + esc(p.lastActivity) : '') + '</p><div class="wbar" style="max-width:420px"><span class="m" style="width:' + p.pct + '%"></span><span class="c"></span></div>';
     else h += '<p class="bignum">about ' + p.coarseWeeks + ' weeks</p><p class="muted small">nothing started yet; the estimate is coarse</p>';
@@ -1209,7 +1281,7 @@
       (p.sessionsNow && p.sessionsNow.length) ? drill('Sessions now', plural(p.sessionsNow.length, 'session') + ' working', '<div class="list">' + p.sessionsNow.map(function (sid) { var sx = D.sessions[sid]; return sx ? '<a class="li link" href="#/session/' + sid + '"><span class="li-main">' + esc(sx.title) + '</span><span class="li-meta">' + esc(stateLabel(sx)) + ' · ' + fmtMin(sx.minutes) + '</span></a>' : ''; }).join('') + '</div>') : '',
       bo.length ? drill('Waiting on you', plural(bo.length, 'card'), '<div class="list">' + bo.map(function (c) { return '<a class="li link" href="#/card/' + c + '"><span class="li-main">' + esc(D.cards[c].headline) + '</span><span class="li-meta">unblocks about ' + fmtMin(D.cards[c].weight) + '</span></a>'; }).join('') + '</div>', { attn: true }) : '',
       p.criticalPath ? drill('Critical path', plural(p.criticalPath.length, 'node') + ' in a row', '<div class="critical">' + p.criticalPath.map(function (r, i) { return (i ? '<span class="arrow">→</span>' : '') + chip(r); }).join('') + '</div>') : '',
-      '',
+      drill('Documents', pdocs.length ? plural(pdocs.length, 'document') + (pdocs.some(function (d) { return D.documents[d].item; }) ? ', the items\' included' : '') : 'none', pdocs.length ? '<div class="list">' + pdocs.map(function (d) { return docRow(d, id); }).join('') + '</div>' : empty('No documents', 'Design pages and references recorded on this project and its items appear here and open in this pane.')),
       drill('FPBs', (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? (p.fpbOpen ? p.fpbOpen + ' open of ' : 'all done, ') + plural(l.length, 'FPB') : 'none'; })(), (function () { var l = fpbList().filter(function (i) { return D.fpbs[i].project === id; }); return l.length ? '<div class="slist">' + l.map(function (i) { return issueRow(i); }).join('') + '</div>' : empty('No issues', 'Features, bugs and performance problems on this project\'s tasks appear here.'); })()),
       drill('Rulings', plural(rs.length, 'ruling'), rs.length ? '<div class="list">' + rs.map(function (r) { return '<a class="li link" href="#/ruling/' + r + '"><span class="li-main">' + esc(D.rulings[r].title) + '</span></a>'; }).join('') + '</div>' : empty('No rulings', 'Rulings recorded on this project appear here.'))
     ]);
@@ -2116,6 +2188,7 @@
       case 'card': return det('inbox', b, function () { return vCard(b, q); });
       case 'work': if (q.view) S.work.view = q.view; return { section: 'work', wide: true, page: function () { return vWork(b); } };
       case 'item': return det('work', b, function () { return vItem(b, c); });
+      case 'doc': return det('work', D.documents[b] && D.documents[b].item, function () { return vDoc(b); });
       case 'issues': return { section: 'issues', list: true };
       case 'fpb': return det('issues', b, function () { return vFpb(b, c); });
       case 'run': return det('work', D.runs[b] && D.runs[b].item, function () { return vRun(b); });
@@ -2175,11 +2248,11 @@
     shell.classList.toggle('wide', !!r.wide);
     if (S.layout === 'desktop') {
       shell.classList.remove('show-detail');
-      if (r.wide) { list.innerHTML = ''; det.innerHTML = (r.page || r.detail)(); }
-      else { var d = r.detail || defaultFor(r); list.innerHTML = listFor(r); det.innerHTML = d(); }
+      if (r.wide) { list.innerHTML = ''; put(det, (r.page || r.detail)(), keep); }
+      else { var d = r.detail || defaultFor(r); list.innerHTML = listFor(r); put(det, d(), keep); }
     } else {
-      if (r.list || r.page) { det.innerHTML = ''; list.innerHTML = r.page ? r.page() : listFor(r); shell.classList.remove('show-detail'); }
-      else { list.innerHTML = ''; det.innerHTML = r.detail(); shell.classList.add('show-detail'); }
+      if (r.list || r.page) { det.innerHTML = ''; put(list, r.page ? r.page() : listFor(r), keep); shell.classList.remove('show-detail'); }
+      else { list.innerHTML = ''; put(det, r.detail(), keep); shell.classList.add('show-detail'); }
     }
     wasOpen.forEach(function (i) { var d = document.getElementById(i); if (d) d.open = true; });
     list.scrollTop = st[0]; det.scrollTop = st[1];
@@ -2257,6 +2330,7 @@
       case 'opennode': var co = canOpen(dv.node); if (co.ok) { closeLayers(); if (co.openProject) WBAPI.openProject(dv.node).then(function () { location.hash = co.go; }); else if (co.open) WBAPI.patchItem(dv.node, { open: true }).then(function () { location.hash = co.go; }); else location.hash = co.go; } else toast(esc(co.why)); return true;
       case 'additem': addItemSheet(dv.node); return true;
       case 'openwindow': closeLayers(); toast('Preparing a second folder on the item\'s branch…'); WBAPI.window(dv.node); return true;
+      case 'doc-editor': WBAPI.docOpen(dv.doc); return true;
       case 'found-task': var fx = D.found[dv.f]; var pkf = D.sessions[fx.session] && D.sessions[fx.session].packet; if (pkf) WBAPI.press(parseRef(pkf).id, 'found-task', { target: dv.f }); toast('Sorted as Task · place it in the tree to add it'); addItemSheet(fx.suggest || fx.item, { kind: fx.kind === 'FTR' || fx.kind === 'BUG' || fx.kind === 'PER' ? 'task' : 'task', title: fx.title, from: 'found:' + dv.f }); return true;
       case 'report-edit': openMenu(el, reportEditMenu(dv.fpb)); return true;
       case 'report-edit-x': closeLayers(); reportEditSheet(dv.fpb, dv.v); return true;

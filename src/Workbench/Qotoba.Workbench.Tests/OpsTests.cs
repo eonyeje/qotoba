@@ -42,6 +42,14 @@ public sealed class FakeClock : IClock { public DateTimeOffset Now { get; set; }
 public sealed class FakeHost : IHostClient
 {
     public Task<string?> ReadLinesAsync(string machineId, string checkout, string file, int from, int to, CancellationToken ct = default) => Task.FromResult<string?>("line");
+    /// <summary>The files the fake machine holds, keyed "checkout|file"; the last read says which checkout was asked.</summary>
+    public Dictionary<string, string> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<string> Reads { get; } = [];
+    public Task<HostFile?> ReadFileAsync(string machineId, string checkout, string file, CancellationToken ct = default)
+    {
+        Reads.Add(checkout + "|" + file);
+        return Task.FromResult(Files.TryGetValue(checkout + "|" + file, out var body) ? new HostFile(System.Text.Encoding.UTF8.GetBytes(body), "text/html") : null);
+    }
     public Task<bool> IsOnlineAsync(string machineId, CancellationToken ct = default) => Task.FromResult(true);
     public Task<bool> OpenAsync(string machineId, string file, int line, CancellationToken ct = default) => Task.FromResult(true);
     public string? Branch { get; set; }
@@ -286,6 +294,50 @@ public class OpsTests : IDisposable
         await f.Ops().WithdrawRulingAsync(r.Id, "no longer true");
         Assert.DoesNotContain("A virtual window does one thing", await f.Ops().BriefAsync("s1"));
         using var db = f.Db();
+        Assert.Empty(db.Cards);
+    }
+
+    [Fact]
+    public async Task ADecisionNamedByProjectCodeLandsOnTheProjectById()
+    {
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Design QDL", "lang", null, null, null), Actor.Owner);
+        await f.SessionOnAsync("s1", "LNG-1");
+        var byCode = await f.Ops().RecordDecisionAsync("s1", "Never refer to tasks by their ids.", null, "LNG");
+        var byId = await f.Ops().RecordDecisionAsync("s1", "Only I can initiate a rule being removed.", null, "wb");
+        var mine = await f.Ops().RecordDecisionAsync("s1", "Rulings are process, not results.", null, null);
+        var wrong = await f.Ops().RecordDecisionAsync("s1", "A code nobody knows still records.", null, "NOPE");
+        Assert.Equal("lang", byCode.ProjectId);
+        Assert.Equal("wb", byId.ProjectId);
+        Assert.Equal("lang", mine.ProjectId);
+        Assert.Equal("lang", wrong.ProjectId);
+    }
+
+    [Fact]
+    public async Task ADecisionIsWithdrawnOnTheOwnersWordAndStaysInHistoryStruckThrough()
+    {
+        await f.Ops().AddItemAsync(new AddItemRequest("task", "Design QDL", "wb", null, null, null), Actor.Owner);
+        await f.SessionOnAsync("s1", "WB-1");
+        var old = await f.Ops().RecordDecisionAsync("s1", "Variables in QDL are written as label = part.", null, null);
+        var now = await f.Ops().RecordDecisionAsync("s1", "Variables in QDL are written with a dollar sign, $body.", null, null);
+        Assert.Contains("label = part", await f.Ops().BriefAsync("s1"));
+
+        // never on Claude's own judgement: the reason is the owner's words, and a decision cannot replace itself
+        await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().WithdrawDecisionAsync("s1", old.Id, " ", null));
+        await Assert.ThrowsAsync<WorkbenchRuleException>(() => f.Ops().WithdrawDecisionAsync("s1", old.Id, "owner: superseded", old.Id));
+
+        var msg = await f.Ops().WithdrawDecisionAsync("s1", old.Id, "owner: rulings are process, not design results; the dollar sign stands", now.Id);
+        Assert.Contains($"replaced by {now.Id}", msg);
+        var brief = await f.Ops().BriefAsync("s1");
+        Assert.DoesNotContain("label = part", brief);
+        Assert.Contains("dollar sign", brief);
+        using var db = f.Db();
+        var r = await db.Rulings.FindAsync(old.Id);
+        Assert.NotNull(r);                                   // history keeps it
+        Assert.NotNull(r!.WithdrawnAt);
+        Assert.Equal(now.Id, r.SupersededById);
+        Assert.StartsWith("owner:", r.WithdrawnWhy);
+        var item = await db.Items.FindAsync("WB-1");
+        Assert.Contains("withdrawn", item!.HistoryJson);
         Assert.Empty(db.Cards);
     }
 
